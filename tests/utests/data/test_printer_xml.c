@@ -12,10 +12,7 @@
  *     https://opensource.org/licenses/BSD-3-Clause
  */
 
-#include <stdarg.h>
-#include <stddef.h>
-#include <setjmp.h>
-#include <cmocka.h>
+#include "../macros.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,105 +55,92 @@ logger(LY_LOG_LEVEL level, const char *msg, const char *path)
 }
 #endif
 
-static int
-setup(void **state)
-{
-    struct state_s *s;
-    const char *schema_a = "module defs {namespace urn:tests:defs;prefix d;yang-version 1.1;"
-            "identity crypto-alg; identity interface-type; identity ethernet {base interface-type;} identity fast-ethernet {base ethernet;}}";
-    const char *schema_b = "module types {namespace urn:tests:types;prefix t;yang-version 1.1; import defs {prefix defs;}"
-            "feature f; identity gigabit-ethernet { base defs:ethernet;}"
-            "container cont {leaf leaftarget {type empty;}"
-                            "list listtarget {key id; max-elements 5;leaf id {type uint8;} leaf value {type string;}"
-                                             "action test {input {leaf a {type string;}} output {leaf b {type string;}}}}"
-                            "leaf-list leaflisttarget {type uint8; max-elements 5;}}"
-            "list list {key id; leaf id {type string;} leaf value {type string;} leaf-list targets {type string;}}"
-            "list list2 {key \"id value\"; leaf id {type string;} leaf value {type string;}}"
-            "list list_inst {key id; leaf id {type instance-identifier {require-instance true;}} leaf value {type string;}}"
-            "list list_ident {key id; leaf id {type identityref {base defs:interface-type;}} leaf value {type string;}}"
-            "leaf-list leaflisttarget {type string;}"
-            "leaf binary {type binary {length 5 {error-message \"This base64 value must be of length 5.\";}}}"
-            "leaf binary-norestr {type binary;}"
-            "leaf int8 {type int8 {range 10..20;}}"
-            "leaf uint8 {type uint8 {range 150..200;}}"
-            "leaf int16 {type int16 {range -20..-10;}}"
-            "leaf uint16 {type uint16 {range 150..200;}}"
-            "leaf int32 {type int32;}"
-            "leaf uint32 {type uint32;}"
-            "leaf int64 {type int64;}"
-            "leaf uint64 {type uint64;}"
-            "leaf bits {type bits {bit zero; bit one {if-feature f;} bit two;}}"
-            "leaf enums {type enumeration {enum white; enum yellow {if-feature f;}}}"
-            "leaf dec64 {type decimal64 {fraction-digits 1; range 1.5..10;}}"
-            "leaf dec64-norestr {type decimal64 {fraction-digits 18;}}"
-            "leaf str {type string {length 8..10; pattern '[a-z ]*';}}"
-            "leaf str-norestr {type string;}"
-            "leaf bool {type boolean;}"
-            "leaf empty {type empty;}"
-            "leaf ident {type identityref {base defs:interface-type;}}"
-            "leaf inst {type instance-identifier {require-instance true;}}"
-            "leaf inst-noreq {type instance-identifier {require-instance false;}}"
-            "leaf lref {type leafref {path /leaflisttarget; require-instance true;}}"
-            "leaf lref2 {type leafref {path \"../list[id = current()/../str-norestr]/targets\"; require-instance true;}}"
-            "leaf un1 {type union {"
-              "type leafref {path /int8; require-instance true;}"
-              "type union { type identityref {base defs:interface-type;} type instance-identifier {require-instance true;} }"
-              "type string {length 1..20;}}}"
-            "anydata any;"
-            "rpc sum {input {leaf x {type uint8;} leaf y {type uint8;}} output {leaf result {type uint16;}}}}";
-    const char *schema_c =
-    "module defaults {"
-        "namespace \"urn:defaults\";"
-        "prefix d;"
-        "leaf a {"
-            "type union {"
-                "type instance-identifier;"
-                "type string;"
-            "}"
-            "default \"/d:b\";"
-        "}"
-        "leaf b {"
+
+const char *schema_a = "module defs {namespace urn:tests:defs;prefix d;yang-version 1.1;"
+        "identity crypto-alg; identity interface-type; identity ethernet {base interface-type;} identity fast-ethernet {base ethernet;}}";
+const char *schema_b = "module types {namespace urn:tests:types;prefix t;yang-version 1.1; import defs {prefix defs;}"
+        "feature f; identity gigabit-ethernet { base defs:ethernet;}"
+        "container cont {leaf leaftarget {type empty;}"
+                        "list listtarget {key id; max-elements 5;leaf id {type uint8;} leaf value {type string;}"
+                                         "action test {input {leaf a {type string;}} output {leaf b {type string;}}}}"
+                        "leaf-list leaflisttarget {type uint8; max-elements 5;}}"
+        "list list {key id; leaf id {type string;} leaf value {type string;} leaf-list targets {type string;}}"
+        "list list2 {key \"id value\"; leaf id {type string;} leaf value {type string;}}"
+        "list list_inst {key id; leaf id {type instance-identifier {require-instance true;}} leaf value {type string;}}"
+        "list list_ident {key id; leaf id {type identityref {base defs:interface-type;}} leaf value {type string;}}"
+        "leaf-list leaflisttarget {type string;}"
+        "leaf binary {type binary {length 5 {error-message \"This base64 value must be of length 5.\";}}}"
+        "leaf binary-norestr {type binary;}"
+        "leaf int8 {type int8 {range 10..20;}}"
+        "leaf uint8 {type uint8 {range 150..200;}}"
+        "leaf int16 {type int16 {range -20..-10;}}"
+        "leaf uint16 {type uint16 {range 150..200;}}"
+        "leaf int32 {type int32;}"
+        "leaf uint32 {type uint32;}"
+        "leaf int64 {type int64;}"
+        "leaf uint64 {type uint64;}"
+        "leaf bits {type bits {bit zero; bit one {if-feature f;} bit two;}}"
+        "leaf enums {type enumeration {enum white; enum yellow {if-feature f;}}}"
+        "leaf dec64 {type decimal64 {fraction-digits 1; range 1.5..10;}}"
+        "leaf dec64-norestr {type decimal64 {fraction-digits 18;}}"
+        "leaf str {type string {length 8..10; pattern '[a-z ]*';}}"
+        "leaf str-norestr {type string;}"
+        "leaf bool {type boolean;}"
+        "leaf empty {type empty;}"
+        "leaf ident {type identityref {base defs:interface-type;}}"
+        "leaf inst {type instance-identifier {require-instance true;}}"
+        "leaf inst-noreq {type instance-identifier {require-instance false;}}"
+        "leaf lref {type leafref {path /leaflisttarget; require-instance true;}}"
+        "leaf lref2 {type leafref {path \"../list[id = current()/../str-norestr]/targets\"; require-instance true;}}"
+        "leaf un1 {type union {"
+          "type leafref {path /int8; require-instance true;}"
+          "type union { type identityref {base defs:interface-type;} type instance-identifier {require-instance true;} }"
+          "type string {length 1..20;}}}"
+        "anydata any;"
+        "rpc sum {input {leaf x {type uint8;} leaf y {type uint8;}} output {leaf result {type uint16;}}}}";
+const char *schema_c =
+"module defaults {"
+    "namespace \"urn:defaults\";"
+    "prefix d;"
+    "leaf a {"
+        "type union {"
+            "type instance-identifier;"
             "type string;"
         "}"
-        "leaf c {"
-            "type string;"
-        "}"
-    "}";
+        "default \"/d:b\";"
+    "}"
+    "leaf b {"
+        "type string;"
+    "}"
+    "leaf c {"
+        "type string;"
+    "}"
+"}";
 
-    s = calloc(1, sizeof *s);
-    assert_non_null(s);
 
-#if ENABLE_LOGGER_CHECKING
-    ly_set_log_clb(logger, 1);
-#endif
 
-    assert_int_equal(LY_SUCCESS, ly_ctx_new(TESTS_DIR_MODULES_YANG, 0, &s->ctx));
-    assert_non_null(ly_ctx_load_module(s->ctx, "ietf-netconf-with-defaults", "2011-06-01", NULL));
-    assert_int_equal(LY_SUCCESS, lys_parse_mem(s->ctx, schema_a, LYS_IN_YANG, NULL));
-    assert_int_equal(LY_SUCCESS, lys_parse_mem(s->ctx, schema_b, LYS_IN_YANG, NULL));
-    assert_int_equal(LY_SUCCESS, lys_parse_mem(s->ctx, schema_c, LYS_IN_YANG, NULL));
 
-    *state = s;
+#define CONTEXT_CREATE \
+                CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG);\
+                assert_non_null(ly_ctx_load_module(CONTEXT_GET, "ietf-netconf-with-defaults", "2011-06-01", NULL));\
+                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, NULL));\
+                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_b, LYS_IN_YANG, NULL));\
+                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_c, LYS_IN_YANG, NULL));\
+                ly_set_log_clb(logger, 1)
 
-    return 0;
-}
 
-static int
-teardown(void **state)
-{
-    struct state_s *s = (struct state_s*)(*state);
+#define MODEL_CREATE(INPUT, MODEL) \
+                MODEL_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
 
-#if ENABLE_LOGGER_CHECKING
-    if (s->func) {
-        fprintf(stderr, "%s\n", logbuf);
-    }
-#endif
+#define PARSER_CHECK_ERROR(INPUT, PARSE_OPTION, MODEL, RET_VAL, ERR_MESSAGE) \
+                assert_int_equal(RET_VAL, lyd_parse_data_mem(CONTEXT_GET, data, LYD_XML, PARSE_OPTION, LYD_VALIDATE_PRESENT, &MODEL));\
+                logbuf_assert(ERR_MESSAGE);\
+                assert_null(MODEL)
 
-    ly_ctx_destroy(s->ctx, NULL);
-    free(s);
 
-    return 0;
-}
+#define MODEL_CHECK_CHAR(IN_MODEL, TEXT, PARAM) \
+                MODEL_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_XML, PARAM | LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
+
 
 void
 logbuf_clean(void)
@@ -173,57 +157,42 @@ logbuf_clean(void)
 static void
 test_leaf(void **state)
 {
-    struct state_s *s = (struct state_s*)(*state);
+    (void) state;
     struct lyd_node *tree;
     const char *data;
     const char *result;
-    char *printed;
-    struct ly_out *out;
 
-    s->func = test_leaf;
-    assert_int_equal(LY_SUCCESS, ly_out_new_memory(&printed, 0, &out));
+    CONTEXT_CREATE;
 
     data = "<int8 xmlns=\"urn:tests:types\">\n 15 \t\n  </int8>";
     result = "<int8 xmlns=\"urn:tests:types\">15</int8>";
-    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(s->ctx, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
-    assert_int_equal(LY_SUCCESS, lyd_print_tree(out, tree, LYD_XML, LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
-    assert_string_equal(printed, result);
-    lyd_free_all(tree);
+    MODEL_CREATE(data, tree);
+    MODEL_CHECK_CHAR(tree, result, LYD_PRINT_SHRINK);
+    MODEL_DESTROY(tree);
 
-    ly_out_free(out, NULL, 1);
-    s->func = NULL;
+    CONTEXT_DESTROY;
 }
 
 static void
 test_anydata(void **state)
 {
-    struct state_s *s = (struct state_s*)(*state);
+    (void)(state);
     struct lyd_node *tree;
     const char *data;
-    char *printed;
-    struct ly_out *out;
 
-    s->func = test_anydata;
-    assert_int_equal(LY_SUCCESS, ly_out_new_memory(&printed, 0, &out));
+    CONTEXT_CREATE;
 
     data = "<any xmlns=\"urn:tests:types\"><somexml xmlns:x=\"url:x\" xmlns=\"example.com\"><x:x/></somexml></any>";
-    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(s->ctx, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
-    assert_int_equal(LY_SUCCESS, lyd_print_tree(out, tree, LYD_XML, LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
+    MODEL_CREATE(data, tree);
     /* canonized */
     data = "<any xmlns=\"urn:tests:types\"><somexml xmlns=\"example.com\"><x xmlns=\"url:x\"/></somexml></any>";
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
-    lyd_free_all(tree);
+    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_SHRINK);
+    MODEL_DESTROY(tree);
 
     data = "<any xmlns=\"urn:tests:types\"/>";
-    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(s->ctx, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
-    assert_int_equal(LY_SUCCESS, lyd_print_tree(out, tree, LYD_XML, LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
-    lyd_free_all(tree);
+    MODEL_CREATE(data, tree);
+    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_SHRINK);
+    MODEL_DESTROY(tree);
 
     data =
         "<any xmlns=\"urn:tests:types\">"
@@ -234,15 +203,13 @@ test_anydata(void **state)
                 "</defs:elem1>"
             "</cont>"
         "</any>";
-    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(s->ctx, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
+    MODEL_CREATE(data, tree);
     /* cont should be normally parsed */
-    assert_string_equal(tree->schema->name, "any");
-    assert_int_equal(((struct lyd_node_any *)tree)->value_type, LYD_ANYDATA_DATATREE);
-    assert_string_equal(((struct lyd_node_any *)tree)->value.tree->schema->name, "cont");
+    LYSC_NODE_CHECK(tree->schema, LYS_ANYDATA, "any");
+    LYD_NODE_ANY_CHECK((struct lyd_node_any *)tree, LYD_ANYDATA_DATATREE);
+    LYSC_NODE_CHECK(((struct lyd_node_any *)tree)->value.tree->schema, LYS_CONTAINER, "cont");
     /* but its children not */
     assert_null(((struct lyd_node_inner *)(((struct lyd_node_any *)tree)->value.tree))->child->schema);
-    assert_int_equal(LY_SUCCESS, lyd_print_tree(out, tree, LYD_XML, LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
     /* canonized */
     data =
         "<any xmlns=\"urn:tests:types\">"
@@ -253,122 +220,82 @@ test_anydata(void **state)
                 "</elem1>"
             "</cont>"
         "</any>";
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
+    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_SHRINK);
 
-    lyd_free_all(tree);
-
-    ly_out_free(out, NULL, 1);
-    s->func = NULL;
+    MODEL_DESTROY(tree);
+    CONTEXT_DESTROY;
 }
 
 static void
 test_defaults(void **state)
 {
-    struct state_s *s = (struct state_s*)(*state);
+    (void) state;
     struct lyd_node *tree;
     const char *data;
-    char *printed;
-    struct ly_out *out;
+    const char *data_trim;
+    const char *data_all;
+    const char *data_all_tag;
+    const char *data_impl_tag;
 
-    s->func = test_defaults;
-
-    assert_int_equal(LY_SUCCESS, ly_out_new_memory(&printed, 0, &out));
+    CONTEXT_CREATE;
 
     /* standard default value */
     data = "<c xmlns=\"urn:defaults\">aa</c>";
-    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(s->ctx, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
+    MODEL_CREATE(data, tree);
+    ROOT_GET(tree);
+    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_TRIM);
 
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_TRIM | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
-
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_ALL | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
     data = "<a xmlns=\"urn:defaults\" xmlns:d=\"urn:defaults\">/d:b</a><c xmlns=\"urn:defaults\">aa</c>";
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
+    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL);
 
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_ALL_TAG | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
     data = "<a xmlns=\"urn:defaults\" xmlns:ncwd=\"urn:ietf:params:xml:ns:yang:ietf-netconf-with-defaults\""
         " ncwd:default=\"true\" xmlns:d=\"urn:defaults\">/d:b</a>"
         "<c xmlns=\"urn:defaults\">aa</c>";
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
+    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL_TAG);
 
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_IMPL_TAG | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
     data = "<a xmlns=\"urn:defaults\" xmlns:ncwd=\"urn:ietf:params:xml:ns:yang:ietf-netconf-with-defaults\""
         " ncwd:default=\"true\" xmlns:d=\"urn:defaults\">/d:b</a>"
         "<c xmlns=\"urn:defaults\">aa</c>";
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
-
-    lyd_free_all(tree);
+    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_IMPL_TAG);
+    MODEL_DESTROY(tree);
 
     /* string value equal to the default but default is an unresolved instance-identifier, so they are not considered equal */
     data = "<a xmlns=\"urn:defaults\">/d:b</a><c xmlns=\"urn:defaults\">aa</c>";
-    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(s->ctx, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
+    MODEL_CREATE(data, tree);
+    ROOT_GET(tree);
+    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_TRIM);
 
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_TRIM | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
+    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL);
 
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_ALL | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
+    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL_TAG);
 
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_ALL_TAG | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
+    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_IMPL_TAG);
+    MODEL_DESTROY(tree);
 
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_IMPL_TAG | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
-
-    lyd_free_all(tree);
 
     /* instance-identifier value equal to the default, should be considered equal */
     data = "<a xmlns=\"urn:defaults\" xmlns:d=\"urn:defaults\">/d:b</a><b xmlns=\"urn:defaults\">val</b><c xmlns=\"urn:defaults\">aa</c>";
-    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(s->ctx, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
-
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_TRIM | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
-    data = "<b xmlns=\"urn:defaults\">val</b><c xmlns=\"urn:defaults\">aa</c>";
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
-
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_ALL | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
-    data = "<a xmlns=\"urn:defaults\" xmlns:d=\"urn:defaults\">/d:b</a><b xmlns=\"urn:defaults\">val</b><c xmlns=\"urn:defaults\">aa</c>";
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
-
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_ALL_TAG | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
-    data = "<a xmlns=\"urn:defaults\" xmlns:ncwd=\"urn:ietf:params:xml:ns:yang:ietf-netconf-with-defaults\""
+    data_trim = "<b xmlns=\"urn:defaults\">val</b><c xmlns=\"urn:defaults\">aa</c>";
+    data_all  = "<a xmlns=\"urn:defaults\" xmlns:d=\"urn:defaults\">/d:b</a><b xmlns=\"urn:defaults\">val</b><c xmlns=\"urn:defaults\">aa</c>";
+    data_all_tag = "<a xmlns=\"urn:defaults\" xmlns:ncwd=\"urn:ietf:params:xml:ns:yang:ietf-netconf-with-defaults\""
         " ncwd:default=\"true\" xmlns:d=\"urn:defaults\">/d:b</a>"
         "<b xmlns=\"urn:defaults\">val</b>"
         "<c xmlns=\"urn:defaults\">aa</c>";
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
+    data_impl_tag = "<a xmlns=\"urn:defaults\" xmlns:d=\"urn:defaults\">/d:b</a><b xmlns=\"urn:defaults\">val</b><c xmlns=\"urn:defaults\">aa</c>";
 
-    assert_int_equal(LY_SUCCESS, lyd_print_all(out, tree, LYD_XML, LYD_PRINT_WD_IMPL_TAG | LYD_PRINT_SHRINK));
-    assert_int_equal(strlen(printed), ly_out_printed(out));
-    data = "<a xmlns=\"urn:defaults\" xmlns:d=\"urn:defaults\">/d:b</a><b xmlns=\"urn:defaults\">val</b><c xmlns=\"urn:defaults\">aa</c>";
-    assert_string_equal(printed, data);
-    ly_out_reset(out);
+    MODEL_CREATE(data, tree);
+    ROOT_GET(tree);
+    MODEL_CHECK_CHAR(tree, data_trim, LYD_PRINT_WD_TRIM);
 
-    lyd_free_all(tree);
-    ly_out_free(out, NULL, 1);
+    MODEL_CHECK_CHAR(tree, data_all, LYD_PRINT_WD_ALL);
 
-    s->func = NULL;
+    MODEL_CHECK_CHAR(tree, data_all_tag, LYD_PRINT_WD_ALL_TAG);
+
+    MODEL_CHECK_CHAR(tree, data_impl_tag, LYD_PRINT_WD_IMPL_TAG);
+    MODEL_DESTROY(tree);
+
+
+    CONTEXT_DESTROY;
 }
 
 #if 0
@@ -459,9 +386,9 @@ test_rpc(void **state)
 int main(void)
 {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test_setup_teardown(test_leaf, setup, teardown),
-        cmocka_unit_test_setup_teardown(test_anydata, setup, teardown),
-        cmocka_unit_test_setup_teardown(test_defaults, setup, teardown),
+        cmocka_unit_test(test_leaf),
+        cmocka_unit_test(test_anydata),
+        cmocka_unit_test(test_defaults),
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);
