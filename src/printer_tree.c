@@ -418,6 +418,45 @@ trc_print_data_node(struct tree_ctx *ctx, const struct lysc_node *node, const st
 
 }
 
+/**
+ * @brief Used to define arbitrary whitespace length between <opts> and <type>.
+ *
+ * The <type> is the name of the type for leafs and leaf-lists. Therefore, the alignment will only be addressed for them.
+ * 
+ * @param[in] im_sibling The first node of the siblings.
+ * @return Longest name of one of the siblings.
+ * @return 0 if the sibling is not leafs or leaf-lists.
+ */
+static uint16_t
+trc_get_max_name_len(struct lysc_node *im_sibling)
+{
+    struct lysc_node *iter;
+    uint16_t max_name_len = 0;
+
+    LY_LIST_FOR(im_sibling, iter) {
+        uint16_t nodetype = iter->nodetype;
+        uint16_t name_len = 0;
+
+        /* add characters for optional opts and name */
+        switch (nodetype) {
+        case LYS_LEAF:
+            /* "?" */
+        case LYS_LEAFLIST:
+            /* "*" */
+        case LYS_LIST:
+            /* "*" */
+            name_len = strlen(iter->name);
+            name_len++;
+        default:
+            break;
+        }
+
+        max_name_len = name_len > max_name_len ? name_len : max_name_len;
+    }
+
+    return max_name_len;
+}
+
 static void
 trb_print_module_body(struct tree_ctx *ctx)
 {
