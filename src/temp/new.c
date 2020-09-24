@@ -4,6 +4,17 @@
 
 /* ----------- <Definition of printer functions> ----------- */
 
+void trp_injected_strlen(void *out, int arg_count, ...)
+{
+    trt_counter* cnt = (trt_counter*)out;
+
+    va_list ap;
+    va_start(ap, arg_count);
+    for(int i = 0; i < arg_count; i++)
+        cnt->bytes += strlen(va_arg(ap, char*));
+    va_end(ap);
+}
+
 trt_node_name trp_empty_node_name()
 {
     trt_node_name ret;
@@ -197,83 +208,6 @@ void trp_print_node(trt_node a, const struct trt_tree_ctx* ctx, struct trt_fp_pr
     trt_cf_print_keys cf_print_iffeatures = {ctx, fps.print_features_names};
     trp_print_iffeatures(a.iffeatures, cf_print_iffeatures, p);
 }
-
-uint32_t trp_strlen_node_name(trt_node_name a)
-{
-    if(trp_node_name_is_empty(a))
-        return 0;
-
-    int prefSuff = 0;
-    switch(a.type) {
-    case trd_node_type_else:
-        prefSuff = 0;
-        break;
-    case trd_node_type_choice:
-        prefSuff = strlen(trd_node_name_prefix_choice) + strlen(trd_node_name_suffix_choice);
-        break;
-    case trd_node_type_case:
-        prefSuff = strlen(trd_node_name_prefix_case) + strlen(trd_node_name_suffix_case);
-        break;
-    default:
-        break;
-    }
-    return strlen(a.module_prefix) + strlen(a.str) + prefSuff;
-}
-
-
-uint32_t trp_strlen_opts(trt_opts a, trt_cf_strlen_keys cf)
-{
-    if(trp_opts_is_empty(a))
-        return 0;
-
-    uint32_t ret = 0;
-    switch(a.type) {
-    case trd_opts_type_empty:
-        ret = 0;
-        break;
-    case trd_opts_type_mark:
-        ret = strlen(a.mark);
-        break;
-    case trd_opts_type_keys:
-        ret = strlen(trd_opts_keys_prefix) + strlen(trd_opts_keys_suffix) + cf.pf(cf.ctx);
-        break;
-    default:
-        break;
-    }
-
-    return ret;
-}
-
-uint32_t trp_strlen_type(trt_type a)
-{
-    if(trp_type_is_empty(a))
-        return 0;
-
-    uint32_t ret = 0;
-    switch(a.type) {
-    case trd_type_type_target:
-        ret = strlen(trd_type_target_prefix) + strlen(a.target);
-        break;
-    case trd_type_type_leafref:
-        ret = strlen(trd_type_leafref);
-        break;
-    default:
-        break;
-    }
-
-    return ret;
-}
-
-
-uint32_t trp_strlen_iffeatures(trt_iffeature a, trt_cf_strlen_iffeatures cf)
-{
-    if(trp_iffeature_is_empty(a))
-        return 0;
-
-    uint32_t ret = strlen(trd_iffeatures_prefix) + cf.pf(cf.ctx) + strlen(trd_iffeatures_suffix);
-    return ret;
-}
-
 
 /* ----------- <Definition of tree functions> ----------- */
 
