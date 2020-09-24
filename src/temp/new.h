@@ -24,8 +24,6 @@ struct trt_fp_read;
 struct trt_fp_crawl;
 struct trt_fp_print;
 
-typedef const char* const ccc;
-
 /**
  * @brief General function for printing
  *
@@ -39,7 +37,8 @@ typedef struct
 {
     void* out;
     trt_print_func pf;
-} trt_printing;
+} trt_printing,
+  trt_injecting_strlen;
 
 typedef struct 
 {
@@ -48,14 +47,20 @@ typedef struct
 } trt_cf_print_keys,
   trt_cf_print_iffeatures;
 
-typedef struct 
-{
-    const struct trt_tree_ctx* ctx;
-    uint32_t (*pf)(const struct trt_tree_ctx *);
-} trt_cf_strlen_keys,
-  trt_cf_strlen_iffeatures;
-
 typedef uint32_t trt_printer_opts;
+
+typedef struct
+{
+    uint32_t bytes;
+} trt_counter;
+
+/**
+ * @brief Function that counts the characters to be printed instead of printing
+ *
+ * @param[in,out] out it is expected to be type trt_counter
+ * @param[in] arg_count number of arguments in ...
+ */
+void trp_injected_strlen(void *out, int arg_count, ...);
 
 /* ================================ */
 /* ----------- <indent> ----------- */
@@ -124,12 +129,12 @@ typedef struct
 /* ================================== */
 
 typedef const char* trt_node_name_prefix;
-static ccc trd_node_name_prefix_choice = "(";
-static ccc trd_node_name_prefix_case = ":(";
+static const char trd_node_name_prefix_choice[] = "(";
+static const char trd_node_name_prefix_case[] = ":(";
 
 typedef const char* trt_node_name_suffix;
-static ccc trd_node_name_suffix_choice = ")";
-static ccc trd_node_name_suffix_case = ")";
+static const char trd_node_name_suffix_choice[] = ")";
+static const char trd_node_name_suffix_case[] = ")";
 
 typedef enum
 {
@@ -148,24 +153,23 @@ typedef struct
 trt_node_name trp_empty_node_name();
 bool trp_node_name_is_empty(trt_node_name);
 void trp_print_node_name(trt_node_name, trt_printing);
-uint32_t trp_strlen_node_name(trt_node_name);
 
 /* ============================== */
 /* ----------- <opts> ----------- */
 /* ============================== */
 
 typedef const char* trt_opts_mark;
-static ccc trd_opts_question_mark = "?"; /**< for an optional leaf, choice, anydata, or anyxml */ 
-static ccc trd_opts_container = "!";     /**< for a presence container */
-static ccc trd_opts_list = "*";          /**< for a leaf-list or list */
-static ccc trd_opts_slash = "/";         /**< for a top-level data node in a mounted module */
-static ccc trd_opts_at_sign = "@";       /**< for a top-level data node of a module identified in a mount point parent reference */
-static ccc trd_opts_empty = "";
+static const char trd_opts_question_mark[] = "?"; /**< for an optional leaf, choice, anydata, or anyxml */ 
+static const char trd_opts_container[] = "!";     /**< for a presence container */
+static const char trd_opts_list[] = "*";          /**< for a leaf-list or list */
+static const char trd_opts_slash[] = "/";         /**< for a top-level data node in a mounted module */
+static const char trd_opts_at_sign[] = "@";       /**< for a top-level data node of a module identified in a mount point parent reference */
+static const char trd_opts_empty[] = "";
 
 typedef const char* trt_opts_keys_prefix;
-static ccc trd_opts_keys_prefix = "[";
+static const char trd_opts_keys_prefix[] = "[";
 typedef const char* trt_opts_keys_suffix;
-static ccc trd_opts_keys_suffix = "]";
+static const char trd_opts_keys_suffix[] = "]";
 
 typedef enum
 {
@@ -189,16 +193,15 @@ bool trp_opts_is_empty(trt_opts);
  * @param[in] print_keys added function which finds and prints all keys
  */
 void trp_print_opts(trt_opts, trt_cf_print_keys, trt_printing);
-uint32_t trp_strlen_opts(trt_opts, trt_cf_strlen_keys);
 
 /* ============================== */
 /* ----------- <type> ----------- */
 /* ============================== */
 
 typedef const char* trt_type_leafref;
-static ccc trd_type_leafref = "leafref";
+static const char trd_type_leafref[] = "leafref";
 typedef const char* trt_type_target_prefix;
-static ccc trd_type_target_prefix = "-> ";
+static const char trd_type_target_prefix[] = "-> ";
 
 typedef enum
 {
@@ -216,16 +219,15 @@ typedef struct
 trt_type trp_empty_type();
 bool trp_type_is_empty(trt_type);
 void trp_print_type(trt_type, trt_printing);
-uint32_t trp_strlen_type(trt_type);
 
 /* ==================================== */
 /* ----------- <iffeatures> ----------- */
 /* ==================================== */
 
 typedef const char* trt_iffeatures_prefix;
-static ccc trd_iffeatures_prefix = "{";
+static const char trd_iffeatures_prefix[] = "{";
 typedef const char* trt_iffeatures_suffix;
-static ccc trd_iffeatures_suffix = "}?";
+static const char trd_iffeatures_suffix[] = "}?";
 typedef bool trt_iffeature;
 
 trt_iffeature trp_empty_iffeature();
@@ -237,26 +239,25 @@ bool trp_iffeature_is_empty(trt_iffeature);
  * @param[in] print_iffeatures added function which finds and prints all iffeatures
  */
 void trp_print_iffeatures(trt_iffeature, trt_cf_print_iffeatures, trt_printing);
-uint32_t trp_strlen_iffeatures(trt_iffeature, trt_cf_strlen_iffeatures);
 
 /* ============================== */
 /* ----------- <node> ----------- */
 /* ============================== */
 
 typedef const char* trt_status;
-static ccc trd_status_current = "+";
-static ccc trd_status_deprecated = "x";
-static ccc trd_status_obsolete = "o";
+static const char trd_status_current[] = "+";
+static const char trd_status_deprecated[] = "x";
+static const char trd_status_obsolete[] = "o";
 
 typedef const char* trt_flags;
-static ccc trd_flags_rw = "rw";
-static ccc trd_flags_ro = "ro";
-static ccc trd_flags_rpc_input_params = "-w";
-static ccc trd_flags_uses_of_grouping = "-u";
-static ccc trd_flags_rpc = "-x";
-static ccc trd_flags_notif = "-n";
-static ccc trd_flags_mount_point = "mp";
-static ccc trd_flags_empty = "";              /**<  Case nodes do not have any flags */
+static const char trd_flags_rw[] = "rw";
+static const char trd_flags_ro[] = "ro";
+static const char trd_flags_rpc_input_params[] = "-w";
+static const char trd_flags_uses_of_grouping[] = "-u";
+static const char trd_flags_rpc[] = "-x";
+static const char trd_flags_notif[] = "-n";
+static const char trd_flags_mount_point[] = "mp";
+static const char trd_flags_empty[] = "";              /**<  Case nodes do not have any flags */
 
 typedef struct
 {
@@ -274,22 +275,20 @@ bool trp_node_is_empty(trt_node);
 /* NOTE: If the node is a case node, there is no space before the <name> */
 void trp_print_node(trt_node, const struct trt_tree_ctx*, struct trt_fp_print, trt_indent_in_node, trt_printing);
 
-uint32_t trp_strlen_node(trt_node, struct trt_fp_crawl);
-
 /* =================================== */
 /* ----------- <statement> ----------- */
 /* =================================== */
 
 typedef const char* trt_top_keyword;
-static ccc trd_top_keyword_module = "module";
-static ccc trd_top_keyword_submodule = "submodule";
+static const char trd_top_keyword_module[] = "module";
+static const char trd_top_keyword_submodule[] = "submodule";
 
 typedef const char* trt_body_keyword;
-static ccc trd_body_keyword_augment = "augment";
-static ccc trd_body_keyword_rpc = "rpcs";
-static ccc trd_body_keyword_notif = "notifications";
-static ccc trd_body_keyword_grouping = "grouping";
-static ccc trd_body_keyword_yang_data = "yang-data";
+static const char trd_body_keyword_augment[] = "augment";
+static const char trd_body_keyword_rpc[] = "rpcs";
+static const char trd_body_keyword_notif[] = "notifications";
+static const char trd_body_keyword_grouping[] = "grouping";
+static const char trd_body_keyword_yang_data[] = "yang-data";
 
 typedef enum
 {
@@ -338,15 +337,6 @@ struct trt_fp_read
 };
 
 /**
- * @brief Functions that provide the number of characters that can be printed
- */
-struct trt_fp_crawl
-{
-    uint32_t (*strlen_features_names)(const struct trt_tree_ctx*);  /*<< count including spaces between names */
-    void (*strlen_keys)(const struct trt_tree_ctx *);               /*<< count including spaces between names */
-};
-
-/**
  * @brief Functions that provide printing themselves
  */
 struct trt_fp_print
@@ -362,7 +352,6 @@ struct trt_fp_all
 {
     struct trt_fp_modify_ctx modify;
     struct trt_fp_read read;
-    struct trt_fp_crawl crawl;
     struct trt_fp_print print;
 };
 
