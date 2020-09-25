@@ -12,31 +12,36 @@ namespace Out
 using std::vector;
 using std::string;
 
-class Out
+class VecStr
 {
     public:
 
-    Out(): data(){}
+    VecStr(): data(){}
 
-    Out(std::initializer_list<string> l): data(l){}
+    VecStr(std::initializer_list<string> l): data(l){}
 
-    Out& operator=(std::initializer_list<string> l)
+    VecStr& operator=(std::initializer_list<string> l)
     {
         data = l;
         return *this;
     }
 
-    bool operator==(Out const& other) const
+    bool operator==(VecStr const& other) const
     {
         return data == other.data;
     }
 
-    friend std::ostream& operator<<(std::ostream& os, Out const& out)
+    friend std::ostream& operator<<(std::ostream& os, VecStr const& out)
     {
-        os << string("\"");
-        for(auto const& item: out.data)
-            os << item;
-        os << string("\"");
+        os << string("{");
+        if(out.data.empty()) {
+            os << string("}");
+            return os;
+        }
+        for(auto iter = out.data.begin(); iter != std::prev(out.data.end()); ++iter)
+            os << *iter << string(",");
+
+        os << *std::prev(out.data.end()) << string("}");
         return os;
     }
 
@@ -64,17 +69,20 @@ class Out
     vector<string> data;
 };
 
-void print(void* out, int arg_count, va_list ap)
+void print_VecStr(void* out, int arg_count, va_list ap)
 {
-    Out& m_out = *(Out*)out;
+    VecStr& m_out = *(VecStr*)out;
 
     if(arg_count <= 0)
         return;
 
     for(int i = 0; i < arg_count; i++) {
-        string str = string(va_arg(ap, char*));
-        if(str.empty())
+
+        char* ptr = va_arg(ap, char*);
+        if(ptr == NULL || ptr[0] == '\0')
             continue;
+        string str = string(ptr);
+
         /* if str is space token */
         if(str[0] == ' ') { 
             /* if last stored token was space token */
@@ -91,9 +99,28 @@ void print(void* out, int arg_count, va_list ap)
                 /* add word token behind space token */
                 m_out.push_back(str);
             else
-                /* concatenate work token with word token */
-                m_out.back() += str;
+                /* concatenate word token with word token */
+                if(m_out.empty())
+                    m_out.push_back(str);
+                else
+                    m_out.back() += str;
         }
+    }
+}
+
+void print_string(void* out, int arg_count, va_list ap)
+{
+    string& m_out = *(string*)out;
+
+    if(arg_count <= 0)
+        return;
+
+    for(int i = 0; i < arg_count; i++) {
+
+        char* ptr = va_arg(ap, char*);
+        if(ptr == NULL || ptr[0] == '\0')
+            continue;
+        m_out += string(ptr);
     }
 }
 
