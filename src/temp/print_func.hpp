@@ -67,8 +67,6 @@ class Out
 void print(void* out, int arg_count, va_list ap)
 {
     Out& m_out = *(Out*)out;
-    string word;
-    string spaces;
 
     if(arg_count <= 0)
         return;
@@ -77,21 +75,26 @@ void print(void* out, int arg_count, va_list ap)
         string str = string(va_arg(ap, char*));
         if(str.empty())
             continue;
+        /* if str is space token */
         if(str[0] == ' ') { 
+            /* if last stored token was space token */
             if(!m_out.empty() && m_out.back()[0] == ' ')
+                /* concatenate space token to space token */
                 m_out.back() += str;
             else
-                spaces += str;
+                /* add space token behind word token */
+                m_out.push_back(str);
         } else {
-            word += spaces + str;
-            spaces = "";
+            /* str is word token */
+            /* if last stored token was space token */
+            if(!m_out.empty() && m_out.back()[0] == ' ')
+                /* add word token behind space token */
+                m_out.push_back(str);
+            else
+                /* concatenate work token with word token */
+                m_out.back() += str;
         }
     }
-
-    word += spaces;
-
-    if(!word.empty())
-        m_out.push_back(word);
 }
 
 }
