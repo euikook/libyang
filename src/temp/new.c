@@ -4,15 +4,93 @@
 
 /* ----------- <Definition of printer functions> ----------- */
 
-void trp_injected_strlen(void *out, int arg_count, ...)
+void trp_print(trt_printing p, int arg_count, ...)
+{
+    va_list ap;
+    va_start(ap, arg_count);
+    p.pf(p.out, arg_count, ap);
+    va_end(ap);
+}
+
+void trp_injected_strlen(void *out, int arg_count, va_list ap)
 {
     trt_counter* cnt = (trt_counter*)out;
 
-    va_list ap;
-    va_start(ap, arg_count);
     for(int i = 0; i < arg_count; i++)
         cnt->bytes += strlen(va_arg(ap, char*));
-    va_end(ap);
+}
+
+trt_wrapper trp_init_wrapper_top()
+{
+    /* module: <module-name>
+     *   +--<node>
+     *   |
+     */
+    trt_wrapper wr;
+    wr.type = trd_wrapper_type_top;
+    wr.actual_pos = 2;
+    wr.bit_marks1 = 0;
+    return wr;
+}
+
+trt_wrapper trp_init_wrapper_body()
+{
+    /* module: <module-name>
+     *   +--<node>
+     *
+     *   augment <target-node>:
+     *     +--<node>
+     */
+    trt_wrapper wr;
+    wr.type = trd_wrapper_type_body;
+    wr.actual_pos = 4;
+    wr.bit_marks1 = 0;
+    return wr;
+}
+
+trt_wrapper trp_wrapper_set_mark(trt_wrapper wr)
+{
+    wr.bit_marks1 = 1 << wr.actual_pos;
+    return wr;
+}
+
+trt_wrapper trp_wrapper_set_shift(trt_wrapper wr)
+{
+    /* +--<node>
+     * |  +--<node>
+     */
+    wr.actual_pos += trd_indent_opts_spacing;
+    return wr;
+}
+
+void trp_print_wrapper(trt_wrapper wr, trt_printing p)
+{
+    const char char_space = trd_separator_space[0];
+
+    uint32_t i;
+    if(wr.type == trd_wrapper_type_top) {
+        i = trd_indent_line_begin;
+    } else if(wr.type == trd_wrapper_type_body) {
+        i = trd_indent_line_begin * 2;
+    } else
+        i = 0;
+
+    trg_print_n_times(i, char_space, p);
+
+    for(/* i = i */; i <= wr.actual_pos; i = i + trd_indent_opts_spacing) {
+        if(trg_test_bit(wr.bit_marks1, i)){
+            trp_print(p, 1, trd_symbol_sibling);
+        } else {
+            trp_print(p, 1, trd_separator_space);
+        }
+        if(i != wr.actual_pos)
+            trg_print_n_times(trd_indent_opts_spacing, char_space, p);
+    }
+}
+
+uint32_t trp_wrapper_strlen(trt_wrapper wr)
+{
+    return wr.actual_pos + 1;
 }
 
 trt_node_name trp_empty_node_name()
@@ -77,6 +155,18 @@ bool trp_node_is_empty(trt_node node)
     return trp_node_name_is_empty(node.name);
 }
 
+trt_keyword_stmt trp_empty_keyword_stmt()
+{
+    trt_keyword_stmt ret;
+    ret.name = NULL;
+    return ret;
+}
+
+bool trp_keyword_stmt_is_empty(trt_keyword_stmt ks)
+{
+    return ks.name == NULL;
+}
+
 void trp_print_node_name(trt_node_name a, trt_printing p)
 {
     if(trp_node_name_is_empty(a))
@@ -84,13 +174,13 @@ void trp_print_node_name(trt_node_name a, trt_printing p)
 
     switch(a.type) {
     case trd_node_type_else:
-        p.pf(p.out, 2, a.module_prefix, a.str);
+        trp_print(p, 2, a.module_prefix, a.str);
         break;
     case trd_node_type_choice:
-        p.pf(p.out, 4, a.module_prefix, trd_node_name_prefix_choice, a.str, trd_node_name_suffix_choice);
+        trp_print(p, 4, a.module_prefix, trd_node_name_prefix_choice, a.str, trd_node_name_suffix_choice);
         break;
     case trd_node_type_case:
-        p.pf(p.out, 4, a.module_prefix, trd_node_name_prefix_case, a.str, trd_node_name_suffix_case);
+        trp_print(p, 4, a.module_prefix, trd_node_name_prefix_case, a.str, trd_node_name_suffix_case);
         break;
     default:
         break;
@@ -104,12 +194,12 @@ void trp_print_opts(trt_opts a, trt_cf_print_keys cf, trt_printing p)
 
     switch(a.type) {
     case trd_opts_type_mark:
-        p.pf(p.out, 1, a.mark);
+        trp_print(p, 1, a.mark);
         break;
     case trd_opts_type_keys:
-        p.pf(p.out, 1, trd_opts_keys_prefix);
+        trp_print(p, 1, trd_opts_keys_prefix);
         cf.pf(cf.ctx);
-        p.pf(p.out, 1, trd_opts_keys_suffix);
+        trp_print(p, 1, trd_opts_keys_suffix);
         break;
     default:
         break;
@@ -123,10 +213,10 @@ void trp_print_type(trt_type a, trt_printing p)
 
     switch(a.type) {
     case trd_type_type_target:
-        p.pf(p.out, 2, trd_type_target_prefix, a.target);
+        trp_print(p, 2, trd_type_target_prefix, a.target);
         break;
     case trd_type_type_leafref:
-        p.pf(p.out, 1, trd_type_leafref);
+        trp_print(p, 1, trd_type_leafref);
     default:
         break;
     }
@@ -137,12 +227,12 @@ void trp_print_iffeatures(trt_iffeature a, trt_cf_print_iffeatures cf, trt_print
     if(trp_iffeature_is_empty(a))
         return;
 
-    p.pf(p.out, 1, trd_iffeatures_prefix);
+    trp_print(p, 1, trd_iffeatures_prefix);
     cf.pf(cf.ctx);
-    p.pf(p.out, 1, trd_iffeatures_suffix);
+    trp_print(p, 1, trd_iffeatures_suffix);
 }
 
-void trp_print_node(trt_node a, const struct trt_tree_ctx* ctx, struct trt_fp_print fps, trt_indent_in_node ind, trt_printing p)
+void trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printing p)
 {
     if(trp_node_is_empty(a))
         return;
@@ -154,17 +244,17 @@ void trp_print_node(trt_node a, const struct trt_tree_ctx* ctx, struct trt_fp_pr
 
     if(!divided) {
         /* <status>--<flags> */
-        p.pf(p.out, 3, a.status, trd_separator_dashes, a.flags);
+        trp_print(p, 3, a.status, trd_separator_dashes, a.flags);
 
         /* If the node is a case node, there is no space before the <name> */
         if(a.name.type != trd_node_type_case)
-            p.pf(p.out, 1, trd_separator_space);
+            trp_print(p, 1, trd_separator_space);
 
         /* <name> */
         trp_print_node_name(a.name, p);
 
         /* <name>___<opts>*/
-        trp_print_n_times(ind.btw_name_opts, char_space, p);
+        trg_print_n_times(ind.btw_name_opts, char_space, p);
     } else {
         /* skip these statements: */
 
@@ -188,25 +278,64 @@ void trp_print_node(trt_node a, const struct trt_tree_ctx* ctx, struct trt_fp_pr
          */
         space += trd_indent_long_line_break;
 
-        trp_print_n_times(space, char_space, p);
+        trg_print_n_times(space, char_space, p);
     }
 
     /* <opts> */
-    trt_cf_print_keys cf_print_keys = {ctx, fps.print_keys};
+    trt_cf_print_keys cf_print_keys = {pck.tree_ctx, pck.fps.print_keys};
     trp_print_opts(a.opts, cf_print_keys, p);
 
     /* <opts>__<type> */
-    trp_print_n_times(ind.btw_opts_type, char_space, p);
+    trg_print_n_times(ind.btw_opts_type, char_space, p);
 
     /* <type> */
     trp_print_type(a.type, p);
 
     /* <type>__<iffeatures> */
-    trp_print_n_times(ind.btw_type_iffeatures, char_space, p);
+    trg_print_n_times(ind.btw_type_iffeatures, char_space, p);
 
     /* <iffeatures> */
-    trt_cf_print_keys cf_print_iffeatures = {ctx, fps.print_features_names};
+    trt_cf_print_keys cf_print_iffeatures = {pck.tree_ctx, pck.fps.print_features_names};
     trp_print_iffeatures(a.iffeatures, cf_print_iffeatures, p);
+}
+
+void trp_print_keyword_stmt(trt_keyword_stmt a, trt_printing p)
+{
+    if(trp_keyword_stmt_is_empty(a))
+        return;
+
+    switch(a.type) {
+    case trd_keyword_stmt_top:
+        trp_print(p, 4, a.keyword, trd_separator_colon, trd_separator_space, a.name);
+        break;
+    case trd_keyword_stmt_body:
+        trp_print(p, 4, a.keyword, trd_separator_space, a.name, trd_separator_colon);
+        break;
+    default:
+        break;
+    }
+}
+
+void trp_print_line(trt_node node, trt_pck_print pck, trt_pck_indent ind, trt_printing p)
+{
+    trp_print_wrapper(ind.wrapper, p);
+    trg_print_n_times(trd_indent_long_line_break, trd_separator_space[0], p); 
+    trp_print_node(node, pck, ind.in_node, p);
+}
+
+trt_node trp_divide_node(trt_node node, trt_indent_in_node ind)
+{
+    if(ind.type != trd_indent_in_node_divided || ind.btw_name_opts < 0)
+        return node;
+
+    if(ind.btw_opts_type < 0)
+        node.opts = trp_empty_opts();
+
+    if(ind.btw_type_iffeatures < 0) {
+        node.opts = trp_empty_opts();
+        node.type = trp_empty_type();
+    }
+    return node;
 }
 
 /* ----------- <Definition of tree functions> ----------- */
@@ -215,9 +344,9 @@ void trp_print_node(trt_node a, const struct trt_tree_ctx* ctx, struct trt_fp_pr
 
 #define PRINT_N_TIMES_BUFFER_SIZE 16
 
-void trp_print_n_times(uint32_t n, char c, trt_printing p)
+void trg_print_n_times(int32_t n, char c, trt_printing p)
 {
-    if(n == 0)
+    if(n <= 0)
         return;
     
     static char buffer[PRINT_N_TIMES_BUFFER_SIZE];
@@ -225,11 +354,16 @@ void trp_print_n_times(uint32_t n, char c, trt_printing p)
     buffer[buffer_size-1] = '\0';
     for(uint32_t i = 0; i < n / (buffer_size-1); i++) {
         memset(&buffer[0], c, buffer_size-1);
-        p.pf(p.out, 1, &buffer[0]);
+        trp_print(p, 1, &buffer[0]);
     }
     uint32_t rest = n % (buffer_size-1);
     buffer[rest] = '\0';
     memset(&buffer[0], c, rest);
-    p.pf(p.out, 1, &buffer[0]);
+    trp_print(p, 1, &buffer[0]);
+}
+
+bool trg_test_bit(uint64_t number, uint32_t bit)
+{
+    return (number >> bit) & 1U;
 }
 
