@@ -6,7 +6,7 @@
 
 /* TODO: rename to printer_tree.c */
 /* TODO: merge new.c to printer_tree.c */
-/* TODO: line break? */
+/* TODO: mark with [keys] can be both */
 
 #ifndef NEW_H_
 #define NEW_H_
@@ -46,7 +46,7 @@ void trp_print(trt_printing, int arg_count, ...);
 typedef struct 
 {
     const struct trt_tree_ctx* ctx;
-    void (*pf)(const struct trt_tree_ctx *);
+    void (*pf)(const struct trt_tree_ctx *, trt_printing);
 } trt_cf_print_keys,
   trt_cf_print_iffeatures;
 
@@ -74,8 +74,8 @@ void trp_injected_strlen(void *out, int arg_count, va_list ap);
  */
 struct trt_fp_print
 {
-    void (*print_features_names)(const struct trt_tree_ctx*);   /*<< print including spaces between names */
-    void (*print_keys)(const struct trt_tree_ctx *);            /*<< print including spaces between names */
+    void (*print_features_names)(const struct trt_tree_ctx*, trt_printing);   /*<< print including spaces between names */
+    void (*print_keys)(const struct trt_tree_ctx *, trt_printing);            /*<< print including spaces between names */
 };
 
 typedef struct

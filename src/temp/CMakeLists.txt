@@ -13,7 +13,9 @@ ENABLE_TESTING()
 
 add_executable(test_wrapper test_wrapper.cpp new.c)
 add_executable(test_node_rel test_node_rel.cpp new.c)
+add_executable(main test_print_node.cpp new.c)
 
 ADD_TEST(wrapper test_wrapper)
 ADD_TEST(node_rel test_node_rel)
+ADD_TEST(print_node main)
 

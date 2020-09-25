@@ -134,7 +134,7 @@ trt_iffeature trp_empty_iffeature()
 
 bool trp_iffeature_is_empty(trt_iffeature iffeature)
 {
-    return iffeature;
+    return !iffeature;
 }
 
 trt_node trp_empty_node()
@@ -170,15 +170,17 @@ void trp_print_node_name(trt_node_name a, trt_printing p)
     if(trp_node_name_is_empty(a))
         return;
 
+    const char* colon = a.module_prefix == NULL || a.module_prefix[0] == '\0' ? "" : trd_separator_colon;
+
     switch(a.type) {
     case trd_node_type_else:
-        trp_print(p, 2, a.module_prefix, a.str);
+        trp_print(p, 3, a.module_prefix, colon, a.str);
         break;
     case trd_node_type_choice:
-        trp_print(p, 4, a.module_prefix, trd_node_name_prefix_choice, a.str, trd_node_name_suffix_choice);
+        trp_print(p, 5, trd_node_name_prefix_choice,  a.module_prefix, colon, a.str, trd_node_name_suffix_choice);
         break;
     case trd_node_type_case:
-        trp_print(p, 4, a.module_prefix, trd_node_name_prefix_case, a.str, trd_node_name_suffix_case);
+        trp_print(p, 5, trd_node_name_prefix_case, a.module_prefix, colon, a.str, trd_node_name_suffix_case);
         break;
     default:
         break;
@@ -196,7 +198,7 @@ void trp_print_opts(trt_opts a, trt_cf_print_keys cf, trt_printing p)
         break;
     case trd_opts_type_keys:
         trp_print(p, 1, trd_opts_keys_prefix);
-        cf.pf(cf.ctx);
+        cf.pf(cf.ctx, p);
         trp_print(p, 1, trd_opts_keys_suffix);
         break;
     default:
@@ -226,7 +228,7 @@ void trp_print_iffeatures(trt_iffeature a, trt_cf_print_iffeatures cf, trt_print
         return;
 
     trp_print(p, 1, trd_iffeatures_prefix);
-    cf.pf(cf.ctx);
+    cf.pf(cf.ctx, p);
     trp_print(p, 1, trd_iffeatures_suffix);
 }
 
