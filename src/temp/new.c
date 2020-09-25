@@ -28,7 +28,7 @@ trt_wrapper trp_init_wrapper_top()
      */
     trt_wrapper wr;
     wr.type = trd_wrapper_type_top;
-    wr.actual_pos = 2;
+    wr.actual_pos = 0;
     wr.bit_marks1 = 0;
     return wr;
 }
@@ -43,14 +43,14 @@ trt_wrapper trp_init_wrapper_body()
      */
     trt_wrapper wr;
     wr.type = trd_wrapper_type_body;
-    wr.actual_pos = 4;
+    wr.actual_pos = 0;
     wr.bit_marks1 = 0;
     return wr;
 }
 
 trt_wrapper trp_wrapper_set_mark(trt_wrapper wr)
 {
-    wr.bit_marks1 = 1 << wr.actual_pos;
+    wr.bit_marks1 |= 1U << wr.actual_pos;
     return wr;
 }
 
@@ -59,7 +59,7 @@ trt_wrapper trp_wrapper_set_shift(trt_wrapper wr)
     /* +--<node>
      * |  +--<node>
      */
-    wr.actual_pos += trd_indent_opts_spacing;
+    wr.actual_pos++;
     return wr;
 }
 
@@ -67,30 +67,28 @@ void trp_print_wrapper(trt_wrapper wr, trt_printing p)
 {
     const char char_space = trd_separator_space[0];
 
-    uint32_t i;
-    if(wr.type == trd_wrapper_type_top) {
-        i = trd_indent_line_begin;
-    } else if(wr.type == trd_wrapper_type_body) {
-        i = trd_indent_line_begin * 2;
-    } else
-        i = 0;
+    {
+        uint32_t lb;
+        if(wr.type == trd_wrapper_type_top) {
+            lb = trd_indent_line_begin;
+        } else if(wr.type == trd_wrapper_type_body) {
+            lb = trd_indent_line_begin * 2;
+        } else
+            lb = 0;
 
-    trg_print_n_times(i, char_space, p);
+        trg_print_n_times(lb, char_space, p);
+    }
 
-    for(/* i = i */; i <= wr.actual_pos; i = i + trd_indent_opts_spacing) {
+    for(uint32_t i = 0; i <= wr.actual_pos; i++) {
         if(trg_test_bit(wr.bit_marks1, i)){
             trp_print(p, 1, trd_symbol_sibling);
         } else {
             trp_print(p, 1, trd_separator_space);
         }
-        if(i != wr.actual_pos)
-            trg_print_n_times(trd_indent_opts_spacing, char_space, p);
-    }
-}
 
-uint32_t trp_wrapper_strlen(trt_wrapper wr)
-{
-    return wr.actual_pos + 1;
+        if(i != wr.actual_pos)
+            trg_print_n_times(trd_indent_btw_siblings, char_space, p);
+    }
 }
 
 trt_node_name trp_empty_node_name()
@@ -319,7 +317,7 @@ void trp_print_keyword_stmt(trt_keyword_stmt a, trt_printing p)
 void trp_print_line(trt_node node, trt_pck_print pck, trt_pck_indent ind, trt_printing p)
 {
     trp_print_wrapper(ind.wrapper, p);
-    trg_print_n_times(trd_indent_long_line_break, trd_separator_space[0], p); 
+    trg_print_n_times(trd_indent_btw_siblings, trd_separator_space[0], p); 
     trp_print_node(node, pck, ind.in_node, p);
 }
 

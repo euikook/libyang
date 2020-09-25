@@ -91,10 +91,10 @@ typedef struct
 typedef enum
 {
     trd_indent_one = 1,
-    trd_indent_empty = 0,                   /**< If the node is a case node, there is no space before the <name> */
+    trd_indent_empty = 0,               /**< If the node is a case node, there is no space before the <name> */
     trd_indent_long_line_break = 2,     /**< The new line should be indented so that it starts below <name> with a whitespace offset of at least two characters. */
-    trd_indent_opts_spacing = 2 + 1,    /**< string <opts> + "--" */
-    trd_indent_line_begin = 2           /**< indent below the keyword (module, augment ...)  */
+    trd_indent_line_begin = 2,          /**< indent below the keyword (module, augment ...)  */
+    trd_indent_btw_siblings = 2,
 } trt_cnf_indent;
 
 typedef enum
@@ -151,11 +151,6 @@ trt_wrapper trp_wrapper_set_shift(trt_wrapper);
  * @brief Print "  |" sequence.
  */
 void trp_print_wrapper(trt_wrapper, trt_printing);
-
-/**
- * @brief how many characters the wrapper occupies from the left edge of the printout to the last <opts> position
- */
-uint32_t trp_wrapper_strlen(trt_wrapper);
 
 typedef struct
 {
