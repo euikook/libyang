@@ -31,7 +31,8 @@ struct trt_fp_print;
  *
  * @param[in] out struct ly_out* or other auxiliary structure for printing
  */
-typedef void (*trt_print_func)(void *out, int arg_count, ...);
+typedef void (*trt_print_func)(void *out, int arg_count, va_list ap);
+
 
 typedef struct
 {
@@ -39,6 +40,8 @@ typedef struct
     trt_print_func pf;
 } trt_printing,
   trt_injecting_strlen;
+
+void trp_print(trt_printing, int arg_count, ...);
 
 typedef struct 
 {
@@ -60,7 +63,26 @@ typedef struct
  * @param[in,out] out it is expected to be type trt_counter
  * @param[in] arg_count number of arguments in ...
  */
-void trp_injected_strlen(void *out, int arg_count, ...);
+void trp_injected_strlen(void *out, int arg_count, va_list ap); 
+
+/* ======================================= */
+/* ----------- <Print getters> ----------- */
+/* ======================================= */
+
+/**
+ * @brief Functions that provide printing themselves
+ */
+struct trt_fp_print
+{
+    void (*print_features_names)(const struct trt_tree_ctx*);   /*<< print including spaces between names */
+    void (*print_keys)(const struct trt_tree_ctx *);            /*<< print including spaces between names */
+};
+
+typedef struct
+{
+    const struct trt_tree_ctx* tree_ctx;
+    struct trt_fp_print fps;
+} trt_pck_print;
 
 /* ================================ */
 /* ----------- <indent> ----------- */
@@ -70,8 +92,9 @@ typedef enum
 {
     trd_indent_one = 1,
     trd_indent_empty = 0,                   /**< If the node is a case node, there is no space before the <name> */
-    trd_indent_long_line_break = 2,  /**< The new line should be indented so that it starts below <name> with a whitespace offset of at least two characters. */
-    trd_indent_before_status = 2,           /**< Sequence of "--" in upper printed node is 2 spaces long. */
+    trd_indent_long_line_break = 2,     /**< The new line should be indented so that it starts below <name> with a whitespace offset of at least two characters. */
+    trd_indent_opts_spacing = 2 + 1,    /**< string <opts> + "--" */
+    trd_indent_line_begin = 2           /**< indent below the keyword (module, augment ...)  */
 } trt_cnf_indent;
 
 typedef enum
@@ -91,6 +114,12 @@ typedef struct
     trt_indent_btw btw_type_iffeatures; /**< ignored if <type> missing */
 } trt_indent_in_node;
 
+typedef enum
+{
+    trd_wrapper_type_top = 0,
+    trd_wrapper_type_body
+} trd_wrapper_type;
+
 /**
  * @brief For resolving sibling symbol placement
  *
@@ -99,9 +128,14 @@ typedef struct
  */
 typedef struct
 {
+    trd_wrapper_type type;
     uint64_t bit_marks1;
     uint32_t actual_pos;
 } trt_wrapper;
+
+trt_wrapper trp_init_wrapper_top();
+
+trt_wrapper trp_init_wrapper_body();
 
 /**
  * @brief Setting mark in .bit_marks at position .actual_pos
@@ -114,6 +148,11 @@ trt_wrapper trp_wrapper_set_mark(trt_wrapper);
 trt_wrapper trp_wrapper_set_shift(trt_wrapper);
 
 /**
+ * @brief Print "  |" sequence.
+ */
+void trp_print_wrapper(trt_wrapper, trt_printing);
+
+/**
  * @brief how many characters the wrapper occupies from the left edge of the printout to the last <opts> position
  */
 uint32_t trp_wrapper_strlen(trt_wrapper);
@@ -122,7 +161,7 @@ typedef struct
 {
     trt_indent_in_node in_node;
     trt_wrapper wrapper;
-} trt_indent;
+} trt_pck_indent;
 
 /* ================================== */
 /* ----------- <node_name> ----------- */
@@ -271,9 +310,7 @@ typedef struct
 
 trt_node trp_empty_node();
 bool trp_node_is_empty(trt_node);
-
-/* NOTE: If the node is a case node, there is no space before the <name> */
-void trp_print_node(trt_node, const struct trt_tree_ctx*, struct trt_fp_print, trt_indent_in_node, trt_printing);
+void trp_print_node(trt_node, trt_pck_print, trt_indent_in_node, trt_printing);
 
 /* =================================== */
 /* ----------- <statement> ----------- */
@@ -292,8 +329,8 @@ static const char trd_body_keyword_yang_data[] = "yang-data";
 
 typedef enum
 {
-    top,
-    body,
+    trd_keyword_stmt_top,
+    trd_keyword_stmt_body,
 } trt_keyword_stmt_type;
 
 typedef struct
@@ -307,9 +344,9 @@ trt_keyword_stmt trp_empty_keyword_stmt();
 bool trp_keyword_stmt_is_empty(trt_keyword_stmt);
 void trp_print_keyword_stmt(trt_keyword_stmt, trt_printing);
 
-/* ================================= */
-/* ----------- <Getters> ----------- */
-/* ================================= */
+/* ======================================== */
+/* ----------- <Modify getters> ----------- */
+/* ======================================== */
 
 /**
  * @brief Functions that change the state of the tree_ctx structure
@@ -325,6 +362,10 @@ struct trt_fp_modify_ctx
     trt_keyword_stmt (*next_yang_data)(struct trt_tree_ctx*);
 };
 
+/* ====================================== */
+/* ----------- <Read getters> ----------- */
+/* ====================================== */
+
 /**
  * @brief Functions providing information for the print
  *
@@ -336,14 +377,9 @@ struct trt_fp_read
     trt_node (*node)(const struct trt_tree_ctx*);
 };
 
-/**
- * @brief Functions that provide printing themselves
- */
-struct trt_fp_print
-{
-    void (*print_features_names)(const struct trt_tree_ctx*);   /*<< print including spaces between names */
-    void (*print_keys)(const struct trt_tree_ctx *);           /*<< print including spaces between names */
-};
+/* ===================================== */
+/* ----------- <All getters> ----------- */
+/* ===================================== */
 
 /**
  * @brief A set of all necessary functions that must be provided for the printer
@@ -415,12 +451,17 @@ void trp_main(struct trt_printer_ctx, struct trt_tree_ctx*);
 /**
  * @brief Recursive nodes printing
  */
-void trp_print_nodes(struct trt_printer_ctx, struct trt_tree_ctx*, trt_indent);
+void trp_print_nodes(struct trt_printer_ctx, struct trt_tree_ctx*, trt_pck_indent);
 
 /**
  * @brief Print one line
  */
-void trp_print_line(trt_node, trt_indent);
+void trp_print_line(trt_node, trt_pck_print, trt_pck_indent, trt_printing);
+
+/**
+ * @brief Get a divided node based on the result of trt_indent_in_node.
+ */
+trt_node trp_divide_node(trt_node, trt_indent_in_node);
 
 /**
  * @brief Get the correct alignment for the node
@@ -429,11 +470,6 @@ void trp_print_line(trt_node, trt_indent);
  * @return .type == trd_indent_in_node_normal - the node fits into the line, all .trt_indent_btw values has non-negative number.
  */
 trt_indent_in_node trp_try_normal_indent(trt_wrapper, trt_node);
-
-/**
- * @brief Get a divided node based on the result of trt_indent_in_node.
- */
-trt_indent_in_node trp_divide_node(trt_node, trt_indent_in_node);
 
 /**
  * @brief Find out if it is possible to unify the alignment in all subtrees
@@ -451,7 +487,9 @@ static trt_separator trd_separator_colon = ":";
 static trt_separator trd_separator_space = " ";
 static trt_separator trd_separator_dashes = "--";
 
-void trp_print_n_times(uint32_t n, char, trt_printing);
+void trg_print_n_times(int32_t n, char, trt_printing);
+
+bool trg_test_bit(uint64_t number, uint32_t bit);
 
 /* ================================ */
 /* ----------- <symbol> ----------- */
