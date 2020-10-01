@@ -6,7 +6,6 @@
 
 /* TODO: rename to printer_tree.c */
 /* TODO: merge new.c to printer_tree.c */
-/* TODO: mark with [keys] can be both */
 
 #ifndef NEW_H_
 #define NEW_H_
@@ -207,7 +206,7 @@ static const char trd_opts_keys_suffix[] = "]";
 
 typedef enum
 {
-    trd_opts_type_mark = 0,
+    trd_opts_type_mark_only = 0,
     trd_opts_type_keys,
     trd_opts_type_empty
 } trt_opts_type;
@@ -226,7 +225,7 @@ bool trp_opts_is_empty(trt_opts);
  *
  * @param[in] print_keys added function which finds and prints all keys
  */
-void trp_print_opts(trt_opts, trt_cf_print_keys, trt_printing);
+void trp_print_opts(trt_opts, trt_indent_btw, trt_cf_print_keys, trt_printing);
 
 /* ============================== */
 /* ----------- <type> ----------- */

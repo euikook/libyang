@@ -33,7 +33,7 @@ TEST(node, fully)
     {
         trd_status_current, trd_flags_rw,
         {trd_node_type_else, "prefix", "node"},
-        {trd_opts_type_mark, trd_opts_list},
+        {trd_opts_type_mark_only, trd_opts_list},
         {trd_type_type_target, "target"},
         true
     };
