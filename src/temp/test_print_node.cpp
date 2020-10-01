@@ -27,7 +27,7 @@ out_t out;
 
 TEST(node, fully)
 {
-    out_t check = "+--rw prefix:node*  -> target  {iffeature}?";
+    out_t check = "+--rw prefix:node*   -> target {iffeature}?";
     trt_printing p = {&out, Out::print_string};
     trt_node node =
     {
@@ -38,7 +38,28 @@ TEST(node, fully)
         true
     };
     trt_pck_print pck = {NULL, {p_iff, p_key}};
-    trt_indent_in_node ind = {trd_indent_in_node_normal, 0, 2, 2};
+    trt_indent_in_node ind = trp_default_indent_in_node(node);
+
+    trp_print_node(node, pck, ind, p);
+
+    EXPECT_EQ(out, check);
+    out.clear();
+}
+
+TEST(node, onlyIffeature)
+{
+    out_t check = "+--rw node {iffeature}?";
+    trt_printing p = {&out, Out::print_string};
+    trt_node node =
+    {
+        trd_status_current, trd_flags_rw,
+        {trd_node_type_else, "", "node"},
+        {trd_opts_type_empty, ""},
+        {trd_type_type_empty, ""},
+        true
+    };
+    trt_pck_print pck = {NULL, {p_iff, p_key}};
+    trt_indent_in_node ind = trp_default_indent_in_node(node);
 
     trp_print_node(node, pck, ind, p);
 

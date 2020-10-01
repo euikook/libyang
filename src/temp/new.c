@@ -192,14 +192,17 @@ void trp_print_opts(trt_opts a, trt_indent_btw ind, trt_cf_print_keys cf, trt_pr
     if(trp_opts_is_empty(a))
         return;
 
+    const char space_char = trd_separator_space[0];
+
     switch(a.type) {
+    case trd_opts_type_keys:
     case trd_opts_type_mark_only:
+        trg_print_n_times(trd_indent_before_mark, space_char, p);
         trp_print(p, 1, a.mark);
         break;
-    case trd_opts_type_keys:
-        trp_print(p, 1, trd_opts_list);
-        /* <name><mark>___<opts>*/
-        trg_print_n_times(ind, trd_separator_space[0], p);
+    case trd_opts_type_keys_only:
+        /* <name><mark>___<keys>*/
+        trg_print_n_times(ind, space_char, p);
         trp_print(p, 1, trd_opts_keys_prefix);
         cf.pf(cf.ctx, p);
         trp_print(p, 1, trd_opts_keys_suffix);
@@ -337,6 +340,45 @@ trt_node trp_divide_node(trt_node node, trt_indent_in_node ind)
         node.type = trp_empty_type();
     }
     return node;
+}
+
+trt_indent_in_node trp_default_indent_in_node(trt_node node)
+{
+    trt_indent_in_node ret;
+    ret.type = trd_indent_in_node_normal;
+
+    /* btw_name_opts */
+    if(!trp_opts_is_empty(node.opts)) {
+        switch(node.type.type) {
+            case trd_opts_type_keys:
+            case trd_opts_type_keys_only:
+                ret.btw_name_opts = trd_indent_before_keys;
+                break;
+            case trd_opts_type_mark_only:
+                ret.btw_name_opts = trd_indent_before_mark;
+                break;
+            default:
+                ret.btw_name_opts = 0;
+                break;
+        }
+    } else {
+        ret.btw_name_opts = 0;
+    }
+
+    /* btw_opts_type */
+    if(!trp_type_is_empty(node.type)) {
+        ret.btw_opts_type = node.opts.type == trd_opts_type_mark_only ? 
+            trd_indent_before_type - (trd_indent_before_mark + strlen(node.opts.mark)) :
+            trd_indent_before_type;
+    } else {
+        ret.btw_opts_type = 0;
+    }
+
+    /* btw_type_iffeatures */
+    ret.btw_type_iffeatures = !trp_iffeature_is_empty(node.iffeatures) ?
+        trd_indent_before_iffeatures : 0;
+
+    return ret;
 }
 
 /* ----------- <Definition of tree functions> ----------- */
