@@ -187,16 +187,19 @@ void trp_print_node_name(trt_node_name a, trt_printing p)
     }
 }
 
-void trp_print_opts(trt_opts a, trt_cf_print_keys cf, trt_printing p)
+void trp_print_opts(trt_opts a, trt_indent_btw ind, trt_cf_print_keys cf, trt_printing p)
 {
     if(trp_opts_is_empty(a))
         return;
 
     switch(a.type) {
-    case trd_opts_type_mark:
+    case trd_opts_type_mark_only:
         trp_print(p, 1, a.mark);
         break;
     case trd_opts_type_keys:
+        trp_print(p, 1, trd_opts_list);
+        /* <name><mark>___<opts>*/
+        trg_print_n_times(ind, trd_separator_space[0], p);
         trp_print(p, 1, trd_opts_keys_prefix);
         cf.pf(cf.ctx, p);
         trp_print(p, 1, trd_opts_keys_suffix);
@@ -252,9 +255,6 @@ void trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_p
 
         /* <name> */
         trp_print_node_name(a.name, p);
-
-        /* <name>___<opts>*/
-        trg_print_n_times(ind.btw_name_opts, char_space, p);
     } else {
         /* skip these statements: */
 
@@ -282,8 +282,9 @@ void trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_p
     }
 
     /* <opts> */
+    /* <name>___<opts>*/
     trt_cf_print_keys cf_print_keys = {pck.tree_ctx, pck.fps.print_keys};
-    trp_print_opts(a.opts, cf_print_keys, p);
+    trp_print_opts(a.opts, ind.btw_name_opts, cf_print_keys, p);
 
     /* <opts>__<type> */
     trg_print_n_times(ind.btw_opts_type, char_space, p);
