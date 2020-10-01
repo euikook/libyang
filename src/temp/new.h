@@ -6,6 +6,7 @@
 
 /* TODO: rename to printer_tree.c */
 /* TODO: merge new.c to printer_tree.c */
+/* TODO: line break due to long prefix string */
 
 #ifndef NEW_H_
 #define NEW_H_
@@ -105,7 +106,9 @@ typedef enum
 {
     trd_indent_in_node_normal = 0,
     trd_indent_in_node_unified,
-    trd_indent_in_node_divided      /**< the node is not on one line, but on more */
+    trd_indent_in_node_divided,     /**< the node is not on one line, but on more */
+    trd_indent_in_node_failed       /**< indent is not valid by RFC */
+
 } trt_indent_in_node_type;
 
 typedef int16_t trt_indent_btw;
@@ -404,7 +407,7 @@ struct trt_printer_ctx
     trt_wrapper wrapper;
     trt_printing print;
     struct trt_fp_all fp;
-    uint32_t max_line_length;
+    uint32_t max_line_length;   /**< including last character */
 };
 
 /* ====================================== */
@@ -473,8 +476,9 @@ trt_indent_in_node trp_default_indent_in_node(trt_node);
  *
  * @return .type == trd_indent_in_node_divided - the node does not fit in the line, some .trt_indent_btw has negative value as a line break sign.
  * @return .type == trd_indent_in_node_normal - the node fits into the line, all .trt_indent_btw values has non-negative number.
+ * @return .type == trd_indent_in_node_failed - the node does not fit into the line, all .trt_indent_btw has negative or zero values, function failed.
  */
-trt_indent_in_node trp_try_normal_indent(trt_wrapper, trt_node);
+trt_indent_in_node trp_try_normal_indent_in_line(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll);
 
 /**
  * @brief Find out if it is possible to unify the alignment in all subtrees
