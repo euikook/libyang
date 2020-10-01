@@ -94,7 +94,12 @@ typedef enum
     trd_indent_long_line_break = 2,     /**< The new line should be indented so that it starts below <name> with a whitespace offset of at least two characters. */
     trd_indent_line_begin = 2,          /**< indent below the keyword (module, augment ...)  */
     trd_indent_btw_siblings = 2,
+    trd_indent_before_mark = 0,         /**< <x>___<mark> */
+    trd_indent_before_keys = 1,         /**< <x>___<keys> */
+    trd_indent_before_type = 4,         /**< <x>___<type>, but if mark is set then indent == 3 */
+    trd_indent_before_iffeatures = 1,   /**< <x>___<iffeatures> */
 } trt_cnf_indent;
+
 
 typedef enum
 {
@@ -206,8 +211,9 @@ static const char trd_opts_keys_suffix[] = "]";
 
 typedef enum
 {
-    trd_opts_type_mark_only = 0,
-    trd_opts_type_keys,
+    trd_opts_type_keys = 0,     /**< mark '*' included */
+    trd_opts_type_mark_only,
+    trd_opts_type_keys_only,
     trd_opts_type_empty
 } trt_opts_type;
 
@@ -456,6 +462,11 @@ void trp_print_line(trt_node, trt_pck_print, trt_pck_indent, trt_printing);
  * @brief Get a divided node based on the result of trt_indent_in_node.
  */
 trt_node trp_divide_node(trt_node, trt_indent_in_node);
+
+/**
+ * @brief Get default indent in node based on node values.
+ */
+trt_indent_in_node trp_default_indent_in_node(trt_node);
 
 /**
  * @brief Get the correct alignment for the node
