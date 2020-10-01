@@ -4,7 +4,8 @@
 
 /* ----------- <Definition of printer functions> ----------- */
 
-void trp_print(trt_printing p, int arg_count, ...)
+void
+trp_print(trt_printing p, int arg_count, ...)
 {
     va_list ap;
     va_start(ap, arg_count);
@@ -12,7 +13,8 @@ void trp_print(trt_printing p, int arg_count, ...)
     va_end(ap);
 }
 
-void trp_injected_strlen(void *out, int arg_count, va_list ap)
+void
+trp_injected_strlen(void *out, int arg_count, va_list ap)
 {
     trt_counter* cnt = (trt_counter*)out;
 
@@ -20,7 +22,8 @@ void trp_injected_strlen(void *out, int arg_count, va_list ap)
         cnt->bytes += strlen(va_arg(ap, char*));
 }
 
-trt_wrapper trp_init_wrapper_top()
+trt_wrapper
+trp_init_wrapper_top()
 {
     /* module: <module-name>
      *   +--<node>
@@ -33,7 +36,8 @@ trt_wrapper trp_init_wrapper_top()
     return wr;
 }
 
-trt_wrapper trp_init_wrapper_body()
+trt_wrapper
+trp_init_wrapper_body()
 {
     /* module: <module-name>
      *   +--<node>
@@ -48,13 +52,15 @@ trt_wrapper trp_init_wrapper_body()
     return wr;
 }
 
-trt_wrapper trp_wrapper_set_mark(trt_wrapper wr)
+trt_wrapper
+trp_wrapper_set_mark(trt_wrapper wr)
 {
     wr.bit_marks1 |= 1U << wr.actual_pos;
     return wr;
 }
 
-trt_wrapper trp_wrapper_set_shift(trt_wrapper wr)
+trt_wrapper
+trp_wrapper_set_shift(trt_wrapper wr)
 {
     /* +--<node>
      * |  +--<node>
@@ -63,7 +69,8 @@ trt_wrapper trp_wrapper_set_shift(trt_wrapper wr)
     return wr;
 }
 
-void trp_print_wrapper(trt_wrapper wr, trt_printing p)
+void
+trp_print_wrapper(trt_wrapper wr, trt_printing p)
 {
     const char char_space = trd_separator_space[0];
 
@@ -91,53 +98,62 @@ void trp_print_wrapper(trt_wrapper wr, trt_printing p)
     }
 }
 
-trt_node_name trp_empty_node_name()
+trt_node_name
+trp_empty_node_name()
 {
     trt_node_name ret;
     ret.str = NULL;
     return ret;
 }
 
-bool trp_node_name_is_empty(trt_node_name node_name)
+bool
+trp_node_name_is_empty(trt_node_name node_name)
 {
     return node_name.str == NULL;
 }
 
-trt_opts trp_empty_opts()
+trt_opts
+trp_empty_opts()
 {
     trt_opts ret;
     ret.type = trd_opts_type_empty;
     return ret;
 }
 
-bool trp_opts_is_empty(trt_opts opts)
+bool
+trp_opts_is_empty(trt_opts opts)
 {
     return opts.type == trd_opts_type_empty;
 }
 
-trt_type trp_empty_type()
+trt_type
+trp_empty_type()
 {
     trt_type ret;
     ret.type = trd_type_type_empty;
     return ret;
 }
 
-bool trp_type_is_empty(trt_type type)
+bool
+trp_type_is_empty(trt_type type)
 {
     return type.type == trd_type_type_empty;
 }
 
-trt_iffeature trp_empty_iffeature()
+trt_iffeature
+trp_empty_iffeature()
 {
     return false;
 }
 
-bool trp_iffeature_is_empty(trt_iffeature iffeature)
+bool
+trp_iffeature_is_empty(trt_iffeature iffeature)
 {
     return !iffeature;
 }
 
-trt_node trp_empty_node()
+trt_node
+trp_empty_node()
 {
     trt_node ret = 
     {
@@ -148,24 +164,28 @@ trt_node trp_empty_node()
     return ret;
 }
 
-bool trp_node_is_empty(trt_node node)
+bool
+trp_node_is_empty(trt_node node)
 {
     return trp_node_name_is_empty(node.name);
 }
 
-trt_keyword_stmt trp_empty_keyword_stmt()
+trt_keyword_stmt
+trp_empty_keyword_stmt()
 {
     trt_keyword_stmt ret;
     ret.name = NULL;
     return ret;
 }
 
-bool trp_keyword_stmt_is_empty(trt_keyword_stmt ks)
+bool
+trp_keyword_stmt_is_empty(trt_keyword_stmt ks)
 {
     return ks.name == NULL;
 }
 
-void trp_print_node_name(trt_node_name a, trt_printing p)
+void
+trp_print_node_name(trt_node_name a, trt_printing p)
 {
     if(trp_node_name_is_empty(a))
         return;
@@ -187,7 +207,8 @@ void trp_print_node_name(trt_node_name a, trt_printing p)
     }
 }
 
-void trp_print_opts(trt_opts a, trt_indent_btw ind, trt_cf_print_keys cf, trt_printing p)
+void
+trp_print_opts(trt_opts a, trt_indent_btw ind, trt_cf_print_keys cf, trt_printing p)
 {
     if(trp_opts_is_empty(a))
         return;
@@ -212,7 +233,8 @@ void trp_print_opts(trt_opts a, trt_indent_btw ind, trt_cf_print_keys cf, trt_pr
     }
 }
 
-void trp_print_type(trt_type a, trt_printing p)
+void
+trp_print_type(trt_type a, trt_printing p)
 {
     if(trp_type_is_empty(a))
         return;
@@ -228,7 +250,8 @@ void trp_print_type(trt_type a, trt_printing p)
     }
 }
 
-void trp_print_iffeatures(trt_iffeature a, trt_cf_print_iffeatures cf, trt_printing p)
+void
+trp_print_iffeatures(trt_iffeature a, trt_cf_print_iffeatures cf, trt_printing p)
 {
     if(trp_iffeature_is_empty(a))
         return;
@@ -238,7 +261,8 @@ void trp_print_iffeatures(trt_iffeature a, trt_cf_print_iffeatures cf, trt_print
     trp_print(p, 1, trd_iffeatures_suffix);
 }
 
-void trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printing p)
+void
+trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printing p)
 {
     if(trp_node_is_empty(a))
         return;
@@ -303,7 +327,8 @@ void trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_p
     trp_print_iffeatures(a.iffeatures, cf_print_iffeatures, p);
 }
 
-void trp_print_keyword_stmt(trt_keyword_stmt a, trt_printing p)
+void
+trp_print_keyword_stmt(trt_keyword_stmt a, trt_printing p)
 {
     if(trp_keyword_stmt_is_empty(a))
         return;
@@ -320,17 +345,27 @@ void trp_print_keyword_stmt(trt_keyword_stmt a, trt_printing p)
     }
 }
 
-void trp_print_line(trt_node node, trt_pck_print pck, trt_pck_indent ind, trt_printing p)
+void
+trp_print_line(trt_node node, trt_pck_print pck, trt_pck_indent ind, trt_printing p)
 {
     trp_print_wrapper(ind.wrapper, p);
     trg_print_n_times(trd_indent_btw_siblings, trd_separator_space[0], p); 
     trp_print_node(node, pck, ind.in_node, p);
 }
 
-trt_node trp_divide_node(trt_node node, trt_indent_in_node ind)
+trt_node
+trp_divide_node(trt_node node, trt_indent_in_node ind)
 {
-    if(ind.type != trd_indent_in_node_divided || ind.btw_name_opts < 0)
+    if(ind.type != trd_indent_in_node_divided)
         return node;
+
+    if(ind.btw_name_opts < 0) {
+        /* the information up to token <opts> can be deleted,
+         * but this is unnecessary because the print_node function
+         * will ignore it anyway
+         */
+        return node;
+    }
 
     if(ind.btw_opts_type < 0)
         node.opts = trp_empty_opts();
@@ -342,7 +377,8 @@ trt_node trp_divide_node(trt_node node, trt_indent_in_node ind)
     return node;
 }
 
-trt_indent_in_node trp_default_indent_in_node(trt_node node)
+trt_indent_in_node
+trp_default_indent_in_node(trt_node node)
 {
     trt_indent_in_node ret;
     ret.type = trd_indent_in_node_normal;
@@ -381,13 +417,56 @@ trt_indent_in_node trp_default_indent_in_node(trt_node node)
     return ret;
 }
 
+trt_indent_in_node
+trp_try_normal_indent_in_line(trt_node n, trt_pck_print p, trt_pck_indent ind, uint32_t mll)
+{
+    trt_counter cnt = {0};
+    trt_injecting_strlen func = {&cnt, trp_injected_strlen};
+    trp_print_line(n, p, ind, func);
+
+    if(cnt.bytes <= mll) {
+        return ind.in_node;
+    } else {
+        ind.in_node.type = trd_indent_in_node_divided;
+        const trt_indent_btw line_break = -1;
+        /* just for shortening the name */
+        trt_indent_btw* const name_opts = &ind.in_node.btw_name_opts;
+        trt_indent_btw* const opts_type = &ind.in_node.btw_opts_type;
+        trt_indent_btw* const type_iffe = &ind.in_node.btw_type_iffeatures;
+        /* setting somewhere line break */
+        if(*name_opts != line_break && *name_opts != 0) {
+            /* set line break between name and opts */
+            *name_opts = line_break;
+            /* erase information in node due to line break */
+            n = trp_divide_node(n, ind.in_node);
+            /* check if line fits */
+            return trp_try_normal_indent_in_line(n, p, ind, mll);
+        } else if(*opts_type != line_break && *opts_type != 0) {
+            *opts_type = line_break;
+            n = trp_divide_node(n, ind.in_node);
+            return trp_try_normal_indent_in_line(n, p, ind, mll);
+        } else if(*type_iffe != line_break && *type_iffe != 0) {
+            *type_iffe = line_break;
+            n = trp_divide_node(n, ind.in_node);
+            return trp_try_normal_indent_in_line(n, p, ind, mll);
+        } else {
+            ind.in_node.type = trd_indent_in_node_failed;
+            /* it is not possible to place a more line breaks,
+             * unfortunately the max_line_length constraint is violated
+             */
+            return ind.in_node;
+        }
+    }
+}
+
 /* ----------- <Definition of tree functions> ----------- */
 
 /* ----------- <Definition of the other functions> ----------- */
 
 #define PRINT_N_TIMES_BUFFER_SIZE 16
 
-void trg_print_n_times(int32_t n, char c, trt_printing p)
+void
+trg_print_n_times(int32_t n, char c, trt_printing p)
 {
     if(n <= 0)
         return;
@@ -405,7 +484,8 @@ void trg_print_n_times(int32_t n, char c, trt_printing p)
     trp_print(p, 1, &buffer[0]);
 }
 
-bool trg_test_bit(uint64_t number, uint32_t bit)
+bool
+trg_test_bit(uint64_t number, uint32_t bit)
 {
     return (number >> bit) & 1U;
 }
