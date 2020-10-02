@@ -5,6 +5,10 @@
 #include <string>
 #include <stdarg.h>
 #include <initializer_list>
+extern "C"
+{
+#include "new.h"
+}
 
 namespace Out
 {
@@ -121,6 +125,31 @@ void print_string(void* out, int arg_count, va_list ap)
         if(ptr == NULL || ptr[0] == '\0')
             continue;
         m_out += string(ptr);
+    }
+}
+
+using VecLines = VecStr;
+
+void print_vecLines(void* out, int arg_count, va_list ap)
+{
+    VecLines& m_out = *(VecLines*)out;
+
+    if(arg_count <= 0)
+        return;
+
+    for(int i = 0; i < arg_count; i++) {
+
+        char* ptr = va_arg(ap, char*);
+        if(ptr == NULL || ptr[0] == '\0')
+            continue;
+
+        if(ptr[0] == trd_separator_linebreak[0])
+            m_out.push_back("");
+
+        if(!m_out.empty())
+            m_out.back() += string(ptr);
+        else
+            m_out.push_back(string(ptr));
     }
 }
 

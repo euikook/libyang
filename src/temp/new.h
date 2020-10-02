@@ -65,6 +65,20 @@ typedef struct
  */
 void trp_injected_strlen(void *out, int arg_count, va_list ap); 
 
+typedef struct
+{
+    const char* src;
+    const char* substr_start;
+    size_t substr_size;
+} trt_breakable_str;
+
+trt_breakable_str trp_empty_breakable_str();
+trt_breakable_str trp_init_breakable_str(const char*);
+bool trp_breakable_str_is_empty(trt_breakable_str);;
+bool trp_breakable_str_begin_will_be_printed(trt_breakable_str);
+bool trp_breakable_str_end_will_be_printed(trt_breakable_str);
+void trp_print_breakable_str(trt_breakable_str, trt_printing);
+
 /* ======================================= */
 /* ----------- <Print getters> ----------- */
 /* ======================================= */
@@ -75,7 +89,7 @@ void trp_injected_strlen(void *out, int arg_count, va_list ap);
 struct trt_fp_print
 {
     void (*print_features_names)(const struct trt_tree_ctx*, trt_printing);   /*<< print including spaces between names */
-    void (*print_keys)(const struct trt_tree_ctx *, trt_printing);            /*<< print including spaces between names */
+    void (*print_keys)(const struct trt_tree_ctx *, trt_printing);            /*<< print including delimiters between names */
 };
 
 typedef struct
@@ -112,6 +126,7 @@ typedef enum
 } trt_indent_in_node_type;
 
 typedef int16_t trt_indent_btw;
+const trt_indent_btw trd_linebreak = -1;
 
 typedef struct
 {
@@ -154,15 +169,18 @@ trt_wrapper trp_wrapper_set_mark(trt_wrapper);
  */
 trt_wrapper trp_wrapper_set_shift(trt_wrapper);
 
+bool trt_wrapper_eq(trt_wrapper, trt_wrapper);
+
 /**
  * @brief Print "  |" sequence.
  */
 void trp_print_wrapper(trt_wrapper, trt_printing);
 
+
 typedef struct
 {
-    trt_indent_in_node in_node;
     trt_wrapper wrapper;
+    trt_indent_in_node in_node;
 } trt_pck_indent;
 
 /* ================================== */
@@ -247,7 +265,8 @@ static const char trd_type_target_prefix[] = "-> ";
 
 typedef enum
 {
-    trd_type_type_target = 0,
+    trd_type_type_name = 0,
+    trd_type_type_target,
     trd_type_type_leafref,
     trd_type_type_empty
 } trt_type_type;
@@ -255,7 +274,7 @@ typedef enum
 typedef struct
 {
     trt_type_type type;
-    const char* target;
+    trt_breakable_str str;
 } trt_type;
 
 trt_type trp_empty_type();
@@ -272,6 +291,7 @@ typedef const char* trt_iffeatures_suffix;
 static const char trd_iffeatures_suffix[] = "}?";
 typedef bool trt_iffeature;
 
+trt_iffeature trp_set_iffeature();
 trt_iffeature trp_empty_iffeature();
 bool trp_iffeature_is_empty(trt_iffeature);
 
@@ -315,6 +335,15 @@ trt_node trp_empty_node();
 bool trp_node_is_empty(trt_node);
 void trp_print_node(trt_node, trt_pck_print, trt_indent_in_node, trt_printing);
 
+typedef struct
+{
+    trt_indent_in_node indent;
+    trt_node node;
+}trt_pair_indent_node;
+
+trt_pair_indent_node trp_first_half_node(trt_node, trt_indent_in_node);
+trt_pair_indent_node trp_second_half_node(trt_node, trt_indent_in_node);
+
 /* =================================== */
 /* ----------- <statement> ----------- */
 /* =================================== */
@@ -340,7 +369,7 @@ typedef struct
 {
     trt_keyword_stmt_type type;
     trt_top_keyword keyword;
-    const char* name;
+    trt_breakable_str str;
 } trt_keyword_stmt;
 
 trt_keyword_stmt trp_empty_keyword_stmt();
@@ -452,19 +481,21 @@ struct trt_tree_ctx
 void trp_main(struct trt_printer_ctx, struct trt_tree_ctx*);
 
 /**
- * @brief Recursive nodes printing
- */
-void trp_print_nodes(struct trt_printer_ctx, struct trt_tree_ctx*, trt_pck_indent);
-
-/**
  * @brief Print one line
  */
 void trp_print_line(trt_node, trt_pck_print, trt_pck_indent, trt_printing);
 
 /**
- * @brief Get a divided node based on the result of trt_indent_in_node.
+ * @brief Print an entire node that can be split into multiple lines.
  */
-trt_node trp_divide_node(trt_node, trt_indent_in_node);
+void trp_print_entire_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
+
+void trp_print_divided_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
+
+/**
+ * @brief Recursive nodes printing
+ */
+void trp_print_nodes(struct trt_printer_ctx, struct trt_tree_ctx*, trt_pck_indent);
 
 /**
  * @brief Get default indent in node based on node values.
@@ -478,7 +509,7 @@ trt_indent_in_node trp_default_indent_in_node(trt_node);
  * @return .type == trd_indent_in_node_normal - the node fits into the line, all .trt_indent_btw values has non-negative number.
  * @return .type == trd_indent_in_node_failed - the node does not fit into the line, all .trt_indent_btw has negative or zero values, function failed.
  */
-trt_indent_in_node trp_try_normal_indent_in_line(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll);
+trt_pair_indent_node trp_try_normal_indent_in_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll);
 
 /**
  * @brief Find out if it is possible to unify the alignment in all subtrees
@@ -495,10 +526,15 @@ typedef const char* const trt_separator;
 static trt_separator trd_separator_colon = ":";
 static trt_separator trd_separator_space = " ";
 static trt_separator trd_separator_dashes = "--";
+static trt_separator trd_separator_linebreak = "\n";
 
 void trg_print_n_times(int32_t n, char, trt_printing);
 
 bool trg_test_bit(uint64_t number, uint32_t bit);
+
+
+//char* trg_
+
 
 /* ================================ */
 /* ----------- <symbol> ----------- */
