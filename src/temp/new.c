@@ -22,6 +22,62 @@ trp_injected_strlen(void *out, int arg_count, va_list ap)
         cnt->bytes += strlen(va_arg(ap, char*));
 }
 
+trt_breakable_str
+trp_init_breakable_str(const char* src)
+{
+    trt_breakable_str ret;
+    ret.src = src;
+    ret.substr_start = src;
+    ret.substr_size = 0;
+    return ret;
+}
+
+bool
+trp_breakable_str_begin_will_be_printed(trt_breakable_str bs)
+{
+    return bs.src == bs.substr_start;
+}
+
+bool
+trp_breakable_str_end_will_be_printed(trt_breakable_str bs)
+{
+    if(trp_breakable_str_is_empty(bs))
+        return true;
+    else if(bs.src == NULL || bs.substr_start == NULL)
+        return true;
+    else if(bs.src[0] == '\0')
+        return true;
+    else if(bs.substr_start[0] == '\0')
+        return true;
+    else if(bs.src == bs.substr_start && bs.substr_size == 0)
+        return true;
+    else if(*(bs.substr_start + bs.substr_size) == '\0')
+        return true;
+    else
+        return false;
+}
+
+void
+trp_print_breakable_str(trt_breakable_str str, trt_printing p)
+{
+    if(trp_breakable_str_is_empty(str))
+        return;
+
+    if((str.src == str.substr_start) && (str.substr_size == 0)) {
+        trp_print(p, 1, str.src);
+        return;
+    }
+
+    const size_t max_substr_size = strlen(str.substr_start);
+    const size_t end = str.substr_size > max_substr_size ? max_substr_size : str.substr_size;
+    if(end == max_substr_size) {
+        trp_print(p, 1, str.substr_start);
+    } else {
+        for(size_t i = 0; i < end; i++)
+            trg_print_n_times(1, str.substr_start[i], p);
+    }
+}
+
 trt_wrapper
 trp_init_wrapper_top()
 {
@@ -69,10 +125,22 @@ trp_wrapper_set_shift(trt_wrapper wr)
     return wr;
 }
 
+bool
+trt_wrapper_eq(trt_wrapper f, trt_wrapper s)
+{
+    const bool a = f.type == s.type;
+    const bool b = f.bit_marks1 == s.bit_marks1;
+    const bool c = f.actual_pos == s.actual_pos;
+    return a && b && c;
+}
+
 void
 trp_print_wrapper(trt_wrapper wr, trt_printing p)
 {
     const char char_space = trd_separator_space[0];
+
+    if(trt_wrapper_eq(wr, trp_init_wrapper_top()))
+        return;
 
     {
         uint32_t lb;
@@ -96,6 +164,22 @@ trp_print_wrapper(trt_wrapper wr, trt_printing p)
         if(i != wr.actual_pos)
             trg_print_n_times(trd_indent_btw_siblings, char_space, p);
     }
+}
+
+trt_breakable_str
+trp_empty_breakable_str()
+{
+    trt_breakable_str ret;
+    ret.src = NULL;
+    ret.substr_start = NULL;
+    ret.substr_size = 0;
+    return ret;
+}
+
+bool
+trp_breakable_str_is_empty(trt_breakable_str bs)
+{
+    return bs.src == NULL;
 }
 
 trt_node_name
@@ -141,6 +225,12 @@ trp_type_is_empty(trt_type type)
 }
 
 trt_iffeature
+trp_set_iffeature()
+{
+    return true;
+}
+
+trt_iffeature
 trp_empty_iffeature()
 {
     return false;
@@ -174,14 +264,14 @@ trt_keyword_stmt
 trp_empty_keyword_stmt()
 {
     trt_keyword_stmt ret;
-    ret.name = NULL;
+    ret.str = trp_empty_breakable_str();
     return ret;
 }
 
 bool
 trp_keyword_stmt_is_empty(trt_keyword_stmt ks)
 {
-    return ks.name == NULL;
+    return trp_breakable_str_is_empty(ks.str);
 }
 
 void
@@ -208,28 +298,23 @@ trp_print_node_name(trt_node_name a, trt_printing p)
 }
 
 void
-trp_print_opts(trt_opts a, trt_indent_btw ind, trt_cf_print_keys cf, trt_printing p)
+trp_print_opts(trt_opts a, trt_indent_btw btw_name_opts, trt_cf_print_keys cf, trt_printing p)
 {
     if(trp_opts_is_empty(a))
         return;
 
     const char space_char = trd_separator_space[0];
 
-    switch(a.type) {
-    case trd_opts_type_keys:
-    case trd_opts_type_mark_only:
+    if(a.type == trd_opts_type_mark_only || a.type == trd_opts_type_keys) {
         trg_print_n_times(trd_indent_before_mark, space_char, p);
         trp_print(p, 1, a.mark);
-        break;
-    case trd_opts_type_keys_only:
+    }
+    if(a.type == trd_opts_type_keys_only || a.type == trd_opts_type_keys) {
         /* <name><mark>___<keys>*/
-        trg_print_n_times(ind, space_char, p);
+        trg_print_n_times(btw_name_opts, space_char, p);
         trp_print(p, 1, trd_opts_keys_prefix);
         cf.pf(cf.ctx, p);
         trp_print(p, 1, trd_opts_keys_suffix);
-        break;
-    default:
-        break;
     }
 }
 
@@ -240,11 +325,24 @@ trp_print_type(trt_type a, trt_printing p)
         return;
 
     switch(a.type) {
+    case trd_type_type_name:
+        trp_print_breakable_str(a.str, p);
+        break;
     case trd_type_type_target:
-        trp_print(p, 2, trd_type_target_prefix, a.target);
+        if(trp_breakable_str_begin_will_be_printed(a.str)) {
+            /* print with prefix - normal */
+            trp_print(p, 1, trd_type_target_prefix);
+            trp_print_breakable_str(a.str, p);
+        } else {
+            /* print without prefix - path is too long,
+             * target string is splitted to more lines
+             * and substr is printed
+             */
+            trp_print_breakable_str(a.str, p);
+        }
         break;
     case trd_type_type_leafref:
-        trp_print(p, 1, trd_type_leafref);
+        trp_print_breakable_str(a.str, p);
     default:
         break;
     }
@@ -335,10 +433,17 @@ trp_print_keyword_stmt(trt_keyword_stmt a, trt_printing p)
 
     switch(a.type) {
     case trd_keyword_stmt_top:
-        trp_print(p, 4, a.keyword, trd_separator_colon, trd_separator_space, a.name);
+        trp_print(p, 3, a.keyword, trd_separator_colon, trd_separator_space);
+        trp_print_breakable_str(a.str, p);
         break;
     case trd_keyword_stmt_body:
-        trp_print(p, 4, a.keyword, trd_separator_space, a.name, trd_separator_colon);
+        trp_print(p, 2, a.keyword, trd_separator_space);
+        if(trp_breakable_str_end_will_be_printed(a.str)){
+            trp_print_breakable_str(a.str, p);
+            trp_print(p, 1, trd_separator_colon);
+        } else {
+            trp_print_breakable_str(a.str, p);
+        }
         break;
     default:
         break;
@@ -353,28 +458,108 @@ trp_print_line(trt_node node, trt_pck_print pck, trt_pck_indent ind, trt_printin
     trp_print_node(node, pck, ind.in_node, p);
 }
 
-trt_node
-trp_divide_node(trt_node node, trt_indent_in_node ind)
+void
+trp_print_entire_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, uint32_t mll, trt_printing p)
 {
-    if(ind.type != trd_indent_in_node_divided)
-        return node;
+    if(ipck.in_node.type == trd_indent_in_node_unified) {
+        /* TODO: special case */
+        trp_print_line(node, ppck, ipck, p);
+        return;
+    }
+
+    /* check if normal indent is possible */
+    trt_pair_indent_node ind_node = trp_try_normal_indent_in_node(node, ppck, ipck, mll);
+    if(ind_node.indent.type == trd_indent_in_node_normal) {
+        /* node fits to one line */
+        trp_print_line(node, ppck, ipck, p);
+    } else if(ind_node.indent.type == trd_indent_in_node_divided) {
+        /* node will be divided */
+        trp_print_divided_node(node, ppck, ipck, mll, p);
+    } else if(ind_node.indent.type == trd_indent_in_node_failed){
+        /* it is not possible to keep the max line length */
+        /* at least print it in pieces */
+        trp_print_divided_node(node, ppck, ipck, mll, p);
+    }
+}
+
+void
+trp_print_divided_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, uint32_t mll, trt_printing p)
+{
+    /* node must be divided */
+    trt_pair_indent_node ind_node = trp_try_normal_indent_in_node(node, ppck, ipck, mll);
+    /* store new indent for the first half of node */
+    ipck.in_node = ind_node.indent;
+    /* pretend normal node */
+    ipck.in_node.type = trd_indent_in_node_normal;
+    /* first half of node is already in ind_node */
+    /* print first part of node */
+    trp_print_line(ind_node.node, ppck, ipck, p);
+
+    return;
+    /* what if iffeature is not last because is not even set? */
+    /* TODO: other approach */
+    //if(!trp_iffeature_is_empty(ind_node.node.iffeatures)) {
+    //    /* last item of node was printed - done */
+    //    return;
+    //} else {
+        /* continue with second half node */
+        ind_node = trp_second_half_node(ind_node.node, ind_node.indent);
+        /* store new indent for the second half of node */
+        ipck.in_node = ind_node.indent;
+        /* continue with printing entire node */
+        trp_print_divided_node(ind_node.node, ppck, ipck, mll, p);
+    //}
+}
+
+trt_pair_indent_node trp_first_half_node(trt_node node, trt_indent_in_node ind)
+{
+    if(ind.type != trd_indent_in_node_divided) {
+        trt_pair_indent_node tmp = {ind, node};
+        return tmp;
+    }
+
+    trt_pair_indent_node ret = {ind, node};
 
     if(ind.btw_name_opts < 0) {
-        /* the information up to token <opts> can be deleted,
-         * but this is unnecessary because the print_node function
-         * will ignore it anyway
+        ret.node.opts = trp_empty_opts(); //TODO: unexpectedly mark is removed too, add some exception?
+        ret.node.type = trp_empty_type();
+        ret.node.iffeatures = trp_empty_iffeature();
+    } else if(ind.btw_opts_type < 0) {
+        ret.node.type = trp_empty_type();
+        ret.node.iffeatures = trp_empty_iffeature();
+    } else if(ind.btw_type_iffeatures < 0) {
+        ret.node.iffeatures = trp_empty_iffeature();
+    }
+    return ret;
+}
+
+trt_pair_indent_node trp_second_half_node(trt_node node, trt_indent_in_node ind)
+{
+    if(ind.type != trd_indent_in_node_divided) {
+        trt_pair_indent_node tmp = {ind, node};
+        return tmp;
+    }
+
+    trt_pair_indent_node ret = {ind, node};
+
+    if(ind.btw_name_opts < 0) {
+        /* Logically, the information up to token <opts> should be deleted,
+         * but the the trp_print_node function needs it to create
+         * the correct indent.
          */
-        return node;
+        ret.indent.btw_name_opts = 0;
+    } else if(ind.btw_opts_type < 0) {
+        ret.node.opts = trp_empty_opts();
+        ret.indent.btw_name_opts = 0;
+        ret.indent.btw_opts_type = 0;
+    } else if(ind.btw_type_iffeatures < 0) {
+        ret.node.opts = trp_empty_opts();
+        ret.node.type = trp_empty_type();
+        ret.indent.btw_name_opts = 0;
+        ret.indent.btw_opts_type = 0;
+        ret.indent.btw_type_iffeatures = 0;
     }
-
-    if(ind.btw_opts_type < 0)
-        node.opts = trp_empty_opts();
-
-    if(ind.btw_type_iffeatures < 0) {
-        node.opts = trp_empty_opts();
-        node.type = trp_empty_type();
-    }
-    return node;
+    return ret;
 }
 
 trt_indent_in_node
@@ -385,17 +570,17 @@ trp_default_indent_in_node(trt_node node)
 
     /* btw_name_opts */
     if(!trp_opts_is_empty(node.opts)) {
-        switch(node.type.type) {
-            case trd_opts_type_keys:
-            case trd_opts_type_keys_only:
-                ret.btw_name_opts = trd_indent_before_keys;
-                break;
-            case trd_opts_type_mark_only:
-                ret.btw_name_opts = trd_indent_before_mark;
-                break;
-            default:
-                ret.btw_name_opts = 0;
-                break;
+        switch(node.opts.type) {
+        case trd_opts_type_keys:
+        case trd_opts_type_keys_only:
+            ret.btw_name_opts = trd_indent_before_keys;
+            break;
+        case trd_opts_type_mark_only:
+            ret.btw_name_opts = trd_indent_before_mark;
+            break;
+        default:
+            ret.btw_name_opts = 0;
+            break;
         }
     } else {
         ret.btw_name_opts = 0;
@@ -417,45 +602,49 @@ trp_default_indent_in_node(trt_node node)
     return ret;
 }
 
-trt_indent_in_node
-trp_try_normal_indent_in_line(trt_node n, trt_pck_print p, trt_pck_indent ind, uint32_t mll)
+trt_pair_indent_node
+trp_try_normal_indent_in_node(trt_node n, trt_pck_print p, trt_pck_indent ind, uint32_t mll)
 {
     trt_counter cnt = {0};
+    /* inject print function with strlen */
     trt_injecting_strlen func = {&cnt, trp_injected_strlen};
+    /* count number of printed bytes */
     trp_print_line(n, p, ind, func);
 
+    trt_pair_indent_node ret = {ind.in_node, n};
+
     if(cnt.bytes <= mll) {
-        return ind.in_node;
+        /* success */
+        return ret;
     } else {
-        ind.in_node.type = trd_indent_in_node_divided;
-        const trt_indent_btw line_break = -1;
-        /* just for shortening the name */
-        trt_indent_btw* const name_opts = &ind.in_node.btw_name_opts;
-        trt_indent_btw* const opts_type = &ind.in_node.btw_opts_type;
-        trt_indent_btw* const type_iffe = &ind.in_node.btw_type_iffeatures;
-        /* setting somewhere line break */
-        if(*name_opts != line_break && *name_opts != 0) {
+        /* somewhere must be set a line break in node */
+        ret.indent.type = trd_indent_in_node_divided;
+        /* pointers for just shortening the name */
+        trt_indent_btw* const name_opts = &ret.indent.btw_name_opts;
+        trt_indent_btw* const opts_type = &ret.indent.btw_opts_type;
+        trt_indent_btw* const type_iffe = &ret.indent.btw_type_iffeatures;
+        /* gradually break the node from the end */
+        if(*type_iffe != trd_linebreak && *type_iffe != 0) {
+            *type_iffe = trd_linebreak;
+        } else if(*opts_type != trd_linebreak && *opts_type != 0) {
+            *opts_type = trd_linebreak;
+        } else if(*name_opts != trd_linebreak && *name_opts != 0) {
             /* set line break between name and opts */
-            *name_opts = line_break;
-            /* erase information in node due to line break */
-            n = trp_divide_node(n, ind.in_node);
-            /* check if line fits */
-            return trp_try_normal_indent_in_line(n, p, ind, mll);
-        } else if(*opts_type != line_break && *opts_type != 0) {
-            *opts_type = line_break;
-            n = trp_divide_node(n, ind.in_node);
-            return trp_try_normal_indent_in_line(n, p, ind, mll);
-        } else if(*type_iffe != line_break && *type_iffe != 0) {
-            *type_iffe = line_break;
-            n = trp_divide_node(n, ind.in_node);
-            return trp_try_normal_indent_in_line(n, p, ind, mll);
+            *name_opts = trd_linebreak;
         } else {
-            ind.in_node.type = trd_indent_in_node_failed;
+            ret.indent.type = trd_indent_in_node_failed;
             /* it is not possible to place a more line breaks,
              * unfortunately the max_line_length constraint is violated
              */
-            return ind.in_node;
+            return ret;
         }
+        /* erase information in node due to line break */
+        ret = trp_first_half_node(n, ret.indent);
+        /* setting parameters */
+        n = ret.node;
+        ind.in_node = ret.indent;
+        /* check if line fits */
+        return trp_try_normal_indent_in_node(n, p, ind, mll);
     }
 }
 

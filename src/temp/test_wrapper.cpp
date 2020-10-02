@@ -22,7 +22,7 @@ string es(3, ' '); /* empty shift */
 
 TEST(wrapper, printWrapperNoActions)
 {
-    out_t check = {sp + " "};
+    out_t check = {};
     trt_printing p = {&out, Out::print_VecStr};
     trt_wrapper wr = trp_init_wrapper_top();
     trp_print_wrapper(wr, p);

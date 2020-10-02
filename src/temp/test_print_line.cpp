@@ -25,9 +25,9 @@ UNIT_TESTING_START;
 using out_t = std::string;
 out_t out;
 
-TEST(node, fully)
+TEST(line, fully)
 {
-    out_t check = "+--rw prefix:node*   -> target {iffeature}?";
+    out_t check = "  |  |  +--rw prefix:node*   -> target {iffeature}?";
     trt_printing p = {&out, Out::print_string};
     trt_node node =
     {
@@ -37,31 +37,38 @@ TEST(node, fully)
         {trd_type_type_target, trp_init_breakable_str("target")},
         trp_set_iffeature()
     };
-    trt_pck_print pck = {NULL, {p_iff, p_key}};
+    trt_pck_print ppck = {NULL, {p_iff, p_key}};
     trt_indent_in_node ind = trp_default_indent_in_node(node);
+    trt_wrapper wr = trp_init_wrapper_top();
+    wr = trp_wrapper_set_mark(wr);
+    wr = trp_wrapper_set_shift(wr);
+    wr = trp_wrapper_set_mark(wr);
+    trt_pck_indent ipck = {wr, ind};
 
-    trp_print_node(node, pck, ind, p);
+    trp_print_line(node, ppck, ipck, p);
 
     EXPECT_EQ(out, check);
     out.clear();
 }
 
-TEST(node, onlyIffeature)
+TEST(line, firstNode)
 {
-    out_t check = "+--rw node {iffeature}?";
+    out_t check = "  +--rw prefix:node*   -> target {iffeature}?";
     trt_printing p = {&out, Out::print_string};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
-        {trd_node_type_else, "", "node"},
-        {trd_opts_type_empty, ""},
-        {trd_type_type_empty, {}},
+        {trd_node_type_else, "prefix", "node"},
+        {trd_opts_type_mark_only, trd_opts_list},
+        {trd_type_type_target, trp_init_breakable_str("target")},
         trp_set_iffeature()
     };
-    trt_pck_print pck = {NULL, {p_iff, p_key}};
+    trt_pck_print ppck = {NULL, {p_iff, p_key}};
     trt_indent_in_node ind = trp_default_indent_in_node(node);
+    trt_wrapper wr = trp_init_wrapper_top();
+    trt_pck_indent ipck = {wr, ind};
 
-    trp_print_node(node, pck, ind, p);
+    trp_print_line(node, ppck, ipck, p);
 
     EXPECT_EQ(out, check);
     out.clear();
