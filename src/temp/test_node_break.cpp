@@ -27,6 +27,7 @@ using std::string;
 out_t out;
 
 #if 0
+
 TEST(nodeBreak, fits)
 {
     out_t check = {"  +--rw prefix:node* [key1 key2]    type {iffeature}?"};
@@ -34,9 +35,9 @@ TEST(nodeBreak, fits)
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
-        {trd_node_type_else, "prefix", "node"},
-        {trd_opts_type_keys, trd_opts_list},
-        {trd_type_type_name, trp_init_breakable_str("type")},
+        {trd_node_keys, "prefix", "node"},
+        trp_set_opts_keys(),
+        {trd_type_name, trp_init_breakable_str("type")},
         trp_set_iffeature()
     };
     trt_pck_print ppck = {NULL, {p_iff, p_key}};
@@ -48,6 +49,7 @@ TEST(nodeBreak, fits)
     EXPECT_EQ(out, check);
     out.clear();
 }
+
 #endif
 
 TEST(nodeBreak, btwNameOpts)
@@ -62,9 +64,9 @@ TEST(nodeBreak, btwNameOpts)
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
-        {trd_node_type_else, "prefix", "node"},
-        {trd_opts_type_keys, trd_opts_list},
-        {trd_type_type_empty, trp_empty_breakable_str()},
+        {trd_node_container, "prefix", "node"},
+        trp_set_opts_keys(),
+        {trd_type_empty, trp_empty_breakable_str()},
         trp_empty_iffeature()
     };
     trt_pck_print ppck = {NULL, {p_iff, p_key}};

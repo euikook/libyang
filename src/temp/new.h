@@ -109,7 +109,6 @@ typedef enum
     trd_indent_long_line_break = 2,     /**< The new line should be indented so that it starts below <name> with a whitespace offset of at least two characters. */
     trd_indent_line_begin = 2,          /**< indent below the keyword (module, augment ...)  */
     trd_indent_btw_siblings = 2,
-    trd_indent_before_mark = 0,         /**< <x>___<mark> */
     trd_indent_before_keys = 1,         /**< <x>___<keys> */
     trd_indent_before_type = 4,         /**< <x>___<type>, but if mark is set then indent == 3 */
     trd_indent_before_iffeatures = 1,   /**< <x>___<iffeatures> */
@@ -136,10 +135,12 @@ typedef struct
     trt_indent_btw btw_type_iffeatures; /**< ignored if <type> missing */
 } trt_indent_in_node;
 
-typedef enum
+bool trp_indent_in_node_are_eq(trt_indent_in_node, trt_indent_in_node);
+
+typedef enum 
 {
-    trd_wrapper_type_top = 0,
-    trd_wrapper_type_body
+    trd_wrapper_top = 0,
+    trd_wrapper_body
 } trd_wrapper_type;
 
 /**
@@ -197,9 +198,16 @@ static const char trd_node_name_suffix_case[] = ")";
 
 typedef enum
 {
-    trd_node_type_else = 0,
-    trd_node_type_choice,
-    trd_node_type_case,
+    trd_node_else = 0,
+    trd_node_case,
+    trd_node_choice,
+    trd_node_optional_choice,
+    trd_node_optional,              /**< for an optional leaf, anydata, or anyxml */
+    trd_node_container,             /**< for a presence container */
+    trd_node_listLeaflist,          /**< for a leaf-list or list (without keys) */
+    trd_node_keys,                  /**< for a list's keys */
+    trd_node_top_level1,            /**< for a top-level data node in a mounted module */
+    trd_node_top_level2             /**< for a top-level data node of a module identified in a mount point parent reference */
 } trt_node_type;
 
 typedef struct
@@ -209,66 +217,50 @@ typedef struct
     const char* str;
 } trt_node_name;
 
+
 trt_node_name trp_empty_node_name();
 bool trp_node_name_is_empty(trt_node_name);
 void trp_print_node_name(trt_node_name, trt_printing);
+bool trp_mark_is_used(trt_node_name);
 
 /* ============================== */
 /* ----------- <opts> ----------- */
 /* ============================== */
 
-typedef const char* trt_opts_mark;
-static const char trd_opts_question_mark[] = "?"; /**< for an optional leaf, choice, anydata, or anyxml */ 
-static const char trd_opts_container[] = "!";     /**< for a presence container */
-static const char trd_opts_list[] = "*";          /**< for a leaf-list or list */
-static const char trd_opts_slash[] = "/";         /**< for a top-level data node in a mounted module */
-static const char trd_opts_at_sign[] = "@";       /**< for a top-level data node of a module identified in a mount point parent reference */
-static const char trd_opts_empty[] = "";
+static const char trd_opts_optional[] = "?";   /**< for an optional leaf, choice, anydata, or anyxml */ 
+static const char trd_opts_container[] = "!";       /**< for a presence container */
+static const char trd_opts_list[] = "*";            /**< for a leaf-list or list */
+static const char trd_opts_slash[] = "/";           /**< for a top-level data node in a mounted module */
+static const char trd_opts_at_sign[] = "@";         /**< for a top-level data node of a module identified in a mount point parent reference */
+static const size_t trd_opts_mark_length = 1;       /**< every opts mark has a length of one */
 
 typedef const char* trt_opts_keys_prefix;
 static const char trd_opts_keys_prefix[] = "[";
 typedef const char* trt_opts_keys_suffix;
 static const char trd_opts_keys_suffix[] = "]";
 
-typedef enum
-{
-    trd_opts_type_keys = 0,     /**< mark '*' included */
-    trd_opts_type_mark_only,
-    trd_opts_type_keys_only,
-    trd_opts_type_empty
-} trt_opts_type;
+typedef bool trt_opts_keys;
 
-typedef struct
-{
-    trt_opts_type type;
-    const char* mark;
-} trt_opts;
-
-trt_opts trp_empty_opts();
-bool trp_opts_is_empty(trt_opts);
-
-/**
- * @brief Print all [keys] of node 
- *
- * @param[in] print_keys added function which finds and prints all keys
- */
-void trp_print_opts(trt_opts, trt_indent_btw, trt_cf_print_keys, trt_printing);
+trt_opts_keys trp_set_opts_keys();
+trt_opts_keys trp_empty_opts_keys();
+bool trp_opts_keys_is_empty(trt_opts_keys);
+void trp_print_opts_keys(trt_opts_keys, trt_indent_btw, trt_cf_print_keys, trt_printing);
 
 /* ============================== */
 /* ----------- <type> ----------- */
 /* ============================== */
 
 typedef const char* trt_type_leafref;
-static const char trd_type_leafref[] = "leafref";
+static const char trd_type_leafref_keyword[] = "leafref";
 typedef const char* trt_type_target_prefix;
 static const char trd_type_target_prefix[] = "-> ";
 
 typedef enum
 {
-    trd_type_type_name = 0,
-    trd_type_type_target,
-    trd_type_type_leafref,
-    trd_type_type_empty
+    trd_type_name = 0,
+    trd_type_target,
+    trd_type_leafref,
+    trd_type_empty
 } trt_type_type;
 
 typedef struct
@@ -326,7 +318,7 @@ typedef struct
     trt_status status;
     trt_flags flags;
     trt_node_name name;
-    trt_opts opts;
+    trt_opts_keys opts_keys;
     trt_type type;                  /**< is the name of the type for leafs and leaf-lists */
     trt_iffeature iffeatures;  
 } trt_node;
@@ -531,10 +523,6 @@ static trt_separator trd_separator_linebreak = "\n";
 void trg_print_n_times(int32_t n, char, trt_printing);
 
 bool trg_test_bit(uint64_t number, uint32_t bit);
-
-
-//char* trg_
-
 
 /* ================================ */
 /* ----------- <symbol> ----------- */
