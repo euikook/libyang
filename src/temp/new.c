@@ -563,21 +563,16 @@ trp_print_divided_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, u
 
 trt_pair_indent_node trp_first_half_node(trt_node node, trt_indent_in_node ind)
 {
-    if(ind.type != trd_indent_in_node_divided) {
-        trt_pair_indent_node tmp = {ind, node};
-        return tmp;
-    }
-
     trt_pair_indent_node ret = {ind, node};
 
-    if(ind.btw_name_opts < 0) {
+    if(ind.btw_name_opts == trd_linebreak) {
         ret.node.opts_keys = trp_empty_opts_keys();
         ret.node.type = trp_empty_type();
         ret.node.iffeatures = trp_empty_iffeature();
-    } else if(ind.btw_opts_type < 0) {
+    } else if(ind.btw_opts_type == trd_linebreak) {
         ret.node.type = trp_empty_type();
         ret.node.iffeatures = trp_empty_iffeature();
-    } else if(ind.btw_type_iffeatures < 0) {
+    } else if(ind.btw_type_iffeatures == trd_linebreak) {
         ret.node.iffeatures = trp_empty_iffeature();
     }
 
@@ -586,11 +581,6 @@ trt_pair_indent_node trp_first_half_node(trt_node node, trt_indent_in_node ind)
 
 trt_pair_indent_node trp_second_half_node(trt_node node, trt_indent_in_node ind)
 {
-    if(ind.type != trd_indent_in_node_divided) {
-        trt_pair_indent_node tmp = {ind, node};
-        return tmp;
-    }
-
     trt_pair_indent_node ret = {ind, node};
 
     if(ind.btw_name_opts < 0) {
@@ -599,11 +589,12 @@ trt_pair_indent_node trp_second_half_node(trt_node node, trt_indent_in_node ind)
          * the correct indent.
          */
         ret.indent.btw_name_opts = 0;
-    } else if(ind.btw_opts_type < 0) {
+    } else if(ind.btw_opts_type == trd_linebreak) {
         ret.node.opts_keys = trp_empty_opts_keys();
         ret.indent.btw_name_opts = 0;
         ret.indent.btw_opts_type = 0;
-    } else if(ind.btw_type_iffeatures < 0) {
+        ret.indent.btw_type_iffeatures = trp_iffeature_is_empty(node.iffeatures) ? 0 : trd_indent_before_iffeatures;
+    } else if(ind.btw_type_iffeatures == trd_linebreak) {
         ret.node.opts_keys = trp_empty_opts_keys();
         ret.node.type = trp_empty_type();
         ret.indent.btw_name_opts = 0;
@@ -655,7 +646,6 @@ trp_try_normal_indent_in_node(trt_node n, trt_pck_print p, trt_pck_indent ind, u
         return ret;
     } else {
         /* somewhere must be set a line break in node */
-        ret.indent.type = trd_indent_in_node_divided;
         /* pointers for just shortening the name */
         trt_indent_btw* const name_opts = &ret.indent.btw_name_opts;
         trt_indent_btw* const opts_type = &ret.indent.btw_opts_type;
@@ -681,7 +671,10 @@ trp_try_normal_indent_in_node(trt_node n, trt_pck_print p, trt_pck_indent ind, u
         n = ret.node;
         ind.in_node = ret.indent;
         /* check if line fits */
-        return trp_try_normal_indent_in_node(n, p, ind, mll);
+        ret = trp_try_normal_indent_in_node(n, p, ind, mll);
+        /* make sure that the result will be with the status divided */
+        ret.indent.type = trd_indent_in_node_divided;
+        return ret;
     }
 }
 
