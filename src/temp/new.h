@@ -524,6 +524,8 @@ void trg_print_n_times(int32_t n, char, trt_printing);
 
 bool trg_test_bit(uint64_t number, uint32_t bit);
 
+void trg_print_linebreak(trt_printing);
+
 /* ================================ */
 /* ----------- <symbol> ----------- */
 /* ================================ */

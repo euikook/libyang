@@ -145,8 +145,7 @@ void print_vecLines(void* out, int arg_count, va_list ap)
 
         if(ptr[0] == trd_separator_linebreak[0])
             m_out.push_back("");
-
-        if(!m_out.empty())
+        else if(!m_out.empty())
             m_out.back() += string(ptr);
         else
             m_out.push_back(string(ptr));
