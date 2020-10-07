@@ -78,6 +78,16 @@ trp_print_breakable_str(trt_breakable_str str, trt_printing p)
     }
 }
 
+bool
+trp_indent_in_node_are_eq(trt_indent_in_node f, trt_indent_in_node s)
+{
+    const bool a = f.type == s.type;
+    const bool b = f.btw_name_opts == s.btw_name_opts;
+    const bool c = f.btw_opts_type == s.btw_opts_type;
+    const bool d = f.btw_type_iffeatures == s.btw_type_iffeatures;
+    return a && b && c && d;
+}
+
 trt_wrapper
 trp_init_wrapper_top()
 {
@@ -86,7 +96,7 @@ trp_init_wrapper_top()
      *   |
      */
     trt_wrapper wr;
-    wr.type = trd_wrapper_type_top;
+    wr.type = trd_wrapper_top;
     wr.actual_pos = 0;
     wr.bit_marks1 = 0;
     return wr;
@@ -102,7 +112,7 @@ trp_init_wrapper_body()
      *     +--<node>
      */
     trt_wrapper wr;
-    wr.type = trd_wrapper_type_body;
+    wr.type = trd_wrapper_body;
     wr.actual_pos = 0;
     wr.bit_marks1 = 0;
     return wr;
@@ -144,12 +154,12 @@ trp_print_wrapper(trt_wrapper wr, trt_printing p)
 
     {
         uint32_t lb;
-        if(wr.type == trd_wrapper_type_top) {
-            lb = trd_indent_line_begin;
-        } else if(wr.type == trd_wrapper_type_body) {
-            lb = trd_indent_line_begin * 2;
+        if (wr.type == trd_wrapper_top) {
+          lb = trd_indent_line_begin;
+        } else if (wr.type == trd_wrapper_body) {
+          lb = trd_indent_line_begin * 2;
         } else
-            lb = 0;
+          lb = 0;
 
         trg_print_n_times(lb, char_space, p);
     }
@@ -196,32 +206,36 @@ trp_node_name_is_empty(trt_node_name node_name)
     return node_name.str == NULL;
 }
 
-trt_opts
-trp_empty_opts()
+trt_opts_keys
+trp_set_opts_keys()
 {
-    trt_opts ret;
-    ret.type = trd_opts_type_empty;
-    return ret;
+    return true;
+}
+
+trt_opts_keys
+trp_empty_opts_keys()
+{
+    return false;
 }
 
 bool
-trp_opts_is_empty(trt_opts opts)
+trp_opts_keys_is_empty(trt_opts_keys keys)
 {
-    return opts.type == trd_opts_type_empty;
+    return keys == false;
 }
 
 trt_type
 trp_empty_type()
 {
     trt_type ret;
-    ret.type = trd_type_type_empty;
+    ret.type = trd_type_empty;
     return ret;
 }
 
 bool
 trp_type_is_empty(trt_type type)
 {
-    return type.type == trd_type_type_empty;
+    return type.type == trd_type_empty;
 }
 
 trt_iffeature
@@ -248,7 +262,7 @@ trp_empty_node()
     trt_node ret = 
     {
         NULL, NULL,
-        trp_empty_node_name(), trp_empty_opts(),
+        trp_empty_node_name(), trp_empty_opts_keys(),
         trp_empty_type(), trp_empty_iffeature()
     };
     return ret;
@@ -283,39 +297,68 @@ trp_print_node_name(trt_node_name a, trt_printing p)
     const char* colon = a.module_prefix == NULL || a.module_prefix[0] == '\0' ? "" : trd_separator_colon;
 
     switch(a.type) {
-    case trd_node_type_else:
+    case trd_node_else:
         trp_print(p, 3, a.module_prefix, colon, a.str);
         break;
-    case trd_node_type_choice:
+    case trd_node_case:
+        trp_print(p, 5, trd_node_name_prefix_case, a.module_prefix, colon, a.str, trd_node_name_suffix_case);
+        break;
+    case trd_node_choice:
         trp_print(p, 5, trd_node_name_prefix_choice,  a.module_prefix, colon, a.str, trd_node_name_suffix_choice);
         break;
-    case trd_node_type_case:
-        trp_print(p, 5, trd_node_name_prefix_case, a.module_prefix, colon, a.str, trd_node_name_suffix_case);
+    case trd_node_optional_choice:
+        trp_print(p, 6, trd_node_name_prefix_choice,  a.module_prefix, colon, a.str, trd_node_name_suffix_choice, trd_opts_optional);
+        break;
+    case trd_node_optional:
+        trp_print(p, 4, a.module_prefix, colon, a.str, trd_opts_optional);
+        break;
+    case trd_node_container:
+        trp_print(p, 4, a.module_prefix, colon, a.str, trd_opts_container);
+        break;
+    case trd_node_listLeaflist:
+        trp_print(p, 4, a.module_prefix, colon, a.str, trd_opts_list);
+        break;
+    case trd_node_keys:
+        trp_print(p, 4, a.module_prefix, colon, a.str, trd_opts_list);
+        break;
+    case trd_node_top_level1:
+        trp_print(p, 4, a.module_prefix, colon, a.str, trd_opts_slash);
+        break;
+    case trd_node_top_level2:
+        trp_print(p, 4, a.module_prefix, colon, a.str, trd_opts_at_sign);
         break;
     default:
         break;
     }
 }
 
-void
-trp_print_opts(trt_opts a, trt_indent_btw btw_name_opts, trt_cf_print_keys cf, trt_printing p)
+bool
+trp_mark_is_used(trt_node_name a)
 {
-    if(trp_opts_is_empty(a))
+    if(trp_node_name_is_empty(a))
+        return false;
+
+    switch(a.type) {
+    case trd_node_else:
+    case trd_node_case:
+    case trd_node_keys:
+        return false;
+    default:
+        return true;
+    }
+}
+
+void
+trp_print_opts_keys(trt_opts_keys a, trt_indent_btw btw_name_opts, trt_cf_print_keys cf, trt_printing p)
+{
+    if(trp_opts_keys_is_empty(a))
         return;
 
-    const char space_char = trd_separator_space[0];
-
-    if(a.type == trd_opts_type_mark_only || a.type == trd_opts_type_keys) {
-        trg_print_n_times(trd_indent_before_mark, space_char, p);
-        trp_print(p, 1, a.mark);
-    }
-    if(a.type == trd_opts_type_keys_only || a.type == trd_opts_type_keys) {
-        /* <name><mark>___<keys>*/
-        trg_print_n_times(btw_name_opts, space_char, p);
-        trp_print(p, 1, trd_opts_keys_prefix);
-        cf.pf(cf.ctx, p);
-        trp_print(p, 1, trd_opts_keys_suffix);
-    }
+    /* <name><mark>___<keys>*/
+    trg_print_n_times(btw_name_opts, trd_separator_space[0], p);
+    trp_print(p, 1, trd_opts_keys_prefix);
+    cf.pf(cf.ctx, p);
+    trp_print(p, 1, trd_opts_keys_suffix);
 }
 
 void
@@ -325,10 +368,10 @@ trp_print_type(trt_type a, trt_printing p)
         return;
 
     switch(a.type) {
-    case trd_type_type_name:
+    case trd_type_name:
         trp_print_breakable_str(a.str, p);
         break;
-    case trd_type_type_target:
+    case trd_type_target:
         if(trp_breakable_str_begin_will_be_printed(a.str)) {
             /* print with prefix - normal */
             trp_print(p, 1, trd_type_target_prefix);
@@ -341,7 +384,7 @@ trp_print_type(trt_type a, trt_printing p)
             trp_print_breakable_str(a.str, p);
         }
         break;
-    case trd_type_type_leafref:
+    case trd_type_leafref:
         trp_print_breakable_str(a.str, p);
     default:
         break;
@@ -367,7 +410,7 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
 
     /* <status>--<flags> <name><opts> <type> <if-features> */
 
-    const bool divided = ind.type == trd_indent_in_node_divided;
+    const bool divided = ind.type == trd_indent_in_node_divided && ind.btw_name_opts == 0;
     const char char_space = trd_separator_space[0];
 
     if(!divided) {
@@ -375,7 +418,7 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
         trp_print(p, 3, a.status, trd_separator_dashes, a.flags);
 
         /* If the node is a case node, there is no space before the <name> */
-        if(a.name.type != trd_node_type_case)
+        if(a.name.type != trd_node_case)
             trp_print(p, 1, trd_separator_space);
 
         /* <name> */
@@ -387,10 +430,10 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
         const uint32_t status_len = 1;
         uint32_t space = status_len + strlen(trd_separator_dashes) + strlen(a.flags);
 
-        if(a.name.type != trd_node_type_case) {
+        if(a.name.type != trd_node_case) {
             /* :(<name> */
             space += strlen(trd_node_name_prefix_case);
-        } else if(a.name.type != trd_node_type_choice) {
+        } else if(a.name.type != trd_node_choice) {
             /* (<name> */
             space += strlen(trd_node_name_prefix_choice);
         } else {
@@ -409,7 +452,7 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
     /* <opts> */
     /* <name>___<opts>*/
     trt_cf_print_keys cf_print_keys = {pck.tree_ctx, pck.fps.print_keys};
-    trp_print_opts(a.opts, ind.btw_name_opts, cf_print_keys, p);
+    trp_print_opts_keys(a.opts_keys, ind.btw_name_opts, cf_print_keys, p);
 
     /* <opts>__<type> */
     trg_print_n_times(ind.btw_opts_type, char_space, p);
@@ -487,28 +530,24 @@ trp_print_divided_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, u
 {
     /* node must be divided */
     trt_pair_indent_node ind_node = trp_try_normal_indent_in_node(node, ppck, ipck, mll);
-    /* store new indent for the first half of node */
-    ipck.in_node = ind_node.indent;
-    /* pretend normal node */
-    ipck.in_node.type = trd_indent_in_node_normal;
-    /* first half of node is already in ind_node */
-    /* print first part of node */
-    trp_print_line(ind_node.node, ppck, ipck, p);
+    {
+        trt_pck_indent tmp = {ipck.wrapper, ind_node.indent};
+        /* first half of node is already in ind_node */
+        /* print first part of node */
+        trp_print_line(ind_node.node, ppck, tmp, p);
+    }
 
-    return;
-    /* what if iffeature is not last because is not even set? */
-    /* TODO: other approach */
-    //if(!trp_iffeature_is_empty(ind_node.node.iffeatures)) {
-    //    /* last item of node was printed - done */
-    //    return;
-    //} else {
-        /* continue with second half node */
-        ind_node = trp_second_half_node(ind_node.node, ind_node.indent);
-        /* store new indent for the second half of node */
-        ipck.in_node = ind_node.indent;
-        /* continue with printing entire node */
-        trp_print_divided_node(ind_node.node, ppck, ipck, mll, p);
-    //}
+    if(trp_indent_in_node_are_eq(ipck.in_node, ind_node.indent)) {
+        /* last item of node was printed - done */
+        return;
+    } else {
+      /* continue with second half node */
+      ind_node = trp_second_half_node(ind_node.node, ind_node.indent);
+      /* store new indent for the second half of node */
+      ipck.in_node = ind_node.indent;
+      /* continue with printing entire node */
+      trp_print_divided_node(ind_node.node, ppck, ipck, mll, p);
+    }
 }
 
 trt_pair_indent_node trp_first_half_node(trt_node node, trt_indent_in_node ind)
@@ -521,7 +560,7 @@ trt_pair_indent_node trp_first_half_node(trt_node node, trt_indent_in_node ind)
     trt_pair_indent_node ret = {ind, node};
 
     if(ind.btw_name_opts < 0) {
-        ret.node.opts = trp_empty_opts(); //TODO: unexpectedly mark is removed too, add some exception?
+        ret.node.opts_keys = trp_empty_opts_keys();
         ret.node.type = trp_empty_type();
         ret.node.iffeatures = trp_empty_iffeature();
     } else if(ind.btw_opts_type < 0) {
@@ -530,6 +569,7 @@ trt_pair_indent_node trp_first_half_node(trt_node node, trt_indent_in_node ind)
     } else if(ind.btw_type_iffeatures < 0) {
         ret.node.iffeatures = trp_empty_iffeature();
     }
+
     return ret;
 }
 
@@ -549,11 +589,11 @@ trt_pair_indent_node trp_second_half_node(trt_node node, trt_indent_in_node ind)
          */
         ret.indent.btw_name_opts = 0;
     } else if(ind.btw_opts_type < 0) {
-        ret.node.opts = trp_empty_opts();
+        ret.node.opts_keys = trp_empty_opts_keys();
         ret.indent.btw_name_opts = 0;
         ret.indent.btw_opts_type = 0;
     } else if(ind.btw_type_iffeatures < 0) {
-        ret.node.opts = trp_empty_opts();
+        ret.node.opts_keys = trp_empty_opts_keys();
         ret.node.type = trp_empty_type();
         ret.indent.btw_name_opts = 0;
         ret.indent.btw_opts_type = 0;
@@ -569,27 +609,13 @@ trp_default_indent_in_node(trt_node node)
     ret.type = trd_indent_in_node_normal;
 
     /* btw_name_opts */
-    if(!trp_opts_is_empty(node.opts)) {
-        switch(node.opts.type) {
-        case trd_opts_type_keys:
-        case trd_opts_type_keys_only:
-            ret.btw_name_opts = trd_indent_before_keys;
-            break;
-        case trd_opts_type_mark_only:
-            ret.btw_name_opts = trd_indent_before_mark;
-            break;
-        default:
-            ret.btw_name_opts = 0;
-            break;
-        }
-    } else {
-        ret.btw_name_opts = 0;
-    }
+    ret.btw_name_opts = !trp_opts_keys_is_empty(node.opts_keys) ? 
+        trd_indent_before_keys : 0;
 
     /* btw_opts_type */
     if(!trp_type_is_empty(node.type)) {
-        ret.btw_opts_type = node.opts.type == trd_opts_type_mark_only ? 
-            trd_indent_before_type - (trd_indent_before_mark + strlen(node.opts.mark)) :
+        ret.btw_opts_type = trp_mark_is_used(node.name) ? 
+            trd_indent_before_type - trd_opts_mark_length:
             trd_indent_before_type;
     } else {
         ret.btw_opts_type = 0;

@@ -27,14 +27,14 @@ out_t out;
 
 TEST(node, fully)
 {
-    out_t check = "+--rw prefix:node*   -> target {iffeature}?";
+    out_t check = "+--rw prefix:node!   -> target {iffeature}?";
     trt_printing p = {&out, Out::print_string};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
-        {trd_node_type_else, "prefix", "node"},
-        {trd_opts_type_mark_only, trd_opts_list},
-        {trd_type_type_target, trp_init_breakable_str("target")},
+        {trd_node_container, "prefix", "node"},
+        trp_empty_opts_keys(),
+        {trd_type_target, trp_init_breakable_str("target")},
         trp_set_iffeature()
     };
     trt_pck_print pck = {NULL, {p_iff, p_key}};
@@ -53,9 +53,9 @@ TEST(node, onlyIffeature)
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
-        {trd_node_type_else, "", "node"},
-        {trd_opts_type_empty, ""},
-        {trd_type_type_empty, {}},
+        {trd_node_else, "", "node"},
+        trp_empty_opts_keys(),
+        {trd_type_empty, {}},
         trp_set_iffeature()
     };
     trt_pck_print pck = {NULL, {p_iff, p_key}};
