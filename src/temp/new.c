@@ -23,7 +23,7 @@ trp_injected_strlen(void *out, int arg_count, va_list ap)
 }
 
 trt_breakable_str
-trp_init_breakable_str(const char* src)
+trp_set_breakable_str(const char* src)
 {
     trt_breakable_str ret;
     ret.src = src;
@@ -410,7 +410,7 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
 
     /* <status>--<flags> <name><opts> <type> <if-features> */
 
-    const bool divided = ind.type == trd_indent_in_node_divided && ind.btw_name_opts == 0;
+    const bool divided = ind.type == trd_indent_in_node_divided;
     const char char_space = trd_separator_space[0];
 
     if(!divided) {
@@ -518,6 +518,8 @@ trp_print_entire_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, ui
         /* print first half */
         {
             trt_pck_indent tmp = {ipck.wrapper, ind_node1.indent};
+            /* pretend that this is normal node */
+            tmp.in_node.type = trd_indent_in_node_normal;
             trp_print_line(ind_node1.node, ppck, tmp, p);
         }
         trg_print_linebreak(p);

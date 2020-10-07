@@ -34,7 +34,7 @@ TEST(node, fully)
         trd_status_current, trd_flags_rw,
         {trd_node_container, "prefix", "node"},
         trp_empty_opts_keys(),
-        {trd_type_target, trp_init_breakable_str("target")},
+        {trd_type_target, trp_set_breakable_str("target")},
         trp_set_iffeature()
     };
     trt_pck_print pck = {NULL, {p_iff, p_key}};
