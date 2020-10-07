@@ -26,8 +26,6 @@ using out_t = Out::VecLines;
 using std::string;
 out_t out;
 
-#if 0
-
 TEST(nodeBreak, fits)
 {
     out_t check = {"  +--rw prefix:node* [key1 key2]    type {iffeature}?"};
@@ -50,7 +48,6 @@ TEST(nodeBreak, fits)
     out.clear();
 }
 
-#endif
 
 TEST(nodeBreak, btwNameOpts)
 {
@@ -64,7 +61,7 @@ TEST(nodeBreak, btwNameOpts)
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
-        {trd_node_container, "prefix", "node"},
+        {trd_node_keys, "xxxprefix", "node"},
         trp_set_opts_keys(),
         {trd_type_empty, trp_empty_breakable_str()},
         trp_empty_iffeature()

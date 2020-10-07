@@ -426,14 +426,12 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
     } else {
         /* skip these statements: */
 
-        /* <status>--<flags> */
-        const uint32_t status_len = 1;
-        uint32_t space = status_len + strlen(trd_separator_dashes) + strlen(a.flags);
+        uint32_t space = strlen(a.flags);
 
-        if(a.name.type != trd_node_case) {
+        if(a.name.type == trd_node_case) {
             /* :(<name> */
             space += strlen(trd_node_name_prefix_case);
-        } else if(a.name.type != trd_node_choice) {
+        } else if(a.name.type == trd_node_choice) {
             /* (<name> */
             space += strlen(trd_node_name_prefix_choice);
         } else {
@@ -511,14 +509,25 @@ trp_print_entire_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, ui
     }
 
     /* check if normal indent is possible */
-    trt_pair_indent_node ind_node = trp_try_normal_indent_in_node(node, ppck, ipck, mll);
-    if(ind_node.indent.type == trd_indent_in_node_normal) {
+    trt_pair_indent_node ind_node1 = trp_try_normal_indent_in_node(node, ppck, ipck, mll);
+    if(ind_node1.indent.type == trd_indent_in_node_normal) {
         /* node fits to one line */
         trp_print_line(node, ppck, ipck, p);
-    } else if(ind_node.indent.type == trd_indent_in_node_divided) {
+    } else if(ind_node1.indent.type == trd_indent_in_node_divided) {
         /* node will be divided */
-        trp_print_divided_node(node, ppck, ipck, mll, p);
-    } else if(ind_node.indent.type == trd_indent_in_node_failed){
+        /* print first half */
+        {
+            trt_pck_indent tmp = {ipck.wrapper, ind_node1.indent};
+            trp_print_line(ind_node1.node, ppck, tmp, p);
+        }
+        trg_print_linebreak(p);
+        /* continue with second half on new line */
+        {
+            trt_pair_indent_node ind_node2 = trp_second_half_node(node, ind_node1.indent);
+            trt_pck_indent tmp = {trp_wrapper_set_mark(ipck.wrapper), ind_node2.indent};
+            trp_print_divided_node(ind_node2.node, ppck, tmp, mll, p);
+        }
+    } else if(ind_node1.indent.type == trd_indent_in_node_failed){
         /* it is not possible to keep the max line length */
         /* at least print it in pieces */
         trp_print_divided_node(node, ppck, ipck, mll, p);
@@ -528,25 +537,25 @@ trp_print_entire_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, ui
 void
 trp_print_divided_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, uint32_t mll, trt_printing p)
 {
-    /* node must be divided */
     trt_pair_indent_node ind_node = trp_try_normal_indent_in_node(node, ppck, ipck, mll);
+
     {
         trt_pck_indent tmp = {ipck.wrapper, ind_node.indent};
-        /* first half of node is already in ind_node */
-        /* print first part of node */
         trp_print_line(ind_node.node, ppck, tmp, p);
     }
 
-    if(trp_indent_in_node_are_eq(ipck.in_node, ind_node.indent)) {
-        /* last item of node was printed - done */
+    bool entire_node_was_printed = trp_indent_in_node_are_eq(ipck.in_node, ind_node.indent);
+
+    if(!entire_node_was_printed) {
+        trg_print_linebreak(p);
+        /* continue with second half node */
+        ind_node = trp_second_half_node(ind_node.node, ind_node.indent);
+        /* store new indent for the second half of node */
+        ipck.in_node = ind_node.indent;
+        /* continue with printing entire node */
+        trp_print_divided_node(ind_node.node, ppck, ipck, mll, p);
+    } else { 
         return;
-    } else {
-      /* continue with second half node */
-      ind_node = trp_second_half_node(ind_node.node, ind_node.indent);
-      /* store new indent for the second half of node */
-      ipck.in_node = ind_node.indent;
-      /* continue with printing entire node */
-      trp_print_divided_node(ind_node.node, ppck, ipck, mll, p);
     }
 }
 
@@ -703,5 +712,11 @@ bool
 trg_test_bit(uint64_t number, uint32_t bit)
 {
     return (number >> bit) & 1U;
+}
+
+void
+trg_print_linebreak(trt_printing p)
+{
+    trp_print(p, 1, trd_separator_linebreak);
 }
 
