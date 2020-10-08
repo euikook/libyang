@@ -135,8 +135,9 @@ typedef struct
     trt_indent_btw btw_type_iffeatures; /**< ignored if <type> missing */
 } trt_indent_in_node;
 
+trt_indent_in_node trp_empty_indent_in_node();
 bool trp_indent_in_node_are_eq(trt_indent_in_node, trt_indent_in_node);
-trt_indent_in_node trp_indent_in_node_place(trt_indent_in_node);
+trt_indent_in_node trp_indent_in_node_place_break(trt_indent_in_node);
 
 typedef enum 
 {
@@ -484,6 +485,8 @@ void trp_print_line(trt_node, trt_pck_print, trt_pck_indent, trt_printing);
 void trp_print_entire_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
 
 void trp_print_divided_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
+
+void trp_print_fail_divided_node(trt_node, trt_pck_print, trt_wrapper, trt_printing);
 
 /**
  * @brief Recursive nodes printing
