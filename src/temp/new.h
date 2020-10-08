@@ -136,6 +136,7 @@ typedef struct
 } trt_indent_in_node;
 
 bool trp_indent_in_node_are_eq(trt_indent_in_node, trt_indent_in_node);
+trt_indent_in_node trp_indent_in_node_place(trt_indent_in_node);
 
 typedef enum 
 {
