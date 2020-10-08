@@ -26,6 +26,8 @@ using out_t = Out::VecLines;
 using std::string;
 out_t out;
 
+#if 0
+
 TEST(nodeBreak, fits)
 {
     out_t check = {"  +--rw prefix:node* [key1 key2]    type {iffeature}?"};
@@ -189,6 +191,33 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeysType)
     string check1 =       "  +--rw xxxprefix:node* [key1 key2]    string";
     string check2 =       "  |       {iffeature}?";
     out_t check = {check1, check2};
+    trt_node node =
+    {
+        trd_status_current, trd_flags_rw,
+        {trd_node_keys, "xxxprefix", "node"},
+        trp_set_opts_keys(),
+        {trd_type_name, trp_set_breakable_str("string")},
+        trp_set_iffeature()
+    };
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
+
+    EXPECT_EQ(out, check);
+    out.clear();
+}
+
+#endif
+
+TEST(nodeBreak, allInNewLines)
+{
+    out_t base   =       {"  +--rw xxxprefix:node* [key1 key2]    string {iffeature}?"};
+    uint32_t mll = strlen("                     ^");
+    string check1 =       "  +--rw xxxprefix:node*";
+    string check2 =       "  |       [key1 key2]";
+    string check3 =       "  |       string";
+    string check4 =       "  |       {iffeature}?";
+    out_t check = {check1, check2, check3, check4};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
