@@ -28,7 +28,6 @@ out_t out;
 TEST(line, fully)
 {
     out_t check = "  |  |  +--rw prefix:node!   -> target {iffeature}?";
-    trt_printing p = {&out, Out::print_string};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
@@ -37,15 +36,12 @@ TEST(line, fully)
         {trd_type_target, trp_set_breakable_str("target")},
         trp_set_iffeature()
     };
-    trt_pck_print ppck = {NULL, {p_iff, p_key}};
-    trt_indent_in_node ind = trp_default_indent_in_node(node);
-    trt_wrapper wr = trp_init_wrapper_top();
-    wr = trp_wrapper_set_mark(wr);
+    trt_wrapper wr = trp_wrapper_set_mark(trp_init_wrapper_top());
     wr = trp_wrapper_set_shift(wr);
     wr = trp_wrapper_set_mark(wr);
-    trt_pck_indent ipck = {wr, ind};
-
-    trp_print_line(node, ppck, ipck, p);
+    trp_print_line(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){wr, trp_default_indent_in_node(node)},
+        (trt_printing){&out, Out::print_string});
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -54,7 +50,6 @@ TEST(line, fully)
 TEST(line, firstNode)
 {
     out_t check = "  +--rw prefix:node!   -> target {iffeature}?";
-    trt_printing p = {&out, Out::print_string};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
@@ -63,12 +58,9 @@ TEST(line, firstNode)
         {trd_type_target, trp_set_breakable_str("target")},
         trp_set_iffeature()
     };
-    trt_pck_print ppck = {NULL, {p_iff, p_key}};
-    trt_indent_in_node ind = trp_default_indent_in_node(node);
-    trt_wrapper wr = trp_init_wrapper_top();
-    trt_pck_indent ipck = {wr, ind};
-
-    trp_print_line(node, ppck, ipck, p);
+    trp_print_line(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        (trt_printing){&out, Out::print_string});
 
     EXPECT_EQ(out, check);
     out.clear();

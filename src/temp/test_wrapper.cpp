@@ -23,9 +23,7 @@ string es(3, ' '); /* empty shift */
 TEST(wrapper, printWrapperNoActions)
 {
     out_t check = {};
-    trt_printing p = {&out, Out::print_VecStr};
-    trt_wrapper wr = trp_init_wrapper_top();
-    trp_print_wrapper(wr, p);
+    trp_print_wrapper(trp_init_wrapper_top(), (trt_printing){&out, Out::print_VecStr});
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -33,9 +31,8 @@ TEST(wrapper, printWrapperNoActions)
 TEST(wrapper, printWrapperSet)
 {
     out_t check = {sp, "|"};
-    trt_printing p = {&out, Out::print_VecStr};
     trt_wrapper wr = trp_wrapper_set_mark(trp_init_wrapper_top());
-    trp_print_wrapper(wr, p);
+    trp_print_wrapper(wr, (trt_printing){&out, Out::print_VecStr});
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -43,9 +40,8 @@ TEST(wrapper, printWrapperSet)
 TEST(wrapper, printWrapperShiftSet)
 {
     out_t check = {sp + es, "|"};
-    trt_printing p = {&out, Out::print_VecStr};
     trt_wrapper wr = trp_wrapper_set_mark(trp_wrapper_set_shift(trp_init_wrapper_top()));
-    trp_print_wrapper(wr, p);
+    trp_print_wrapper(wr, (trt_printing){&out, Out::print_VecStr});
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -53,9 +49,8 @@ TEST(wrapper, printWrapperShiftSet)
 TEST(wrapper, printWrapperSetShift)
 {
     out_t check = {sp, "|", es};
-    trt_printing p = {&out, Out::print_VecStr};
     trt_wrapper wr = trp_wrapper_set_shift(trp_wrapper_set_mark(trp_init_wrapper_top()));
-    trp_print_wrapper(wr, p);
+    trp_print_wrapper(wr, (trt_printing){&out, Out::print_VecStr});
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -63,9 +58,9 @@ TEST(wrapper, printWrapperSetShift)
 TEST(wrapper, printWrapperSetShiftSet)
 {
     out_t check = {sp, "|" , sp, "|"};
-    trt_printing p = {&out, Out::print_VecStr};
     trt_wrapper wr = trp_wrapper_set_mark(trp_wrapper_set_shift(trp_wrapper_set_mark(trp_init_wrapper_top())));
-    trp_print_wrapper(wr, p);
+    trp_print_wrapper(wr, (trt_printing){&out, Out::print_VecStr});
+    EXPECT_EQ(out, check);
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -73,9 +68,8 @@ TEST(wrapper, printWrapperSetShiftSet)
 TEST(wrapper, printWrapperShiftShiftSet)
 {
     out_t check = {sp + es + es, "|"};
-    trt_printing p = {&out, Out::print_VecStr};
     trt_wrapper wr = trp_wrapper_set_mark(trp_wrapper_set_shift(trp_wrapper_set_shift(trp_init_wrapper_top())));
-    trp_print_wrapper(wr, p);
+    trp_print_wrapper(wr, (trt_printing){&out, Out::print_VecStr});
     EXPECT_EQ(out, check);
     out.clear();
 }
