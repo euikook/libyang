@@ -414,6 +414,18 @@ trp_print_iffeatures(trt_iffeature a, trt_cf_print_iffeatures cf, trt_printing p
 }
 
 void
+trp_print_node_up_to_name(trt_node a, trt_printing p)
+{
+    /* <status>--<flags> */
+    trp_print(p, 3, a.status, trd_separator_dashes, a.flags);
+    /* If the node is a case node, there is no space before the <name> */
+    if(a.name.type != trd_node_case)
+        trp_print(p, 1, trd_separator_space);
+    /* <name> */
+    trp_print_node_name(a.name, p);
+}
+
+void
 trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printing p)
 {
     if(trp_node_is_empty(a))
@@ -425,15 +437,7 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
     const char char_space = trd_separator_space[0];
 
     if(!divided) {
-        /* <status>--<flags> */
-        trp_print(p, 3, a.status, trd_separator_dashes, a.flags);
-
-        /* If the node is a case node, there is no space before the <name> */
-        if(a.name.type != trd_node_case)
-            trp_print(p, 1, trd_separator_space);
-
-        /* <name> */
-        trp_print_node_name(a.name, p);
+        trp_print_node_up_to_name(a, p);
     } else {
         /* skip these statements: */
 
@@ -510,6 +514,14 @@ trp_print_line(trt_node node, trt_pck_print pck, trt_pck_indent ind, trt_printin
     trp_print_node(node, pck, ind.in_node, p);
 }
 
+void
+trp_print_line_up_to_node_name(trt_node node, trt_wrapper wr, trt_printing p)
+{
+    trp_print_wrapper(wr, p);
+    trg_print_n_times(trd_indent_btw_siblings, trd_separator_space[0], p); 
+    trp_print_node_up_to_name(node, p);
+}
+
 trt_indent_in_node
 trp_default_indent_in_node(trt_node node)
 {
@@ -582,9 +594,7 @@ void trp_print_fail_divided_node(trt_node node, trt_pck_print ppck, trt_wrapper 
         trp_empty_opts_keys(), trp_empty_type(), trp_empty_iffeature()};
 
     /* print node_name */
-    tmp_node = trp_empty_node();
-    tmp_node = node_base;
-    trp_print_line(tmp_node, ppck, (trt_pck_indent){wr, empty_ind}, p);
+    trp_print_line_up_to_node_name(node, wr, p);
 
     /* set new wrapper and print node as divided */
     trt_pck_indent ipck;
@@ -629,6 +639,11 @@ void
 trp_print_divided_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, uint32_t mll, trt_printing p)
 {
     trt_pair_indent_node ind_node = trp_try_normal_indent_in_node(node, ppck, ipck, mll);
+
+    if(ind_node.indent.type == trd_indent_in_node_failed) {
+        /* nothing can be done, continue as usual */
+        ind_node.indent.type = trd_indent_in_node_divided;
+    }
 
     trp_print_line(ind_node.node, ppck, (trt_pck_indent){ipck.wrapper, ind_node.indent}, p);
 
@@ -774,5 +789,18 @@ void
 trg_print_linebreak(trt_printing p)
 {
     trp_print(p, 1, trd_separator_linebreak);
+}
+
+size_t trg_biggest_subpath_len(const char* path)
+{
+    size_t ret = 0;
+    int64_t cnt = 0;
+    for(const char* point = path; point[0] != '\0'; point++, cnt++) {
+        if(point[0] == '/') {
+            ret = ret < (size_t)cnt ? (size_t)cnt : ret;
+            cnt = -1;
+        }
+    }
+    return ret != 0 && ret > (size_t)cnt ? ret : (size_t)cnt;
 }
 

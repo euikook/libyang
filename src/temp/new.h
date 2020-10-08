@@ -327,6 +327,7 @@ typedef struct
 
 trt_node trp_empty_node();
 bool trp_node_is_empty(trt_node);
+void trp_print_node_up_to_name(trt_node, trt_printing);
 void trp_print_node(trt_node, trt_pck_print, trt_indent_in_node, trt_printing);
 
 typedef struct
@@ -479,6 +480,8 @@ void trp_main(struct trt_printer_ctx, struct trt_tree_ctx*);
  */
 void trp_print_line(trt_node, trt_pck_print, trt_pck_indent, trt_printing);
 
+void trp_print_line_up_to_node_name(trt_node, trt_wrapper, trt_printing);
+
 /**
  * @brief Print an entire node that can be split into multiple lines.
  */
@@ -522,6 +525,7 @@ typedef const char* const trt_separator;
 static trt_separator trd_separator_colon = ":";
 static trt_separator trd_separator_space = " ";
 static trt_separator trd_separator_dashes = "--";
+static trt_separator trd_separator_slash = "/";
 static trt_separator trd_separator_linebreak = "\n";
 
 void trg_print_n_times(int32_t n, char, trt_printing);
@@ -529,6 +533,8 @@ void trg_print_n_times(int32_t n, char, trt_printing);
 bool trg_test_bit(uint64_t number, uint32_t bit);
 
 void trg_print_linebreak(trt_printing);
+
+size_t trg_biggest_subpath_len(const char* path);
 
 /* ================================ */
 /* ----------- <symbol> ----------- */
