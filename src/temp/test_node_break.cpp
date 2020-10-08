@@ -26,8 +26,6 @@ using out_t = Out::VecLines;
 using std::string;
 out_t out;
 
-#if 0
-
 TEST(nodeBreak, fits)
 {
     out_t check = {"  +--rw prefix:node* [key1 key2]    type {iffeature}?"};
@@ -93,7 +91,7 @@ TEST(nodeBreak, btwNameOpts)
 
 TEST(nodeBreak, btwOptsType)
 {
-    out_t base   =       {"  +--rw xxxprefix:node*    string"};
+    out_t base   =       {"  +--rw xxxprefix:node*   string"};
     uint32_t mll = strlen("                       ^");
     string check1 =       "  +--rw xxxprefix:node*";
     string check2 =       "  |       string";
@@ -207,8 +205,6 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeysType)
     out.clear();
 }
 
-#endif
-
 TEST(nodeBreak, allInNewLines)
 {
     out_t base   =       {"  +--rw xxxprefix:node* [key1 key2]    string {iffeature}?"};
@@ -225,6 +221,52 @@ TEST(nodeBreak, allInNewLines)
         trp_set_opts_keys(),
         {trd_type_name, trp_set_breakable_str("string")},
         trp_set_iffeature()
+    };
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
+
+    EXPECT_EQ(out, check);
+    out.clear();
+}
+
+
+TEST(nodeBreak, typeIsToolong)
+{
+    out_t base   =       {"  +--rw node*   longString"};
+    uint32_t mll = strlen("              ^");
+    string check1 =       "  +--rw node*";
+    string check2 =       "  |       longString";
+    out_t check = {check1, check2};
+    trt_node node =
+    {
+        trd_status_current, trd_flags_rw,
+        {trd_node_listLeaflist, "", "node"},
+        trp_empty_opts_keys(),
+        {trd_type_name, trp_set_breakable_str("longString")},
+        trp_empty_iffeature()
+    };
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
+
+    EXPECT_EQ(out, check);
+    out.clear();
+}
+
+TEST(nodeBreak, nodeNameIsTooLong)
+{
+    out_t base   =       {"  +--rw longNodeName"};
+    uint32_t mll = strlen("                 ^");
+    string check1 =       "  +--rw longNodeName";
+    out_t check = {check1};
+    trt_node node =
+    {
+        trd_status_current, trd_flags_rw,
+        {trd_node_else, "", "longNodeName"},
+        trp_empty_opts_keys(),
+        {trd_type_empty, trp_empty_breakable_str()},
+        trp_empty_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
