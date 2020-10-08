@@ -499,6 +499,32 @@ trp_print_line(trt_node node, trt_pck_print pck, trt_pck_indent ind, trt_printin
     trp_print_node(node, pck, ind.in_node, p);
 }
 
+trt_indent_in_node
+trp_default_indent_in_node(trt_node node)
+{
+    trt_indent_in_node ret;
+    ret.type = trd_indent_in_node_normal;
+
+    /* btw_name_opts */
+    ret.btw_name_opts = !trp_opts_keys_is_empty(node.opts_keys) ? 
+        trd_indent_before_keys : 0;
+
+    /* btw_opts_type */
+    if(!trp_type_is_empty(node.type)) {
+        ret.btw_opts_type = trp_mark_is_used(node.name) ? 
+            trd_indent_before_type - trd_opts_mark_length:
+            trd_indent_before_type;
+    } else {
+        ret.btw_opts_type = 0;
+    }
+
+    /* btw_type_iffeatures */
+    ret.btw_type_iffeatures = !trp_iffeature_is_empty(node.iffeatures) ?
+        trd_indent_before_iffeatures : 0;
+
+    return ret;
+}
+
 void
 trp_print_entire_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, uint32_t mll, trt_printing p)
 {
@@ -541,21 +567,15 @@ trp_print_divided_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, u
 {
     trt_pair_indent_node ind_node = trp_try_normal_indent_in_node(node, ppck, ipck, mll);
 
-    {
-        trt_pck_indent tmp = {ipck.wrapper, ind_node.indent};
-        trp_print_line(ind_node.node, ppck, tmp, p);
-    }
+    trp_print_line(ind_node.node, ppck, (trt_pck_indent){ipck.wrapper, ind_node.indent}, p);
 
     bool entire_node_was_printed = trp_indent_in_node_are_eq(ipck.in_node, ind_node.indent);
-
     if(!entire_node_was_printed) {
         trg_print_linebreak(p);
         /* continue with second half node */
         ind_node = trp_second_half_node(ind_node.node, ind_node.indent);
-        /* store new indent for the second half of node */
-        ipck.in_node = ind_node.indent;
         /* continue with printing entire node */
-        trp_print_divided_node(ind_node.node, ppck, ipck, mll, p);
+        trp_print_divided_node(ind_node.node, ppck, (trt_pck_indent){ipck.wrapper, ind_node.indent}, mll, p);
     } else { 
         return;
     }
@@ -593,7 +613,8 @@ trt_pair_indent_node trp_second_half_node(trt_node node, trt_indent_in_node ind)
         ret.node.opts_keys = trp_empty_opts_keys();
         ret.indent.btw_name_opts = 0;
         ret.indent.btw_opts_type = 0;
-        ret.indent.btw_type_iffeatures = trp_iffeature_is_empty(node.iffeatures) ? 0 : trd_indent_before_iffeatures;
+        ret.indent.btw_type_iffeatures = trp_iffeature_is_empty(node.iffeatures) ?
+            0 : trd_indent_before_iffeatures;
     } else if(ind.btw_type_iffeatures == trd_linebreak) {
         ret.node.opts_keys = trp_empty_opts_keys();
         ret.node.type = trp_empty_type();
@@ -604,29 +625,24 @@ trt_pair_indent_node trp_second_half_node(trt_node node, trt_indent_in_node ind)
     return ret;
 }
 
-trt_indent_in_node
-trp_default_indent_in_node(trt_node node)
+trt_indent_in_node trp_indent_in_node_place(trt_indent_in_node ind)
 {
-    trt_indent_in_node ret;
-    ret.type = trd_indent_in_node_normal;
-
-    /* btw_name_opts */
-    ret.btw_name_opts = !trp_opts_keys_is_empty(node.opts_keys) ? 
-        trd_indent_before_keys : 0;
-
-    /* btw_opts_type */
-    if(!trp_type_is_empty(node.type)) {
-        ret.btw_opts_type = trp_mark_is_used(node.name) ? 
-            trd_indent_before_type - trd_opts_mark_length:
-            trd_indent_before_type;
+    /* somewhere must be set a line break in node */
+    trt_indent_in_node ret = ind;
+    /* gradually break the node from the end */
+    if(ind.btw_type_iffeatures != trd_linebreak && ind.btw_type_iffeatures != 0) {
+        ret.btw_type_iffeatures = trd_linebreak;
+    } else if(ind.btw_opts_type != trd_linebreak && ind.btw_opts_type != 0) {
+        ret.btw_opts_type = trd_linebreak;
+    } else if(ind.btw_name_opts != trd_linebreak && ind.btw_name_opts != 0) {
+        /* set line break between name and opts */
+        ret.btw_name_opts = trd_linebreak;
     } else {
-        ret.btw_opts_type = 0;
+        /* it is not possible to place a more line breaks,
+         * unfortunately the max_line_length constraint is violated
+         */
+        ret.type = trd_indent_in_node_failed;
     }
-
-    /* btw_type_iffeatures */
-    ret.btw_type_iffeatures = !trp_iffeature_is_empty(node.iffeatures) ?
-        trd_indent_before_iffeatures : 0;
-
     return ret;
 }
 
@@ -645,35 +661,15 @@ trp_try_normal_indent_in_node(trt_node n, trt_pck_print p, trt_pck_indent ind, u
         /* success */
         return ret;
     } else {
-        /* somewhere must be set a line break in node */
-        /* pointers for just shortening the name */
-        trt_indent_btw* const name_opts = &ret.indent.btw_name_opts;
-        trt_indent_btw* const opts_type = &ret.indent.btw_opts_type;
-        trt_indent_btw* const type_iffe = &ret.indent.btw_type_iffeatures;
-        /* gradually break the node from the end */
-        if(*type_iffe != trd_linebreak && *type_iffe != 0) {
-            *type_iffe = trd_linebreak;
-        } else if(*opts_type != trd_linebreak && *opts_type != 0) {
-            *opts_type = trd_linebreak;
-        } else if(*name_opts != trd_linebreak && *name_opts != 0) {
-            /* set line break between name and opts */
-            *name_opts = trd_linebreak;
-        } else {
-            ret.indent.type = trd_indent_in_node_failed;
-            /* it is not possible to place a more line breaks,
-             * unfortunately the max_line_length constraint is violated
-             */
-            return ret;
+        ret.indent = trp_indent_in_node_place(ret.indent);
+        if(ret.indent.type != trd_indent_in_node_failed) {
+            /* erase information in node due to line break */
+            ret = trp_first_half_node(n, ret.indent);
+            /* check if line fits, recursive call */
+            ret = trp_try_normal_indent_in_node(ret.node, p, (trt_pck_indent){ind.wrapper, ret.indent}, mll);
+            /* make sure that the result will be with the status divided */
+            ret.indent.type = trd_indent_in_node_divided;
         }
-        /* erase information in node due to line break */
-        ret = trp_first_half_node(n, ret.indent);
-        /* setting parameters */
-        n = ret.node;
-        ind.in_node = ret.indent;
-        /* check if line fits */
-        ret = trp_try_normal_indent_in_node(n, p, ind, mll);
-        /* make sure that the result will be with the status divided */
-        ret.indent.type = trd_indent_in_node_divided;
         return ret;
     }
 }
