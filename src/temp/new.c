@@ -380,23 +380,13 @@ trp_print_type(trt_type a, trt_printing p)
 
     switch(a.type) {
     case trd_type_name:
-        trp_print_breakable_str(a.str, p);
+        trp_print(p, 1, a.str);
         break;
     case trd_type_target:
-        if(trp_breakable_str_begin_will_be_printed(a.str)) {
-            /* print with prefix - normal */
-            trp_print(p, 1, trd_type_target_prefix);
-            trp_print_breakable_str(a.str, p);
-        } else {
-            /* print without prefix - path is too long,
-             * target string is splitted to more lines
-             * and substr is printed
-             */
-            trp_print_breakable_str(a.str, p);
-        }
+        trp_print(p, 2, trd_type_target_prefix, a.str);
         break;
     case trd_type_leafref:
-        trp_print_breakable_str(a.str, p);
+        trp_print(p, 1, trd_type_leafref_keyword);
     default:
         break;
     }

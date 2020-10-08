@@ -268,7 +268,7 @@ typedef enum
 typedef struct
 {
     trt_type_type type;
-    trt_breakable_str str;
+    const char* str;
 } trt_type;
 
 trt_type trp_empty_type();
