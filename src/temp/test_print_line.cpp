@@ -33,7 +33,7 @@ TEST(line, fully)
         trd_status_current, trd_flags_rw,
         {trd_node_container, "prefix", "node"},
         trp_empty_opts_keys(),
-        {trd_type_target, trp_set_breakable_str("target")},
+        {trd_type_target, "target"},
         trp_set_iffeature()
     };
     trt_wrapper wr = trp_wrapper_set_mark(trp_init_wrapper_top());
@@ -55,7 +55,7 @@ TEST(line, firstNode)
         trd_status_current, trd_flags_rw,
         {trd_node_container, "prefix", "node"},
         trp_empty_opts_keys(),
-        {trd_type_target, trp_set_breakable_str("target")},
+        {trd_type_target, "target"},
         trp_set_iffeature()
     };
     trp_print_line(node, (trt_pck_print){NULL, {p_iff, p_key}},

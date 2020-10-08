@@ -34,7 +34,7 @@ TEST(nodeBreak, fits)
         trd_status_current, trd_flags_rw,
         {trd_node_keys, "prefix", "node"},
         trp_set_opts_keys(),
-        {trd_type_name, trp_set_breakable_str("type")},
+        {trd_type_name, "type"},
         trp_set_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
@@ -54,7 +54,7 @@ TEST(nodeBreak, fitsTight)
         trd_status_current, trd_flags_rw,
         {trd_node_keys, "prefix", "node"},
         trp_set_opts_keys(),
-        {trd_type_name, trp_set_breakable_str("type")},
+        {trd_type_name, "type"},
         trp_set_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
@@ -78,7 +78,7 @@ TEST(nodeBreak, btwNameOpts)
         trd_status_current, trd_flags_rw,
         {trd_node_keys, "xxxprefix", "node"},
         trp_set_opts_keys(),
-        {trd_type_empty, trp_empty_breakable_str()},
+        {trd_type_empty, ""},
         trp_empty_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
@@ -101,7 +101,7 @@ TEST(nodeBreak, btwOptsType)
         trd_status_current, trd_flags_rw,
         {trd_node_listLeaflist, "xxxprefix", "node"},
         trp_empty_opts_keys(),
-        {trd_type_name, trp_set_breakable_str("string")},
+        {trd_type_name, "string"},
         trp_empty_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
@@ -124,7 +124,7 @@ TEST(nodeBreak, btwOptsTypeWithIffeatures)
         trd_status_current, trd_flags_rw,
         {trd_node_keys, "xxxprefix", "node"},
         trp_empty_opts_keys(),
-        {trd_type_name, trp_set_breakable_str("st")},
+        {trd_type_name, "st"},
         trp_set_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
@@ -148,7 +148,7 @@ TEST(nodeBreak, btwTypeIffeatures)
         trd_status_current, trd_flags_rw,
         {trd_node_listLeaflist, "xxxprefix", "node"},
         trp_empty_opts_keys(),
-        {trd_type_empty, trp_empty_breakable_str()},
+        {trd_type_empty, ""},
         trp_set_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
@@ -171,7 +171,7 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeys)
         trd_status_current, trd_flags_rw,
         {trd_node_keys, "xxxprefix", "node"},
         trp_set_opts_keys(),
-        {trd_type_empty, trp_empty_breakable_str()},
+        {trd_type_empty, ""},
         trp_set_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
@@ -194,7 +194,7 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeysType)
         trd_status_current, trd_flags_rw,
         {trd_node_keys, "xxxprefix", "node"},
         trp_set_opts_keys(),
-        {trd_type_name, trp_set_breakable_str("string")},
+        {trd_type_name, "string"},
         trp_set_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
@@ -219,7 +219,7 @@ TEST(nodeBreak, allInNewLines)
         trd_status_current, trd_flags_rw,
         {trd_node_keys, "xxxprefix", "node"},
         trp_set_opts_keys(),
-        {trd_type_name, trp_set_breakable_str("string")},
+        {trd_type_name, "string"},
         trp_set_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
@@ -243,7 +243,7 @@ TEST(nodeBreak, typeIsToolong)
         trd_status_current, trd_flags_rw,
         {trd_node_listLeaflist, "", "node"},
         trp_empty_opts_keys(),
-        {trd_type_name, trp_set_breakable_str("longString")},
+        {trd_type_name, "longString"},
         trp_empty_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
@@ -265,7 +265,7 @@ TEST(nodeBreak, nodeNameIsTooLong)
         trd_status_current, trd_flags_rw,
         {trd_node_else, "", "longNodeName"},
         trp_empty_opts_keys(),
-        {trd_type_empty, trp_empty_breakable_str()},
+        {trd_type_empty, ""},
         trp_empty_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
