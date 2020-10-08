@@ -29,7 +29,6 @@ out_t out;
 TEST(nodeBreak, fits)
 {
     out_t check = {"  +--rw prefix:node* [key1 key2]    type {iffeature}?"};
-    trt_printing p = {&out, Out::print_vecLines};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
@@ -38,11 +37,9 @@ TEST(nodeBreak, fits)
         {trd_type_name, trp_set_breakable_str("type")},
         trp_set_iffeature()
     };
-    trt_pck_print ppck = {NULL, {p_iff, p_key}};
-    trt_indent_in_node ind = trp_default_indent_in_node(node);
-    trt_wrapper wr = trp_init_wrapper_top();
-    trt_pck_indent ipck = {wr, ind};
-    trp_print_entire_node(node, ppck, ipck, 72, p);
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        72, (trt_printing){&out, Out::print_vecLines});
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -52,7 +49,6 @@ TEST(nodeBreak, fitsTight)
 {
     out_t check =        {"  +--rw prefix:node* [key1 key2]    type {iffeature}?"};
     uint32_t mll = strlen("                                                    ^");
-    trt_printing p = {&out, Out::print_vecLines};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
@@ -61,11 +57,9 @@ TEST(nodeBreak, fitsTight)
         {trd_type_name, trp_set_breakable_str("type")},
         trp_set_iffeature()
     };
-    trt_pck_print ppck = {NULL, {p_iff, p_key}};
-    trt_indent_in_node ind = trp_default_indent_in_node(node);
-    trt_wrapper wr = trp_init_wrapper_top();
-    trt_pck_indent ipck = {wr, ind};
-    trp_print_entire_node(node, ppck, ipck, mll, p);
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -79,8 +73,6 @@ TEST(nodeBreak, btwNameOpts)
     string check1 =       "  +--rw xxxprefix:node*";
     string check2 =       "  |       [key1 key2]";
     out_t check = {check1, check2};
-
-    trt_printing p = {&out, Out::print_vecLines};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
@@ -89,14 +81,11 @@ TEST(nodeBreak, btwNameOpts)
         {trd_type_empty, trp_empty_breakable_str()},
         trp_empty_iffeature()
     };
-    trt_pck_print ppck = {NULL, {p_iff, p_key}};
-    trt_indent_in_node ind = trp_default_indent_in_node(node);
-    trt_wrapper wr = trp_init_wrapper_top();
-    trt_pck_indent ipck = {wr, ind};
-    trp_print_entire_node(node, ppck, ipck, mll, p);
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
 
     EXPECT_EQ(out, check);
-
     out.clear();
 }
 
@@ -107,8 +96,6 @@ TEST(nodeBreak, btwOptsType)
     string check1 =       "  +--rw xxxprefix:node*";
     string check2 =       "  |       string";
     out_t check = {check1, check2};
-
-    trt_printing p = {&out, Out::print_vecLines};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
@@ -117,14 +104,11 @@ TEST(nodeBreak, btwOptsType)
         {trd_type_name, trp_set_breakable_str("string")},
         trp_empty_iffeature()
     };
-    trt_pck_print ppck = {NULL, {p_iff, p_key}};
-    trt_indent_in_node ind = trp_default_indent_in_node(node);
-    trt_wrapper wr = trp_init_wrapper_top();
-    trt_pck_indent ipck = {wr, ind};
-    trp_print_entire_node(node, ppck, ipck, mll, p);
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
 
     EXPECT_EQ(out, check);
-
     out.clear();
 }
 
@@ -135,8 +119,6 @@ TEST(nodeBreak, btwOptsTypeWithIffeatures)
     string check1 =       "  +--rw xxxprefix:node*";
     string check2 =       "  |       st {iffeature}?";
     out_t check = {check1, check2};
-
-    trt_printing p = {&out, Out::print_vecLines};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
@@ -145,14 +127,12 @@ TEST(nodeBreak, btwOptsTypeWithIffeatures)
         {trd_type_name, trp_set_breakable_str("st")},
         trp_set_iffeature()
     };
-    trt_pck_print ppck = {NULL, {p_iff, p_key}};
-    trt_indent_in_node ind = trp_default_indent_in_node(node);
-    trt_wrapper wr = trp_init_wrapper_top();
-    trt_pck_indent ipck = {wr, ind};
-    trp_print_entire_node(node, ppck, ipck, mll, p);
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
+
 
     EXPECT_EQ(out, check);
-
     out.clear();
 }
 
@@ -163,8 +143,6 @@ TEST(nodeBreak, btwTypeIffeatures)
     string check1 =       "  +--rw xxxprefix:node*";
     string check2 =       "  |       {iffeature}?";
     out_t check = {check1, check2};
-
-    trt_printing p = {&out, Out::print_vecLines};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
@@ -173,14 +151,11 @@ TEST(nodeBreak, btwTypeIffeatures)
         {trd_type_empty, trp_empty_breakable_str()},
         trp_set_iffeature()
     };
-    trt_pck_print ppck = {NULL, {p_iff, p_key}};
-    trt_indent_in_node ind = trp_default_indent_in_node(node);
-    trt_wrapper wr = trp_init_wrapper_top();
-    trt_pck_indent ipck = {wr, ind};
-    trp_print_entire_node(node, ppck, ipck, mll, p);
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
 
     EXPECT_EQ(out, check);
-
     out.clear();
 }
 
@@ -191,8 +166,6 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeys)
     string check1 =       "  +--rw xxxprefix:node* [key1 key2]";
     string check2 =       "  |       {iffeature}?";
     out_t check = {check1, check2};
-
-    trt_printing p = {&out, Out::print_vecLines};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
@@ -201,14 +174,11 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeys)
         {trd_type_empty, trp_empty_breakable_str()},
         trp_set_iffeature()
     };
-    trt_pck_print ppck = {NULL, {p_iff, p_key}};
-    trt_indent_in_node ind = trp_default_indent_in_node(node);
-    trt_wrapper wr = trp_init_wrapper_top();
-    trt_pck_indent ipck = {wr, ind};
-    trp_print_entire_node(node, ppck, ipck, mll, p);
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
 
     EXPECT_EQ(out, check);
-
     out.clear();
 }
 
@@ -219,8 +189,6 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeysType)
     string check1 =       "  +--rw xxxprefix:node* [key1 key2]    string";
     string check2 =       "  |       {iffeature}?";
     out_t check = {check1, check2};
-
-    trt_printing p = {&out, Out::print_vecLines};
     trt_node node =
     {
         trd_status_current, trd_flags_rw,
@@ -229,14 +197,11 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeysType)
         {trd_type_name, trp_set_breakable_str("string")},
         trp_set_iffeature()
     };
-    trt_pck_print ppck = {NULL, {p_iff, p_key}};
-    trt_indent_in_node ind = trp_default_indent_in_node(node);
-    trt_wrapper wr = trp_init_wrapper_top();
-    trt_pck_indent ipck = {wr, ind};
-    trp_print_entire_node(node, ppck, ipck, mll, p);
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
 
     EXPECT_EQ(out, check);
-
     out.clear();
 }
 
