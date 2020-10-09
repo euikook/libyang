@@ -78,6 +78,23 @@ trp_print_breakable_str(trt_breakable_str str, trt_printing p)
     }
 }
 
+trt_breakable_str
+trp_next_subpath(trt_breakable_str str)
+{
+    if(trp_breakable_str_is_empty(str))
+        return str;
+
+    str.substr_start += str.substr_size;
+    uint32_t cnt = 0;
+    for(const char* point = str.substr_start; point[0] != '\0'; point++, cnt++)
+        if(point[0] == '/' && point != str.substr_start) {
+            cnt = point[1] == '\0' ? cnt + 1 : cnt;
+            break;
+        }
+
+    return (trt_breakable_str){str.src, str.substr_start, cnt};
+}
+
 trt_indent_in_node trp_empty_indent_in_node()
 {
     return (trt_indent_in_node){trd_indent_in_node_normal, 0, 0, 0};
@@ -484,29 +501,84 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
     trp_print_iffeatures(a.iffeatures, cf_print_iffeatures, p);
 }
 
-void
-trp_print_keyword_stmt(trt_keyword_stmt a, trt_printing p)
+void trt_print_keyword_stmt_begin(trt_keyword_stmt a, trt_printing p)
 {
-    if(trp_keyword_stmt_is_empty(a))
-        return;
-
     switch(a.type) {
     case trd_keyword_stmt_top:
         trp_print(p, 3, a.keyword, trd_separator_colon, trd_separator_space);
-        trp_print_breakable_str(a.str, p);
         break;
     case trd_keyword_stmt_body:
+        trg_print_n_times(trd_indent_line_begin, trd_separator_space[0], p);
         trp_print(p, 2, a.keyword, trd_separator_space);
-        if(trp_breakable_str_end_will_be_printed(a.str)){
-            trp_print_breakable_str(a.str, p);
-            trp_print(p, 1, trd_separator_colon);
-        } else {
-            trp_print_breakable_str(a.str, p);
-        }
         break;
     default:
         break;
     }
+}
+
+void
+trt_print_keyword_stmt_str(trt_keyword_stmt a, uint32_t mll, trt_printing p)
+{
+    if(trp_breakable_str_is_empty(a.str))
+        return;
+
+    if(a.type == trd_keyword_stmt_top) {
+        trp_print_breakable_str(a.str, p);
+        return;
+    }
+
+    const uint32_t ind_initial = trd_indent_line_begin + strlen(a.keyword) + 1;
+    const uint32_t ind_divided = ind_initial + trd_indent_long_line_break; 
+    bool linebreak_was_set = false;
+    uint32_t how_far = 0;
+
+    trt_breakable_str sub = trp_next_subpath(a.str);
+    trp_print_breakable_str(sub, p);
+    how_far += sub.substr_size;
+
+    sub = trp_next_subpath(sub);
+
+    while(!trp_breakable_str_end_will_be_printed(sub)){
+        uint32_t ind = linebreak_was_set ? ind_divided : ind_initial;
+        how_far += sub.substr_size;
+        if(ind + how_far <= mll) {
+            trp_print_breakable_str(sub, p);
+        } else {
+            trg_print_linebreak(p);
+            linebreak_was_set = true;
+            trg_print_n_times(ind_divided, trd_separator_space[0], p);
+            trp_print_breakable_str(sub, p);
+            how_far = sub.substr_size;
+        }
+        sub = trp_next_subpath(sub);
+    }
+
+    uint32_t ind = linebreak_was_set ? ind_divided : ind_initial;
+    how_far += sub.substr_size;
+    if(ind + how_far + 1 < mll) {
+        trp_print_breakable_str(sub, p);
+    } else {
+        trg_print_linebreak(p);
+        trg_print_n_times(ind_divided, trd_separator_space[0], p);
+        trp_print_breakable_str(sub, p);
+    }
+}
+
+void
+trt_print_keyword_stmt_end(trt_keyword_stmt a, trt_printing p)
+{
+    if(a.type == trd_keyword_stmt_body)
+        trp_print(p, 1, trd_separator_colon);
+}
+
+void
+trp_print_keyword_stmt(trt_keyword_stmt a, uint32_t mll, trt_printing p)
+{
+    if(trp_keyword_stmt_is_empty(a))
+        return;
+    trt_print_keyword_stmt_begin(a, p);
+    trt_print_keyword_stmt_str(a, mll, p);
+    trt_print_keyword_stmt_end(a, p);
 }
 
 void
@@ -792,4 +864,3 @@ size_t trg_biggest_subpath_len(const char* path)
     }
     return ret != 0 && ret > (size_t)cnt ? ret : (size_t)cnt;
 }
-

@@ -74,10 +74,11 @@ typedef struct
 
 trt_breakable_str trp_empty_breakable_str();
 trt_breakable_str trp_set_breakable_str(const char*);
-bool trp_breakable_str_is_empty(trt_breakable_str);;
+bool trp_breakable_str_is_empty(trt_breakable_str);
 bool trp_breakable_str_begin_will_be_printed(trt_breakable_str);
 bool trp_breakable_str_end_will_be_printed(trt_breakable_str);
 void trp_print_breakable_str(trt_breakable_str, trt_printing);
+trt_breakable_str trp_next_subpath(trt_breakable_str);
 
 /* ======================================= */
 /* ----------- <Print getters> ----------- */
@@ -372,7 +373,10 @@ typedef struct
 
 trt_keyword_stmt trp_empty_keyword_stmt();
 bool trp_keyword_stmt_is_empty(trt_keyword_stmt);
-void trp_print_keyword_stmt(trt_keyword_stmt, trt_printing);
+void trt_print_keyword_stmt_begin(trt_keyword_stmt, trt_printing);
+void trt_print_keyword_stmt_str(trt_keyword_stmt, uint32_t mll, trt_printing);
+void trt_print_keyword_stmt_end(trt_keyword_stmt, trt_printing);
+void trp_print_keyword_stmt(trt_keyword_stmt, uint32_t mll, trt_printing);
 
 /* ======================================== */
 /* ----------- <Modify getters> ----------- */
