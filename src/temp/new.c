@@ -285,6 +285,15 @@ trp_node_is_empty(trt_node node)
     return a && b && c && d && e && f;
 }
 
+bool
+trp_node_body_is_empty(trt_node node)
+{
+    const bool a = trp_iffeature_is_empty(node.iffeatures);
+    const bool b = trp_type_is_empty(node.type);
+    const bool c = trp_opts_keys_is_empty(node.opts_keys);
+    return a && b && c;
+}
+
 trt_keyword_stmt
 trp_empty_keyword_stmt()
 {
@@ -416,6 +425,30 @@ trp_print_node_up_to_name(trt_node a, trt_printing p)
 }
 
 void
+trp_print_divided_node_up_to_name(trt_node a, trt_printing p)
+{
+    uint32_t space = strlen(a.flags);
+
+    if(a.name.type == trd_node_case) {
+        /* :(<name> */
+        space += strlen(trd_node_name_prefix_case);
+    } else if(a.name.type == trd_node_choice) {
+        /* (<name> */
+        space += strlen(trd_node_name_prefix_choice);
+    } else {
+        /* _<name> */
+        space += strlen(trd_separator_space);
+    }
+
+    /* <name>
+     * __
+     */
+    space += trd_indent_long_line_break;
+
+    trg_print_n_times(space, trd_separator_space[0], p);
+}
+
+void
 trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printing p)
 {
     if(trp_node_is_empty(a))
@@ -429,27 +462,7 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
     if(!divided) {
         trp_print_node_up_to_name(a, p);
     } else {
-        /* skip these statements: */
-
-        uint32_t space = strlen(a.flags);
-
-        if(a.name.type == trd_node_case) {
-            /* :(<name> */
-            space += strlen(trd_node_name_prefix_case);
-        } else if(a.name.type == trd_node_choice) {
-            /* (<name> */
-            space += strlen(trd_node_name_prefix_choice);
-        } else {
-            /* _<name> */
-            space += strlen(trd_separator_space);
-        }
-
-        /* <name> 
-         * __
-         */
-        space += trd_indent_long_line_break;
-
-        trg_print_n_times(space, char_space, p);
+        trp_print_divided_node_up_to_name(a, p);
     }
 
     /* <opts> */
@@ -512,6 +525,23 @@ trp_print_line_up_to_node_name(trt_node node, trt_wrapper wr, trt_printing p)
     trp_print_node_up_to_name(node, p);
 }
 
+
+bool trp_leafref_target_is_too_long(trt_node node, trt_wrapper wr, uint32_t mll)
+{
+    if(node.type.type != trd_type_target)
+        return false;
+
+    trt_counter cnt = {0};
+    /* inject print function with strlen */
+    trt_injecting_strlen func = {&cnt, trp_injected_strlen};
+    /* count number of printed bytes */
+    trp_print_wrapper(wr, func);
+    trg_print_n_times(trd_indent_btw_siblings, trd_separator_space[0], func);
+    trp_print_divided_node_up_to_name(node, func);
+
+    return cnt.bytes + strlen(node.type.str) > mll;
+}
+
 trt_indent_in_node
 trp_default_indent_in_node(trt_node node)
 {
@@ -547,6 +577,10 @@ trp_print_entire_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, ui
         return;
     }
 
+    if(trp_leafref_target_is_too_long(node, ipck.wrapper, mll)) {
+        node.type.type = trd_type_leafref;
+    }
+
     /* check if normal indent is possible */
     trt_pair_indent_node ind_node1 = trp_try_normal_indent_in_node(node, ppck, ipck, mll);
 
@@ -570,58 +604,18 @@ trp_print_entire_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, ui
             trp_print_divided_node(ind_node2.node, ppck, tmp, mll, p);
         }
     } else if(ind_node1.indent.type == trd_indent_in_node_failed){
-        /* It is not possible to keep the max line length. */
-        /* So at least print it in pieces. */
-        trp_print_fail_divided_node(node, ppck, ipck.wrapper, p);
-    }
-}
+        /* node name is too long */
+        trp_print_line_up_to_node_name(node, ipck.wrapper, p);
+        if(trp_node_body_is_empty(node)) {
+            return;
+        } else {
+            trg_print_linebreak(p);
+            trt_pair_indent_node ind_node2 = trp_second_half_node(node, ind_node1.indent);
+            ind_node2.indent.type = trd_indent_in_node_divided;
+            trt_pck_indent tmp = {trp_wrapper_set_mark(ipck.wrapper), ind_node2.indent};
+            trp_print_divided_node(ind_node2.node, ppck, tmp, mll, p);
+        }
 
-void trp_print_fail_divided_node(trt_node node, trt_pck_print ppck, trt_wrapper wr, trt_printing p)
-{
-    trt_indent_in_node empty_ind = trp_empty_indent_in_node();
-    trt_node tmp_node;
-    const trt_node node_base = {node.status, node.flags, node.name,
-        trp_empty_opts_keys(), trp_empty_type(), trp_empty_iffeature()};
-
-    /* print node_name */
-    trp_print_line_up_to_node_name(node, wr, p);
-
-    /* set new wrapper and print node as divided */
-    trt_pck_indent ipck;
-    {
-        ipck.wrapper = trp_wrapper_set_mark(wr);
-        trt_indent_in_node tmp = empty_ind;
-        tmp.type = trd_indent_in_node_divided;
-        ipck.in_node = tmp;
-    }
-
-    /* get presence of node members */
-    const bool keys_is_present = !trp_opts_keys_is_empty(node.opts_keys);
-    const bool type_is_present = !trp_type_is_empty(node.type);
-    const bool feat_is_present = !trp_iffeature_is_empty(node.iffeatures);
-    /* print keys */
-    if(keys_is_present){
-        trg_print_linebreak(p);
-        tmp_node = trp_empty_node();
-        tmp_node = node_base;
-        tmp_node.opts_keys = node.opts_keys;
-        trp_print_line(tmp_node, ppck, ipck, p);
-    }
-    /* print type */
-    if(type_is_present){
-        trg_print_linebreak(p);
-        tmp_node = trp_empty_node();
-        tmp_node = node_base;
-        tmp_node.type = node.type;
-        trp_print_line(tmp_node, ppck, ipck, p);
-    }
-    /* print iffeatures */
-    if(feat_is_present){
-        trg_print_linebreak(p);
-        tmp_node = trp_empty_node();
-        tmp_node = node_base;
-        tmp_node.iffeatures = node.iffeatures;
-        trp_print_line(tmp_node, ppck, ipck, p);
     }
 }
 
@@ -641,7 +635,8 @@ trp_print_divided_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, u
     if(!entire_node_was_printed) {
         trg_print_linebreak(p);
         /* continue with second half node */
-        ind_node = trp_second_half_node(ind_node.node, ind_node.indent);
+        //ind_node = trp_second_half_node(ind_node.node, ind_node.indent);
+        ind_node = trp_second_half_node(node, ind_node.indent);
         /* continue with printing entire node */
         trp_print_divided_node(ind_node.node, ppck, (trt_pck_indent){ipck.wrapper, ind_node.indent}, mll, p);
     } else { 
@@ -677,6 +672,10 @@ trt_pair_indent_node trp_second_half_node(trt_node node, trt_indent_in_node ind)
          * the correct indent.
          */
         ret.indent.btw_name_opts = 0;
+        ret.indent.btw_opts_type = trp_type_is_empty(node.type) ?
+            0 : trd_indent_before_type;
+        ret.indent.btw_type_iffeatures = trp_iffeature_is_empty(node.iffeatures) ?
+            0 : trd_indent_before_iffeatures;
     } else if(ind.btw_opts_type == trd_linebreak) {
         ret.node.opts_keys = trp_empty_opts_keys();
         ret.indent.btw_name_opts = 0;

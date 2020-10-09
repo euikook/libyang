@@ -229,7 +229,7 @@ bool trp_mark_is_used(trt_node_name);
 /* ----------- <opts> ----------- */
 /* ============================== */
 
-static const char trd_opts_optional[] = "?";   /**< for an optional leaf, choice, anydata, or anyxml */ 
+static const char trd_opts_optional[] = "?";        /**< for an optional leaf, choice, anydata, or anyxml */
 static const char trd_opts_container[] = "!";       /**< for a presence container */
 static const char trd_opts_list[] = "*";            /**< for a leaf-list or list */
 static const char trd_opts_slash[] = "/";           /**< for a top-level data node in a mounted module */
@@ -261,7 +261,7 @@ typedef enum
 {
     trd_type_name = 0,
     trd_type_target,
-    trd_type_leafref,
+    trd_type_leafref,   /**< this type is set automatically by the algorithm */
     trd_type_empty
 } trt_type_type;
 
@@ -327,8 +327,11 @@ typedef struct
 
 trt_node trp_empty_node();
 bool trp_node_is_empty(trt_node);
+bool trp_node_body_is_empty(trt_node);
 void trp_print_node_up_to_name(trt_node, trt_printing);
+void trp_print_divided_node_up_to_name(trt_node, trt_printing);
 void trp_print_node(trt_node, trt_pck_print, trt_indent_in_node, trt_printing);
+bool trp_leafref_target_is_too_long(trt_node, trt_wrapper, uint32_t mll);
 
 typedef struct
 {
@@ -488,8 +491,6 @@ void trp_print_line_up_to_node_name(trt_node, trt_wrapper, trt_printing);
 void trp_print_entire_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
 
 void trp_print_divided_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
-
-void trp_print_fail_divided_node(trt_node, trt_pck_print, trt_wrapper, trt_printing);
 
 /**
  * @brief Recursive nodes printing
