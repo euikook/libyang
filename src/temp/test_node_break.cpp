@@ -26,6 +26,7 @@ using out_t = Out::VecLines;
 using std::string;
 out_t out;
 
+
 TEST(nodeBreak, fits)
 {
     out_t check = {"  +--rw prefix:node* [key1 key2]    type {iffeature}?"};
@@ -230,7 +231,6 @@ TEST(nodeBreak, allInNewLines)
     out.clear();
 }
 
-
 TEST(nodeBreak, typeIsToolong)
 {
     out_t base   =       {"  +--rw node*   longString"};
@@ -267,6 +267,74 @@ TEST(nodeBreak, nodeNameIsTooLong)
         trp_empty_opts_keys(),
         {trd_type_empty, ""},
         trp_empty_iffeature()
+    };
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
+
+    EXPECT_EQ(out, check);
+    out.clear();
+}
+
+TEST(nodeBreak, breakLeafrefTarget)
+{
+    out_t base   =       {"  +--rw longNodeName    /y:longStr/short"};
+    uint32_t mll = strlen("                             ^");
+    string check1 =       "  +--rw longNodeName";
+    string check2 =       "  |       -> /y:longStr/short";
+    out_t check = {check1, check2};
+    trt_node node =
+    {
+        trd_status_current, trd_flags_rw,
+        {trd_node_else, "", "longNodeName"},
+        trp_empty_opts_keys(),
+        {trd_type_target, "/y:longStr/short"},
+        trp_empty_iffeature()
+    };
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
+
+    EXPECT_EQ(out, check);
+    out.clear();
+}
+
+TEST(nodeBreak, changeLeafrefTargetToLeafrefKeyword)
+{
+    out_t base   =       {"  +--rw node    /y:longStr/short/eventuallyIsReallyLong"};
+    uint32_t mll = strlen("                         ^");
+    string check1 =       "  +--rw node    leafref";
+    out_t check = {check1};
+    trt_node node =
+    {
+        trd_status_current, trd_flags_rw,
+        {trd_node_else, "", "node"},
+        trp_empty_opts_keys(),
+        {trd_type_target, "/y:longStr/short/eventuallyIsReallyLong"},
+        trp_empty_iffeature()
+    };
+    trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
+        (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
+        mll, (trt_printing){&out, Out::print_vecLines});
+
+    EXPECT_EQ(out, check);
+    out.clear();
+}
+
+TEST(nodeBreak, changeLeafrefTargetToLeafrefKeywordWithIffeature)
+{
+    out_t base   =       {"  +--rw node    /y:longStr/short/eventuallyIsReallyLong {iffeature}?"};
+    uint32_t mll = strlen("                         ^");
+    string check1 =       "  +--rw node    leafref";
+    string check2 =       "  |       {iffeature}?";
+    out_t check = {check1, check2};
+    trt_node node =
+    {
+        trd_status_current, trd_flags_rw,
+        {trd_node_else, "", "node"},
+        trp_empty_opts_keys(),
+        {trd_type_target, "/y:longStr/short/eventuallyIsReallyLong"},
+        trp_set_iffeature()
     };
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
