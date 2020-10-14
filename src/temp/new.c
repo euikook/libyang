@@ -33,6 +33,23 @@ trp_set_breakable_str(const char* src)
 }
 
 bool
+trp_breakable_str_is_eq(trt_breakable_str f, trt_breakable_str s)
+{
+    if(trp_breakable_str_is_empty(f) && !(trp_breakable_str_is_empty(s)))
+        return false;
+    else if(trp_breakable_str_is_empty(s) && !(trp_breakable_str_is_empty(f)))
+        return false;
+    else if(trp_breakable_str_is_empty(f) && trp_breakable_str_is_empty(s))
+        return true;
+    else {
+        bool a = f.src == s.src;
+        bool b = f.substr_start == s.substr_start;
+        bool c = f.substr_size == s.substr_size;
+        return a && b && c;
+    }
+}
+
+bool
 trp_breakable_str_begin_will_be_printed(trt_breakable_str bs)
 {
     return bs.src == bs.substr_start;
@@ -522,39 +539,60 @@ trt_print_keyword_stmt_str(trt_keyword_stmt a, uint32_t mll, trt_printing p)
     if(trp_breakable_str_is_empty(a.str))
         return;
 
+    /* module name cannot be splitted */
     if(a.type == trd_keyword_stmt_top) {
         trp_print_breakable_str(a.str, p);
         return;
     }
 
+    /* else for trd_keyword_stmt_body do */
+
+    /* set begin indentation */
     const uint32_t ind_initial = trd_indent_line_begin + strlen(a.keyword) + 1;
     const uint32_t ind_divided = ind_initial + trd_indent_long_line_break; 
+    /* flag if path must be splitted to more lines */
     bool linebreak_was_set = false;
+    /* the sum of the sizes of the substrings on the current line */
     uint32_t how_far = 0;
 
-    trt_breakable_str sub = trp_next_subpath(a.str);
-    trp_print_breakable_str(sub, p);
-    how_far += sub.substr_size;
+    /* print first subpath behind the keyword */
+    trt_breakable_str first_sub = trp_next_subpath(a.str);
+    trp_print_breakable_str(first_sub, p);
+    how_far += first_sub.substr_size;
 
-    sub = trp_next_subpath(sub);
+    /* take next subpath */
+    trt_breakable_str sub = trp_next_subpath(first_sub);
+    if(trp_breakable_str_is_eq(first_sub, sub)) {
+        /* there is no more subpaths */
+        return;
+    }
 
+    /* print everything except the last subpath */
     while(!trp_breakable_str_end_will_be_printed(sub)){
+        /* choose indentation which depends on
+         * whether the string is printed on multiple lines or not
+         */
         uint32_t ind = linebreak_was_set ? ind_divided : ind_initial;
         how_far += sub.substr_size;
+        /* check max line length */
         if(ind + how_far <= mll) {
             trp_print_breakable_str(sub, p);
         } else {
+            /* this subpath must be print on new line */
             trg_print_linebreak(p);
             linebreak_was_set = true;
             trg_print_n_times(ind_divided, trd_separator_space[0], p);
             trp_print_breakable_str(sub, p);
+            /* new line -> new how_far */
             how_far = sub.substr_size;
         }
         sub = trp_next_subpath(sub);
     }
 
+    /* here will be printed last subpath */
     uint32_t ind = linebreak_was_set ? ind_divided : ind_initial;
     how_far += sub.substr_size;
+    /* +1 -> count additionaly ':' */
     if(ind + how_far + 1 < mll) {
         trp_print_breakable_str(sub, p);
     } else {
