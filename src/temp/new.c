@@ -22,96 +22,6 @@ trp_injected_strlen(void *out, int arg_count, va_list ap)
         cnt->bytes += strlen(va_arg(ap, char*));
 }
 
-trt_breakable_str
-trp_set_breakable_str(const char* src)
-{
-    trt_breakable_str ret;
-    ret.src = src;
-    ret.substr_start = src;
-    ret.substr_size = 0;
-    return ret;
-}
-
-bool
-trp_breakable_str_is_eq(trt_breakable_str f, trt_breakable_str s)
-{
-    if(trp_breakable_str_is_empty(f) && !(trp_breakable_str_is_empty(s)))
-        return false;
-    else if(trp_breakable_str_is_empty(s) && !(trp_breakable_str_is_empty(f)))
-        return false;
-    else if(trp_breakable_str_is_empty(f) && trp_breakable_str_is_empty(s))
-        return true;
-    else {
-        bool a = f.src == s.src;
-        bool b = f.substr_start == s.substr_start;
-        bool c = f.substr_size == s.substr_size;
-        return a && b && c;
-    }
-}
-
-bool
-trp_breakable_str_begin_will_be_printed(trt_breakable_str bs)
-{
-    return bs.src == bs.substr_start;
-}
-
-bool
-trp_breakable_str_end_will_be_printed(trt_breakable_str bs)
-{
-    if(trp_breakable_str_is_empty(bs))
-        return true;
-    else if(bs.src == NULL || bs.substr_start == NULL)
-        return true;
-    else if(bs.src[0] == '\0')
-        return true;
-    else if(bs.substr_start[0] == '\0')
-        return true;
-    else if(bs.src == bs.substr_start && bs.substr_size == 0)
-        return true;
-    else if(*(bs.substr_start + bs.substr_size) == '\0')
-        return true;
-    else
-        return false;
-}
-
-void
-trp_print_breakable_str(trt_breakable_str str, trt_printing p)
-{
-    if(trp_breakable_str_is_empty(str))
-        return;
-
-    if((str.src == str.substr_start) && (str.substr_size == 0)) {
-        trp_print(p, 1, str.src);
-        return;
-    }
-
-    const size_t max_substr_size = strlen(str.substr_start);
-    const size_t end = str.substr_size > max_substr_size ? max_substr_size : str.substr_size;
-    if(end == max_substr_size) {
-        trp_print(p, 1, str.substr_start);
-    } else {
-        for(size_t i = 0; i < end; i++)
-            trg_print_n_times(1, str.substr_start[i], p);
-    }
-}
-
-trt_breakable_str
-trp_next_subpath(trt_breakable_str str)
-{
-    if(trp_breakable_str_is_empty(str))
-        return str;
-
-    str.substr_start += str.substr_size;
-    uint32_t cnt = 0;
-    for(const char* point = str.substr_start; point[0] != '\0'; point++, cnt++)
-        if(point[0] == '/' && point != str.substr_start) {
-            cnt = point[1] == '\0' ? cnt + 1 : cnt;
-            break;
-        }
-
-    return (trt_breakable_str){str.src, str.substr_start, cnt};
-}
-
 trt_indent_in_node trp_empty_indent_in_node()
 {
     return (trt_indent_in_node){trd_indent_in_node_normal, 0, 0, 0};
@@ -215,22 +125,6 @@ trp_print_wrapper(trt_wrapper wr, trt_printing p)
     }
 }
 
-trt_breakable_str
-trp_empty_breakable_str()
-{
-    trt_breakable_str ret;
-    ret.src = NULL;
-    ret.substr_start = NULL;
-    ret.substr_size = 0;
-    return ret;
-}
-
-bool
-trp_breakable_str_is_empty(trt_breakable_str bs)
-{
-    return bs.src == NULL;
-}
-
 trt_node_name
 trp_empty_node_name()
 {
@@ -332,14 +226,14 @@ trt_keyword_stmt
 trp_empty_keyword_stmt()
 {
     trt_keyword_stmt ret;
-    ret.str = trp_empty_breakable_str();
+    ret.str = NULL;
     return ret;
 }
 
 bool
 trp_keyword_stmt_is_empty(trt_keyword_stmt ks)
 {
-    return trp_breakable_str_is_empty(ks.str);
+    return ks.str == NULL;
 }
 
 void
@@ -536,12 +430,12 @@ void trt_print_keyword_stmt_begin(trt_keyword_stmt a, trt_printing p)
 void
 trt_print_keyword_stmt_str(trt_keyword_stmt a, uint32_t mll, trt_printing p)
 {
-    if(trp_breakable_str_is_empty(a.str))
+    if(a.str == NULL || a.str[0] == '\0')
         return;
 
     /* module name cannot be splitted */
     if(a.type == trd_keyword_stmt_top) {
-        trp_print_breakable_str(a.str, p);
+        trp_print(p, 1, a.str);
         return;
     }
 
@@ -552,53 +446,50 @@ trt_print_keyword_stmt_str(trt_keyword_stmt a, uint32_t mll, trt_printing p)
     const uint32_t ind_divided = ind_initial + trd_indent_long_line_break; 
     /* flag if path must be splitted to more lines */
     bool linebreak_was_set = false;
+    /* flag if at least one subpath was printed */
+    bool subpath_printed = false;
     /* the sum of the sizes of the substrings on the current line */
     uint32_t how_far = 0;
 
-    /* print first subpath behind the keyword */
-    trt_breakable_str first_sub = trp_next_subpath(a.str);
-    trp_print_breakable_str(first_sub, p);
-    how_far += first_sub.substr_size;
+    /* pointer to start of the subpath */
+    const char* sub_ptr = a.str;
+    /* size of subpath from sub_ptr */
+    size_t sub_len = 0;
 
-    /* take next subpath */
-    trt_breakable_str sub = trp_next_subpath(first_sub);
-    if(trp_breakable_str_is_eq(first_sub, sub)) {
-        /* there is no more subpaths */
-        return;
-    }
-
-    /* print everything except the last subpath */
-    while(!trp_breakable_str_end_will_be_printed(sub)){
+    while(sub_ptr[0] != '\0') {
+        /* skip slash */
+        const char* tmp = sub_ptr[0] == '/' ? sub_ptr + 1 : sub_ptr;
+        /* get position of the end of substr */
+        tmp = strchr(tmp, '/');
+        /* set correct size if this is a last substring */
+        sub_len = tmp == NULL ? strlen(sub_ptr) : (size_t)(tmp - sub_ptr);
+        /* actualize sum of the substring's sizes on the current line */
+        how_far += sub_len;
+        /* correction due to colon character if it this is last substring */
+        how_far = *(sub_ptr + sub_len + 1) == '\0' ? how_far + 1 : how_far;
         /* choose indentation which depends on
          * whether the string is printed on multiple lines or not
          */
         uint32_t ind = linebreak_was_set ? ind_divided : ind_initial;
-        how_far += sub.substr_size;
-        /* check max line length */
         if(ind + how_far <= mll) {
-            trp_print_breakable_str(sub, p);
+            /* printing before max line length */
+            sub_ptr = trg_print_substr(sub_ptr, sub_len, p);
+            subpath_printed = true;
         } else {
-            /* this subpath must be print on new line */
+            /* printing on new line */
+            if(subpath_printed == false) {
+                /* first subpath is too long but print it at first line anyway */
+                sub_ptr = trg_print_substr(sub_ptr, sub_len, p);
+                subpath_printed = true;
+                continue;
+            }
             trg_print_linebreak(p);
-            linebreak_was_set = true;
             trg_print_n_times(ind_divided, trd_separator_space[0], p);
-            trp_print_breakable_str(sub, p);
-            /* new line -> new how_far */
-            how_far = sub.substr_size;
+            linebreak_was_set = true;
+            sub_ptr = trg_print_substr(sub_ptr, sub_len, p);
+            how_far = sub_len;
+            subpath_printed = true;
         }
-        sub = trp_next_subpath(sub);
-    }
-
-    /* here will be printed last subpath */
-    uint32_t ind = linebreak_was_set ? ind_divided : ind_initial;
-    how_far += sub.substr_size;
-    /* +1 -> count additionaly ':' */
-    if(ind + how_far + 1 < mll) {
-        trp_print_breakable_str(sub, p);
-    } else {
-        trg_print_linebreak(p);
-        trg_print_n_times(ind_divided, trd_separator_space[0], p);
-        trp_print_breakable_str(sub, p);
     }
 }
 
@@ -890,15 +781,13 @@ trg_print_linebreak(trt_printing p)
     trp_print(p, 1, trd_separator_linebreak);
 }
 
-size_t trg_biggest_subpath_len(const char* path)
+const char*
+trg_print_substr(const char* str, size_t len, trt_printing p)
 {
-    size_t ret = 0;
-    int64_t cnt = 0;
-    for(const char* point = path; point[0] != '\0'; point++, cnt++) {
-        if(point[0] == '/') {
-            ret = ret < (size_t)cnt ? (size_t)cnt : ret;
-            cnt = -1;
-        }
+    for(size_t i = 0; i < len; i++) {
+        trg_print_n_times(1, str[0], p);
+        str++;
     }
-    return ret != 0 && ret > (size_t)cnt ? ret : (size_t)cnt;
+    return str;
 }
+

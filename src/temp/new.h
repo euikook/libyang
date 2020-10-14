@@ -65,22 +65,6 @@ typedef struct
  */
 void trp_injected_strlen(void *out, int arg_count, va_list ap); 
 
-typedef struct
-{
-    const char* src;
-    const char* substr_start;
-    size_t substr_size;
-} trt_breakable_str;
-
-trt_breakable_str trp_empty_breakable_str();
-trt_breakable_str trp_set_breakable_str(const char*);
-bool trp_breakable_str_is_empty(trt_breakable_str);
-bool trp_breakable_str_is_eq(trt_breakable_str, trt_breakable_str);
-bool trp_breakable_str_begin_will_be_printed(trt_breakable_str);
-bool trp_breakable_str_end_will_be_printed(trt_breakable_str);
-void trp_print_breakable_str(trt_breakable_str, trt_printing);
-trt_breakable_str trp_next_subpath(trt_breakable_str);
-
 /* ======================================= */
 /* ----------- <Print getters> ----------- */
 /* ======================================= */
@@ -369,7 +353,7 @@ typedef struct
 {
     trt_keyword_stmt_type type;
     trt_top_keyword keyword;
-    trt_breakable_str str;
+    const char* str;
 } trt_keyword_stmt;
 
 trt_keyword_stmt trp_empty_keyword_stmt();
@@ -540,7 +524,8 @@ bool trg_test_bit(uint64_t number, uint32_t bit);
 
 void trg_print_linebreak(trt_printing);
 
-size_t trg_biggest_subpath_len(const char* path);
+const char* trg_print_substr(const char*, size_t len, trt_printing);
+
 
 /* ================================ */
 /* ----------- <symbol> ----------- */

@@ -18,12 +18,13 @@ out_t out;
 
 TEST(keywordStmt, module)
 {
+    string name = "x";
     out_t check = {"module: x"};
     trt_keyword_stmt k =
     {
         trd_keyword_stmt_top,
         trd_top_keyword_module,
-        trp_set_breakable_str("x")
+        name.c_str()
     };
     trp_print_keyword_stmt(k, 72, (trt_printing){&out, Out::print_vecLines});
 
@@ -33,12 +34,13 @@ TEST(keywordStmt, module)
 
 TEST(keywordStmt, noPath)
 {
-    out_t check = {"  augment nopath:"};
+    string path = "nopath";
+    out_t check = {"  augment " + path + ":"};
     trt_keyword_stmt k =
     {
         trd_keyword_stmt_body,
         trd_body_keyword_augment,
-        trp_set_breakable_str("nopath")
+        path.c_str()
     };
     trp_print_keyword_stmt(k, 72, (trt_printing){&out, Out::print_vecLines});
 
@@ -48,12 +50,13 @@ TEST(keywordStmt, noPath)
 
 TEST(keywordStmt, rootPath)
 {
-    out_t check = {"  augment /nopath:"};
+    string path = "/nopath";
+    out_t check = {"  augment " + path + ":"};
     trt_keyword_stmt k =
     {
         trd_keyword_stmt_body,
         trd_body_keyword_augment,
-        trp_set_breakable_str("/nopath")
+        path.c_str()
     };
     trp_print_keyword_stmt(k, 72, (trt_printing){&out, Out::print_vecLines});
 
@@ -63,6 +66,7 @@ TEST(keywordStmt, rootPath)
 
 TEST(keywordStmt, oneTooBigPath)
 {
+    string path = "/efghijkl";
     out_t base =         {"  augment /efghijkl:"};
     uint32_t mll = strlen("                 ^");
     string check1 =       "  augment /efghijkl:";
@@ -71,7 +75,7 @@ TEST(keywordStmt, oneTooBigPath)
     {
         trd_keyword_stmt_body,
         trd_body_keyword_augment,
-        trp_set_breakable_str("/efghijkl")
+        path.c_str()
     };
     trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
 
@@ -79,9 +83,9 @@ TEST(keywordStmt, oneTooBigPath)
     out.clear();
 }
 
-
 TEST(keywordStmt, splitPath2len)
 {
+    string path = "/abcd/efghijkl";
     out_t base =         {"  augment /abcd/efghijkl:"};
     uint32_t mll = strlen("                      ^");
     string check1 =       "  augment /abcd";
@@ -91,14 +95,13 @@ TEST(keywordStmt, splitPath2len)
     {
         trd_keyword_stmt_body,
         trd_body_keyword_augment,
-        trp_set_breakable_str("/abcd/efghijkl")
+        path.c_str()
     };
     trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
 
     EXPECT_EQ(out, check);
     out.clear();
 }
-
 
 TEST(keywordStmt, longPathSplitMll10)
 {
@@ -120,7 +123,7 @@ TEST(keywordStmt, longPathSplitMll10)
     {
         trd_keyword_stmt_body,
         trd_body_keyword_augment,
-        trp_set_breakable_str(path.c_str())
+        path.c_str()
     };
     trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
 
@@ -148,7 +151,7 @@ TEST(keywordStmt, longPathSplitMll50)
     {
         trd_keyword_stmt_body,
         trd_body_keyword_augment,
-        trp_set_breakable_str(path.c_str())
+        path.c_str()
     };
     trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
 
@@ -172,7 +175,7 @@ TEST(keywordStmt, longPathSplitMll1000)
     {
         trd_keyword_stmt_body,
         trd_body_keyword_augment,
-        trp_set_breakable_str(path.c_str())
+        path.c_str()
     };
     trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
 
