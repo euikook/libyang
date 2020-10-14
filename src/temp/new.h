@@ -75,6 +75,7 @@ typedef struct
 trt_breakable_str trp_empty_breakable_str();
 trt_breakable_str trp_set_breakable_str(const char*);
 bool trp_breakable_str_is_empty(trt_breakable_str);
+bool trp_breakable_str_is_eq(trt_breakable_str, trt_breakable_str);
 bool trp_breakable_str_begin_will_be_printed(trt_breakable_str);
 bool trp_breakable_str_end_will_be_printed(trt_breakable_str);
 void trp_print_breakable_str(trt_breakable_str, trt_printing);

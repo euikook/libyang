@@ -61,6 +61,24 @@ TEST(keywordStmt, rootPath)
     out.clear();
 }
 
+TEST(keywordStmt, oneTooBigPath)
+{
+    out_t base =         {"  augment /efghijkl:"};
+    uint32_t mll = strlen("                 ^");
+    string check1 =       "  augment /efghijkl:";
+    out_t check = {check1};
+    trt_keyword_stmt k =
+    {
+        trd_keyword_stmt_body,
+        trd_body_keyword_augment,
+        trp_set_breakable_str("/efghijkl")
+    };
+    trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
+
+    EXPECT_EQ(out, check);
+    out.clear();
+}
+
 
 TEST(keywordStmt, splitPath2len)
 {
