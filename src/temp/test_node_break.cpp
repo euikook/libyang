@@ -32,7 +32,7 @@ TEST(nodeBreak, fits)
     out_t check = {"  +--rw prefix:node* [key1 key2]    type {iffeature}?"};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "prefix", "node"},
         trp_set_opts_keys(),
         {trd_type_name, "type"},
@@ -52,7 +52,7 @@ TEST(nodeBreak, fitsTight)
     uint32_t mll = strlen("                                                    ^");
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "prefix", "node"},
         trp_set_opts_keys(),
         {trd_type_name, "type"},
@@ -76,7 +76,7 @@ TEST(nodeBreak, btwNameOpts)
     out_t check = {check1, check2};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "xxxprefix", "node"},
         trp_set_opts_keys(),
         {trd_type_empty, ""},
@@ -99,7 +99,7 @@ TEST(nodeBreak, btwOptsType)
     out_t check = {check1, check2};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_listLeaflist, "xxxprefix", "node"},
         trp_empty_opts_keys(),
         {trd_type_name, "string"},
@@ -122,7 +122,7 @@ TEST(nodeBreak, btwOptsTypeWithIffeatures)
     out_t check = {check1, check2};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "xxxprefix", "node"},
         trp_empty_opts_keys(),
         {trd_type_name, "st"},
@@ -146,7 +146,7 @@ TEST(nodeBreak, btwTypeIffeatures)
     out_t check = {check1, check2};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_listLeaflist, "xxxprefix", "node"},
         trp_empty_opts_keys(),
         {trd_type_empty, ""},
@@ -169,7 +169,7 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeys)
     out_t check = {check1, check2};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "xxxprefix", "node"},
         trp_set_opts_keys(),
         {trd_type_empty, ""},
@@ -192,7 +192,7 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeysType)
     out_t check = {check1, check2};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "xxxprefix", "node"},
         trp_set_opts_keys(),
         {trd_type_name, "string"},
@@ -217,7 +217,7 @@ TEST(nodeBreak, allInNewLines)
     out_t check = {check1, check2, check3, check4};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "xxxprefix", "node"},
         trp_set_opts_keys(),
         {trd_type_name, "string"},
@@ -240,7 +240,7 @@ TEST(nodeBreak, typeIsToolong)
     out_t check = {check1, check2};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_listLeaflist, "", "node"},
         trp_empty_opts_keys(),
         {trd_type_name, "longString"},
@@ -262,7 +262,7 @@ TEST(nodeBreak, nodeNameIsTooLong)
     out_t check = {check1};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_else, "", "longNodeName"},
         trp_empty_opts_keys(),
         {trd_type_empty, ""},
@@ -285,7 +285,7 @@ TEST(nodeBreak, breakLeafrefTarget)
     out_t check = {check1, check2};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_else, "", "longNodeName"},
         trp_empty_opts_keys(),
         {trd_type_target, "/y:longStr/short"},
@@ -307,7 +307,7 @@ TEST(nodeBreak, changeLeafrefTargetToLeafrefKeyword)
     out_t check = {check1};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_else, "", "node"},
         trp_empty_opts_keys(),
         {trd_type_target, "/y:longStr/short/eventuallyIsReallyLong"},
@@ -330,7 +330,7 @@ TEST(nodeBreak, changeLeafrefTargetToLeafrefKeywordWithIffeature)
     out_t check = {check1, check2};
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_else, "", "node"},
         trp_empty_opts_keys(),
         {trd_type_target, "/y:longStr/short/eventuallyIsReallyLong"},

@@ -30,7 +30,7 @@ TEST(line, fully)
     out_t check = "  |  |  +--rw prefix:node!   -> target {iffeature}?";
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_container, "prefix", "node"},
         trp_empty_opts_keys(),
         {trd_type_target, "target"},
@@ -52,7 +52,7 @@ TEST(line, firstNode)
     out_t check = "  +--rw prefix:node!   -> target {iffeature}?";
     trt_node node =
     {
-        trd_status_current, trd_flags_rw,
+        trd_status_type_current, trd_flags_type_rw,
         {trd_node_container, "prefix", "node"},
         trp_empty_opts_keys(),
         {trd_type_target, "target"},

@@ -1,6 +1,8 @@
+
 #include "new.h"
 #include <string.h> // strlen
 
+/* -######-- Definitions start -#######- */
 
 /* ----------- <Definition of printer functions> ----------- */
 
@@ -27,13 +29,13 @@ trt_indent_in_node trp_empty_indent_in_node()
     return (trt_indent_in_node){trd_indent_in_node_normal, 0, 0, 0};
 }
 
-bool
+ly_bool
 trp_indent_in_node_are_eq(trt_indent_in_node f, trt_indent_in_node s)
 {
-    const bool a = f.type == s.type;
-    const bool b = f.btw_name_opts == s.btw_name_opts;
-    const bool c = f.btw_opts_type == s.btw_opts_type;
-    const bool d = f.btw_type_iffeatures == s.btw_type_iffeatures;
+    const ly_bool a = f.type == s.type;
+    const ly_bool b = f.btw_name_opts == s.btw_name_opts;
+    const ly_bool c = f.btw_opts_type == s.btw_opts_type;
+    const ly_bool d = f.btw_type_iffeatures == s.btw_type_iffeatures;
     return a && b && c && d;
 }
 
@@ -84,12 +86,12 @@ trp_wrapper_set_shift(trt_wrapper wr)
     return wr;
 }
 
-bool
+ly_bool
 trt_wrapper_eq(trt_wrapper f, trt_wrapper s)
 {
-    const bool a = f.type == s.type;
-    const bool b = f.bit_marks1 == s.bit_marks1;
-    const bool c = f.actual_pos == s.actual_pos;
+    const ly_bool a = f.type == s.type;
+    const ly_bool b = f.bit_marks1 == s.bit_marks1;
+    const ly_bool c = f.actual_pos == s.actual_pos;
     return a && b && c;
 }
 
@@ -133,7 +135,7 @@ trp_empty_node_name()
     return ret;
 }
 
-bool
+ly_bool
 trp_node_name_is_empty(trt_node_name node_name)
 {
     return node_name.str == NULL;
@@ -142,19 +144,19 @@ trp_node_name_is_empty(trt_node_name node_name)
 trt_opts_keys
 trp_set_opts_keys()
 {
-    return true;
+    return 1;
 }
 
 trt_opts_keys
 trp_empty_opts_keys()
 {
-    return false;
+    return 0;
 }
 
-bool
+ly_bool
 trp_opts_keys_is_empty(trt_opts_keys keys)
 {
-    return keys == false;
+    return keys == 0;
 }
 
 trt_type
@@ -165,7 +167,7 @@ trp_empty_type()
     return ret;
 }
 
-bool
+ly_bool
 trp_type_is_empty(trt_type type)
 {
     return type.type == trd_type_empty;
@@ -174,16 +176,16 @@ trp_type_is_empty(trt_type type)
 trt_iffeature
 trp_set_iffeature()
 {
-    return true;
+    return 1;
 }
 
 trt_iffeature
 trp_empty_iffeature()
 {
-    return false;
+    return 0;
 }
 
-bool
+ly_bool
 trp_iffeature_is_empty(trt_iffeature iffeature)
 {
     return !iffeature;
@@ -194,31 +196,31 @@ trp_empty_node()
 {
     trt_node ret = 
     {
-        NULL, NULL,
+        trd_status_type_empty, trd_flags_type_empty,
         trp_empty_node_name(), trp_empty_opts_keys(),
         trp_empty_type(), trp_empty_iffeature()
     };
     return ret;
 }
 
-bool
+ly_bool
 trp_node_is_empty(trt_node node)
 {
-    const bool a = trp_iffeature_is_empty(node.iffeatures);
-    const bool b = trp_type_is_empty(node.type);
-    const bool c = trp_opts_keys_is_empty(node.opts_keys);
-    const bool d = trp_node_name_is_empty(node.name);
-    const bool e = node.flags == NULL;
-    const bool f = node.status == NULL;
+    const ly_bool a = trp_iffeature_is_empty(node.iffeatures);
+    const ly_bool b = trp_type_is_empty(node.type);
+    const ly_bool c = trp_opts_keys_is_empty(node.opts_keys);
+    const ly_bool d = trp_node_name_is_empty(node.name);
+    const ly_bool e = node.flags == trd_flags_type_empty;
+    const ly_bool f = node.status == trd_status_type_empty;
     return a && b && c && d && e && f;
 }
 
-bool
+ly_bool
 trp_node_body_is_empty(trt_node node)
 {
-    const bool a = trp_iffeature_is_empty(node.iffeatures);
-    const bool b = trp_type_is_empty(node.type);
-    const bool c = trp_opts_keys_is_empty(node.opts_keys);
+    const ly_bool a = trp_iffeature_is_empty(node.iffeatures);
+    const ly_bool b = trp_type_is_empty(node.type);
+    const ly_bool c = trp_opts_keys_is_empty(node.opts_keys);
     return a && b && c;
 }
 
@@ -230,10 +232,64 @@ trp_empty_keyword_stmt()
     return ret;
 }
 
-bool
+ly_bool
 trp_keyword_stmt_is_empty(trt_keyword_stmt ks)
 {
     return ks.str == NULL;
+}
+
+void
+trp_print_status(trt_status_type a, trt_printing p)
+{
+    switch(a) {
+    case trd_status_type_current:
+        trp_print(p, 1, trd_status_current);
+        break;
+    case trd_status_type_deprecated:
+        trp_print(p, 1, trd_status_deprecated);
+        break;
+    case trd_status_type_obsolete:
+        trp_print(p, 1, trd_status_obsolete);
+        break;
+    default:
+        break;
+    }
+}
+
+void
+trp_print_flags(trt_flags_type a, trt_printing p)
+{
+    switch(a) {
+    case trd_flags_type_rw:
+        trp_print(p, 1, trd_flags_rw);
+        break;
+    case trd_flags_type_ro:
+        trp_print(p, 1, trd_flags_ro);
+        break;
+    case trd_flags_type_rpc_input_params:
+        trp_print(p, 1, trd_flags_rpc_input_params);
+        break;
+    case trd_flags_type_uses_of_grouping:
+        trp_print(p, 1, trd_flags_uses_of_grouping);
+        break;
+    case trd_flags_type_rpc:
+        trp_print(p, 1, trd_flags_rpc);
+        break;
+    case trd_flags_type_notif:
+        trp_print(p, 1, trd_flags_notif);
+        break;
+    case trd_flags_type_mount_point:
+        trp_print(p, 1, trd_flags_mount_point);
+        break;
+    default:
+        break;
+    }
+}
+
+size_t
+trp_print_flags_strlen(trt_flags_type a)
+{
+    return a == trd_flags_type_empty ? 0 : 2;
 }
 
 void
@@ -280,19 +336,19 @@ trp_print_node_name(trt_node_name a, trt_printing p)
     }
 }
 
-bool
+ly_bool
 trp_mark_is_used(trt_node_name a)
 {
     if(trp_node_name_is_empty(a))
-        return false;
+        return 0;
 
     switch(a.type) {
     case trd_node_else:
     case trd_node_case:
     case trd_node_keys:
-        return false;
+        return 0;
     default:
-        return true;
+        return 1;
     }
 }
 
@@ -344,7 +400,9 @@ void
 trp_print_node_up_to_name(trt_node a, trt_printing p)
 {
     /* <status>--<flags> */
-    trp_print(p, 3, a.status, trd_separator_dashes, a.flags);
+    trp_print_status(a.status, p);
+    trp_print(p, 1, trd_separator_dashes);
+    trp_print_flags(a.flags, p);
     /* If the node is a case node, there is no space before the <name> */
     if(a.name.type != trd_node_case)
         trp_print(p, 1, trd_separator_space);
@@ -355,7 +413,7 @@ trp_print_node_up_to_name(trt_node a, trt_printing p)
 void
 trp_print_divided_node_up_to_name(trt_node a, trt_printing p)
 {
-    uint32_t space = strlen(a.flags);
+    uint32_t space = trp_print_flags_strlen(a.flags);
 
     if(a.name.type == trd_node_case) {
         /* :(<name> */
@@ -384,7 +442,7 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
 
     /* <status>--<flags> <name><opts> <type> <if-features> */
 
-    const bool divided = ind.type == trd_indent_in_node_divided;
+    const ly_bool divided = ind.type == trd_indent_in_node_divided;
     const char char_space = trd_separator_space[0];
 
     if(!divided) {
@@ -416,14 +474,65 @@ void trt_print_keyword_stmt_begin(trt_keyword_stmt a, trt_printing p)
 {
     switch(a.type) {
     case trd_keyword_stmt_top:
-        trp_print(p, 3, a.keyword, trd_separator_colon, trd_separator_space);
+        switch(a.keyword) {
+        case trd_keyword_module:
+            trp_print(p, 1, trd_top_keyword_module);
+            break;
+        case trd_keyword_submodule:
+            trp_print(p, 1, trd_top_keyword_submodule);
+            break;
+        default:
+            break;
+        }
+        trp_print(p, 2, trd_separator_colon, trd_separator_space);
         break;
     case trd_keyword_stmt_body:
         trg_print_n_times(trd_indent_line_begin, trd_separator_space[0], p);
-        trp_print(p, 2, a.keyword, trd_separator_space);
+        switch(a.keyword) {
+        case trd_keyword_augment:
+            trp_print(p, 1, trd_body_keyword_augment);
+            break;
+        case trd_keyword_rpc:
+            trp_print(p, 1, trd_body_keyword_rpc);
+            break;
+        case trd_keyword_notif:
+            trp_print(p, 1, trd_body_keyword_notif);
+            break;
+        case trd_keyword_grouping:
+            trp_print(p, 1, trd_body_keyword_grouping);
+            break;
+        case trd_keyword_yang_data:
+            trp_print(p, 1, trd_body_keyword_yang_data);
+            break;
+        default:
+            break;
+        }
+        trp_print(p, 1, trd_separator_space);
         break;
     default:
         break;
+    }
+}
+
+size_t trp_keyword_type_strlen(trt_keyword_type a)
+{
+    switch(a) {
+    case trd_keyword_module:
+        return sizeof(trd_top_keyword_module) - 1;
+    case trd_keyword_submodule:
+        return sizeof(trd_top_keyword_submodule) - 1;
+    case trd_keyword_augment:
+        return sizeof(trd_body_keyword_augment) - 1;
+    case trd_keyword_rpc:
+        return sizeof(trd_body_keyword_rpc) - 1;
+    case trd_keyword_notif:
+        return sizeof(trd_body_keyword_notif) - 1;
+    case trd_keyword_grouping:
+        return sizeof(trd_body_keyword_grouping) - 1;
+    case trd_keyword_yang_data:
+        return sizeof(trd_body_keyword_yang_data) - 1;
+    default:
+        return 0;
     }
 }
 
@@ -441,13 +550,14 @@ trt_print_keyword_stmt_str(trt_keyword_stmt a, uint32_t mll, trt_printing p)
 
     /* else for trd_keyword_stmt_body do */
 
+    const char slash = trd_separator_slash[0];
     /* set begin indentation */
-    const uint32_t ind_initial = trd_indent_line_begin + strlen(a.keyword) + 1;
+    const uint32_t ind_initial = trd_indent_line_begin + trp_keyword_type_strlen(a.keyword) + 1;
     const uint32_t ind_divided = ind_initial + trd_indent_long_line_break; 
     /* flag if path must be splitted to more lines */
-    bool linebreak_was_set = false;
+    ly_bool linebreak_was_set = 0;
     /* flag if at least one subpath was printed */
-    bool subpath_printed = false;
+    ly_bool subpath_printed = 0;
     /* the sum of the sizes of the substrings on the current line */
     uint32_t how_far = 0;
 
@@ -458,9 +568,9 @@ trt_print_keyword_stmt_str(trt_keyword_stmt a, uint32_t mll, trt_printing p)
 
     while(sub_ptr[0] != '\0') {
         /* skip slash */
-        const char* tmp = sub_ptr[0] == '/' ? sub_ptr + 1 : sub_ptr;
+        const char* tmp = sub_ptr[0] == slash ? sub_ptr + 1 : sub_ptr;
         /* get position of the end of substr */
-        tmp = strchr(tmp, '/');
+        tmp = strchr(tmp, slash);
         /* set correct size if this is a last substring */
         sub_len = tmp == NULL ? strlen(sub_ptr) : (size_t)(tmp - sub_ptr);
         /* actualize sum of the substring's sizes on the current line */
@@ -474,21 +584,21 @@ trt_print_keyword_stmt_str(trt_keyword_stmt a, uint32_t mll, trt_printing p)
         if(ind + how_far <= mll) {
             /* printing before max line length */
             sub_ptr = trg_print_substr(sub_ptr, sub_len, p);
-            subpath_printed = true;
+            subpath_printed = 1;
         } else {
             /* printing on new line */
-            if(subpath_printed == false) {
+            if(subpath_printed == 0) {
                 /* first subpath is too long but print it at first line anyway */
                 sub_ptr = trg_print_substr(sub_ptr, sub_len, p);
-                subpath_printed = true;
+                subpath_printed = 1;
                 continue;
             }
             trg_print_linebreak(p);
             trg_print_n_times(ind_divided, trd_separator_space[0], p);
-            linebreak_was_set = true;
+            linebreak_was_set = 1;
             sub_ptr = trg_print_substr(sub_ptr, sub_len, p);
             how_far = sub_len;
-            subpath_printed = true;
+            subpath_printed = 1;
         }
     }
 }
@@ -527,10 +637,10 @@ trp_print_line_up_to_node_name(trt_node node, trt_wrapper wr, trt_printing p)
 }
 
 
-bool trp_leafref_target_is_too_long(trt_node node, trt_wrapper wr, uint32_t mll)
+ly_bool trp_leafref_target_is_too_long(trt_node node, trt_wrapper wr, uint32_t mll)
 {
     if(node.type.type != trd_type_target)
-        return false;
+        return 0;
 
     trt_counter cnt = {0};
     /* inject print function with strlen */
@@ -632,7 +742,7 @@ trp_print_divided_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, u
 
     trp_print_line(ind_node.node, ppck, (trt_pck_indent){ipck.wrapper, ind_node.indent}, p);
 
-    const bool entire_node_was_printed = trp_indent_in_node_are_eq(ipck.in_node, ind_node.indent);
+    const ly_bool entire_node_was_printed = trp_indent_in_node_are_eq(ipck.in_node, ind_node.indent);
     if(!entire_node_was_printed) {
         trg_print_linebreak(p);
         /* continue with second half node */
@@ -769,7 +879,7 @@ trg_print_n_times(int32_t n, char c, trt_printing p)
     trp_print(p, 1, &buffer[0]);
 }
 
-bool
+ly_bool
 trg_test_bit(uint64_t number, uint32_t bit)
 {
     return (number >> bit) & 1U;
@@ -791,3 +901,25 @@ trg_print_substr(const char* str, size_t len, trt_printing p)
     return str;
 }
 
+/* ----------- <Definition of module interface> ----------- */
+
+//LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct lys_module *module, uint32_t options, size_t line_length)
+LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *UNUSED(out), const struct lys_module *UNUSED(module), uint32_t UNUSED(options), size_t UNUSED(line_length))
+{
+    return 0;
+}
+
+//LY_ERR tree_print_submodule(struct ly_out *out, const struct lys_module *module, const struct lysp_submodule *submodp, uint32_t options, size_t line_length)
+LY_ERR tree_print_submodule(struct ly_out *UNUSED(out), const struct lys_module *UNUSED(module), const struct lysp_submodule *UNUSED(submodp), uint32_t UNUSED(options), size_t UNUSED(line_length))
+{
+    return 0;
+}
+
+//LY_ERR tree_print_compiled_node(struct ly_out *out, const struct lysc_node *node, uint32_t options, size_t line_length)
+LY_ERR tree_print_compiled_node(struct ly_out *UNUSED(out), const struct lysc_node *UNUSED(node), uint32_t UNUSED(options), size_t UNUSED(line_length))
+{
+    return 0;
+}
+
+
+/* -######-- Definitions end -#######- */
