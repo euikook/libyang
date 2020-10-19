@@ -23,7 +23,7 @@ TEST(keywordStmt, module)
     trt_keyword_stmt k =
     {
         trd_keyword_stmt_top,
-        trd_top_keyword_module,
+        trd_keyword_module,
         name.c_str()
     };
     trp_print_keyword_stmt(k, 72, (trt_printing){&out, Out::print_vecLines});
@@ -39,7 +39,7 @@ TEST(keywordStmt, noPath)
     trt_keyword_stmt k =
     {
         trd_keyword_stmt_body,
-        trd_body_keyword_augment,
+        trd_keyword_augment,
         path.c_str()
     };
     trp_print_keyword_stmt(k, 72, (trt_printing){&out, Out::print_vecLines});
@@ -55,7 +55,7 @@ TEST(keywordStmt, rootPath)
     trt_keyword_stmt k =
     {
         trd_keyword_stmt_body,
-        trd_body_keyword_augment,
+        trd_keyword_augment,
         path.c_str()
     };
     trp_print_keyword_stmt(k, 72, (trt_printing){&out, Out::print_vecLines});
@@ -74,7 +74,7 @@ TEST(keywordStmt, oneTooBigPath)
     trt_keyword_stmt k =
     {
         trd_keyword_stmt_body,
-        trd_body_keyword_augment,
+        trd_keyword_augment,
         path.c_str()
     };
     trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
@@ -94,7 +94,7 @@ TEST(keywordStmt, splitPath2len)
     trt_keyword_stmt k =
     {
         trd_keyword_stmt_body,
-        trd_body_keyword_augment,
+        trd_keyword_augment,
         path.c_str()
     };
     trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
@@ -122,7 +122,7 @@ TEST(keywordStmt, longPathSplitMll10)
     trt_keyword_stmt k =
     {
         trd_keyword_stmt_body,
-        trd_body_keyword_augment,
+        trd_keyword_augment,
         path.c_str()
     };
     trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
@@ -150,7 +150,7 @@ TEST(keywordStmt, longPathSplitMll50)
     trt_keyword_stmt k =
     {
         trd_keyword_stmt_body,
-        trd_body_keyword_augment,
+        trd_keyword_augment,
         path.c_str()
     };
     trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
@@ -174,7 +174,7 @@ TEST(keywordStmt, longPathSplitMll1000)
     trt_keyword_stmt k =
     {
         trd_keyword_stmt_body,
-        trd_body_keyword_augment,
+        trd_keyword_augment,
         path.c_str()
     };
     trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});

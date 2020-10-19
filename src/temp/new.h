@@ -1,12 +1,17 @@
-/**
- * @file new.h
- * @author Adam Piecek <piecek@cesnet.cz>
- * @brief tree printer
- */
 
-/* TODO: rename to printer_tree.c */
-/* TODO: merge new.c to printer_tree.c */
-/* TODO: line break due to long prefix string */
+/**
+ * @file printer_tree.c
+ * @author Adam Piecek <piecek@cesnet.cz>
+ * @brief RFC tree printer for libyang data structure
+ *
+ * Copyright (c) 2015 - 2020 CESNET, z.s.p.o.
+ *
+ * This source code is licensed under BSD 3-Clause License (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://opensource.org/licenses/BSD-3-Clause
+ */
 
 #ifndef NEW_H_
 #define NEW_H_
@@ -15,6 +20,17 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h> /* NULL */
+
+#define LY_ERR int
+#define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
+typedef uint8_t ly_bool;
+struct ly_out;
+struct lys_module;
+struct lysp_submodule;
+struct lysc_node;
+
+
+/* -######-- Declarations start -#######- */
 
 /*
  *          +---------+    +---------+    +---------+
@@ -193,7 +209,7 @@ typedef struct
 /** Create trt_indent_in_node as empty. */
 trt_indent_in_node trp_empty_indent_in_node();
 /** Check that they can be considered equivalent. */
-bool trp_indent_in_node_are_eq(trt_indent_in_node, trt_indent_in_node);
+ly_bool trp_indent_in_node_are_eq(trt_indent_in_node, trt_indent_in_node);
 
 /**
  * @brief Writing a linebreak constant.
@@ -240,7 +256,7 @@ trt_wrapper trp_wrapper_set_mark(trt_wrapper);
 trt_wrapper trp_wrapper_set_shift(trt_wrapper);
 
 /** Test if they are equivalent. */
-bool trt_wrapper_eq(trt_wrapper, trt_wrapper);
+ly_bool trt_wrapper_eq(trt_wrapper, trt_wrapper);
 
 /** Print "  |" sequence. */
 void trp_print_wrapper(trt_wrapper, trt_printing);
@@ -254,6 +270,51 @@ typedef struct
     trt_wrapper wrapper;            /**< "  |  |" sequence. */
     trt_indent_in_node in_node;     /**< Indent in node. */
 } trt_pck_indent;
+
+/* ================================== */
+/* ------------ <status> ------------ */
+/* ================================== */
+
+static const char trd_status_current[] = "+";
+static const char trd_status_deprecated[] = "x";
+static const char trd_status_obsolete[] = "o";
+
+typedef enum
+{
+    trd_status_type_empty = 0,
+    trd_status_type_current,
+    trd_status_type_deprecated,
+    trd_status_type_obsolete,
+} trt_status_type;
+
+void trp_print_status(trt_status_type, trt_printing);
+
+/* ================================== */
+/* ------------ <flags> ------------- */
+/* ================================== */
+
+static const char trd_flags_rw[] = "rw";
+static const char trd_flags_ro[] = "ro";
+static const char trd_flags_rpc_input_params[] = "-w";
+static const char trd_flags_uses_of_grouping[] = "-u";
+static const char trd_flags_rpc[] = "-x";
+static const char trd_flags_notif[] = "-n";
+static const char trd_flags_mount_point[] = "mp";
+
+typedef enum
+{
+    trd_flags_type_empty = 0,
+    trd_flags_type_rw,
+    trd_flags_type_ro,
+    trd_flags_type_rpc_input_params,
+    trd_flags_type_uses_of_grouping,
+    trd_flags_type_rpc,
+    trd_flags_type_notif,
+    trd_flags_type_mount_point,
+} trt_flags_type;
+
+void trp_print_flags(trt_flags_type, trt_printing);
+size_t trp_print_flags_strlen(trt_flags_type);
 
 /* ================================== */
 /* ----------- <node_name> ----------- */
@@ -299,11 +360,11 @@ typedef struct
 /** Create trt_node_name as empty. */
 trt_node_name trp_empty_node_name();
 /** Check if trt_node_name is empty. */
-bool trp_node_name_is_empty(trt_node_name);
+ly_bool trp_node_name_is_empty(trt_node_name);
 /** Print entire trt_node_name structure. */
 void trp_print_node_name(trt_node_name, trt_printing);
 /** Check if mark (?, !, *, /, @) is implicitly contained in trt_node_name. */
-bool trp_mark_is_used(trt_node_name);
+ly_bool trp_mark_is_used(trt_node_name);
 
 /* ============================== */
 /* ----------- <opts> ----------- */
@@ -324,16 +385,16 @@ static const char trd_opts_keys_suffix[] = "]";
 /** 
  * @brief Opts keys in node.
  *
- * Opts keys is just bool because printing is not provided by the printer component (trp).
+ * Opts keys is just ly_bool because printing is not provided by the printer component (trp).
  */
-typedef bool trt_opts_keys;
+typedef ly_bool trt_opts_keys;
 
 /** Create trt_opts_keys and note the presence of keys. */
 trt_opts_keys trp_set_opts_keys();
 /** Create empty trt_opts_keys and note the absence of keys. */
 trt_opts_keys trp_empty_opts_keys();
 /** Check if trt_opts_keys is empty. */
-bool trp_opts_keys_is_empty(trt_opts_keys);
+ly_bool trp_opts_keys_is_empty(trt_opts_keys);
 
 /** 
  * @brief Print opts keys.
@@ -378,7 +439,7 @@ typedef struct
 /** Create empty trt_type. */
 trt_type trp_empty_type();
 /** Check if trt_type is empty. */
-bool trp_type_is_empty(trt_type);
+ly_bool trp_type_is_empty(trt_type);
 /** Print entire trt_type structure. */
 void trp_print_type(trt_type, trt_printing);
 
@@ -394,16 +455,16 @@ static const char trd_iffeatures_suffix[] = "}?";
 /** 
  * @brief List of features in node.
  *
- * The iffeature is just bool because printing is not provided by the printer component (trp).
+ * The iffeature is just ly_bool because printing is not provided by the printer component (trp).
  */
-typedef bool trt_iffeature;
+typedef ly_bool trt_iffeature;
 
 /** Create trt_iffeature and note the presence of features. */
 trt_iffeature trp_set_iffeature();
 /** Create empty trt_iffeature and note the absence of features. */
 trt_iffeature trp_empty_iffeature();
 /** Check if trt_iffeature is empty. */
-bool trp_iffeature_is_empty(trt_iffeature);
+ly_bool trp_iffeature_is_empty(trt_iffeature);
 
 /**
  * @brief Print all iffeatures of node 
@@ -418,20 +479,6 @@ void trp_print_iffeatures(trt_iffeature i, trt_cf_print_iffeatures pf, trt_print
 /* ----------- <node> ----------- */
 /* ============================== */
 
-typedef const char* trt_status;
-static const char trd_status_current[] = "+";
-static const char trd_status_deprecated[] = "x";
-static const char trd_status_obsolete[] = "o";
-
-typedef const char* trt_flags;
-static const char trd_flags_rw[] = "rw";
-static const char trd_flags_ro[] = "ro";
-static const char trd_flags_rpc_input_params[] = "-w";
-static const char trd_flags_uses_of_grouping[] = "-u";
-static const char trd_flags_rpc[] = "-x";
-static const char trd_flags_notif[] = "-n";
-static const char trd_flags_mount_point[] = "mp";
-
 /** 
  * @brief <node> data for printing.
  *
@@ -441,8 +488,8 @@ static const char trd_flags_mount_point[] = "mp";
  */
 typedef struct
 {
-    trt_status status;          /**< <status>. */
-    trt_flags flags;            /**< <flags>. */
+    trt_status_type status;          /**< <status>. */
+    trt_flags_type flags;            /**< <flags>. */
     trt_node_name name;         /**< <node> with <opts> mark. */
     trt_opts_keys opts_keys;    /**< <opts> list's keys. Printing function required. */
     trt_type type;              /**< <type> is the name of the type for leafs and leaf-lists. */
@@ -452,9 +499,9 @@ typedef struct
 /** Create trt_node as empty. */
 trt_node trp_empty_node();
 /** Check if trt_node is empty. */
-bool trp_node_is_empty(trt_node);
+ly_bool trp_node_is_empty(trt_node);
 /** Check if opts_keys, type and iffeatures are empty. */
-bool trp_node_body_is_empty(trt_node);
+ly_bool trp_node_body_is_empty(trt_node);
 /** Print just <status>--<flags> <name> with opts mark. */
 void trp_print_node_up_to_name(trt_node, trt_printing);
 /** Print alignment (spaces) instead of <status>--<flags> <name> for divided node. */
@@ -478,7 +525,7 @@ void trp_print_node(trt_node n, trt_pck_print ppck, trt_indent_in_node ind, trt_
  * @param[in] mll max line length border.
  * @return true if must be change to string 'leafref'.
  */
-bool trp_leafref_target_is_too_long(trt_node n, trt_wrapper wr, uint32_t mll);
+ly_bool trp_leafref_target_is_too_long(trt_node n, trt_wrapper wr, uint32_t mll);
 
 /**
  * @brief Package which only groups indent and node.
@@ -516,11 +563,9 @@ trt_pair_indent_node trp_second_half_node(trt_node node, trt_indent_in_node ind)
 /* ----------- <statement> ----------- */
 /* =================================== */
 
-typedef const char* trt_top_keyword;
 static const char trd_top_keyword_module[] = "module";
 static const char trd_top_keyword_submodule[] = "submodule";
 
-typedef const char* trt_body_keyword;
 static const char trd_body_keyword_augment[] = "augment";
 static const char trd_body_keyword_rpc[] = "rpcs";
 static const char trd_body_keyword_notif[] = "notifications";
@@ -532,9 +577,23 @@ static const char trd_body_keyword_yang_data[] = "yang-data";
  */
 typedef enum
 {
-    trd_keyword_stmt_top,   /**< Indicates the section with the keyword module. */
-    trd_keyword_stmt_body,  /**< Indicates the section with the keyword e.g. augment, grouping.*/
+    trd_keyword_stmt_top = 0,   /**< Indicates the section with the keyword module. */
+    trd_keyword_stmt_body,      /**< Indicates the section with the keyword e.g. augment, grouping.*/
 } trt_keyword_stmt_type;
+
+/**
+ * @brief Type of the trt_keyword.
+ */
+typedef enum 
+{
+    trd_keyword_module = 0,     /**< Used when trd_keyword_stmt_top is set. */
+    trd_keyword_submodule,      /**< Used when trd_keyword_stmt_top is set. */
+    trd_keyword_augment,        /**< Used when trd_keyword_stmt_body is set. */
+    trd_keyword_rpc,            /**< Used when trd_keyword_stmt_body is set. */
+    trd_keyword_notif,          /**< Used when trd_keyword_stmt_body is set. */
+    trd_keyword_grouping,       /**< Used when trd_keyword_stmt_body is set. */
+    trd_keyword_yang_data       /**< Used when trd_keyword_stmt_body is set. */
+} trt_keyword_type;
 
 /**
  * @brief Main sign of the tree nodes.
@@ -542,16 +601,17 @@ typedef enum
 typedef struct
 {
     trt_keyword_stmt_type type; /**< Type of the keyword_stmt. */
-    trt_top_keyword keyword;    /**< String containing some of the top or body keyword. */
+    trt_keyword_type keyword;    /**< String containing some of the top or body keyword. */
     const char* str;            /**< Name or path, it determines the type. */
 } trt_keyword_stmt;
 
 trt_keyword_stmt trp_empty_keyword_stmt();
-bool trp_keyword_stmt_is_empty(trt_keyword_stmt);
+ly_bool trp_keyword_stmt_is_empty(trt_keyword_stmt);
 void trt_print_keyword_stmt_begin(trt_keyword_stmt, trt_printing);
 void trt_print_keyword_stmt_str(trt_keyword_stmt, uint32_t mll, trt_printing);
 void trt_print_keyword_stmt_end(trt_keyword_stmt, trt_printing);
 void trp_print_keyword_stmt(trt_keyword_stmt, uint32_t mll, trt_printing);
+size_t trp_keyword_type_strlen(trt_keyword_type);
 
 /* ======================================== */
 /* ----------- <Modify getters> ----------- */
@@ -649,7 +709,7 @@ struct trt_tree_ctx
 #endif
 
 /* ======================================== */
-/* ----------- <Main functions> ----------- */
+/* --------- <Main trp functions> --------- */
 /* ======================================== */
 
 /**
@@ -710,7 +770,7 @@ static trt_separator trd_separator_linebreak = "\n";
 
 void trg_print_n_times(int32_t n, char, trt_printing);
 
-bool trg_test_bit(uint64_t number, uint32_t bit);
+ly_bool trg_test_bit(uint64_t number, uint32_t bit);
 
 void trg_print_linebreak(trt_printing);
 
@@ -724,5 +784,16 @@ const char* trg_print_substr(const char*, size_t len, trt_printing);
 typedef const char* const trt_symbol;
 static trt_symbol trd_symbol_sibling = "|";
 
+/* ======================================== */
+/* ---------- <Module interface> ---------- */
+/* ======================================== */
 
+
+LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct lys_module *module, uint32_t options, size_t line_length);
+
+LY_ERR tree_print_submodule(struct ly_out *out, const struct lys_module *module, const struct lysp_submodule *submodp, uint32_t options, size_t line_length);
+
+LY_ERR tree_print_compiled_node(struct ly_out *out, const struct lysc_node *node, uint32_t options, size_t line_length);
+
+/* -######-- Declarations end -#######- */
 #endif
