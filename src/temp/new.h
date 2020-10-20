@@ -235,7 +235,7 @@ typedef enum
  * @brief For resolving sibling symbol placement.
  *
  * Bit indicates where the sibling symbol must be printed.
- * This place is in multiples of trd_indent_before_status.
+ * This place is in multiples of trd_indent_btw_siblings.
  */
 typedef struct
 {
@@ -246,19 +246,20 @@ typedef struct
 
 /** Get wrapper related to the module. */
 trt_wrapper trp_init_wrapper_top();
+
 /** Get wrapper related to e.g. Augmenations or Groupings. */
 trt_wrapper trp_init_wrapper_body();
 
-/** Setting mark in .bit_marks at position .actual_pos */
+/** Setting '|' symbol because node is divided or it is not last sibling. */
 trt_wrapper trp_wrapper_set_mark(trt_wrapper);
 
-/** Set shift to the right (next sibling symbol position). */
+/** Setting ' ' symbol because node is last sibling. */
 trt_wrapper trp_wrapper_set_shift(trt_wrapper);
 
 /** Test if they are equivalent. */
-ly_bool trt_wrapper_eq(trt_wrapper, trt_wrapper);
+ly_bool trp_wrapper_eq(trt_wrapper, trt_wrapper);
 
-/** Print "  |" sequence. */
+/** Print "  |  " sequence. */
 void trp_print_wrapper(trt_wrapper, trt_printing);
 
 
@@ -624,6 +625,7 @@ size_t trp_keyword_type_strlen(trt_keyword_type);
  */
 struct trt_fp_modify_ctx
 {
+    trt_node (*parent)(struct trt_tree_ctx*);
     trt_node (*next_sibling)(struct trt_tree_ctx*);
     trt_node (*next_child)(struct trt_tree_ctx*);
     trt_keyword_stmt (*next_augment)(struct trt_tree_ctx*);
@@ -644,6 +646,7 @@ struct trt_fp_read
 {
     trt_keyword_stmt (*module_name)(const struct trt_tree_ctx*);
     trt_node (*node)(const struct trt_tree_ctx*);
+    trt_node (*next_sibling)(const struct trt_tree_ctx*);
 };
 
 /* ===================================== */
@@ -670,7 +673,6 @@ struct trt_fp_all
 struct trt_printer_ctx
 {
     trt_printer_opts options;
-    trt_wrapper wrapper;
     trt_printing print;
     struct trt_fp_all fp;
     uint32_t max_line_length;   /**< including last character */
@@ -713,11 +715,6 @@ struct trt_tree_ctx
 /* ======================================== */
 
 /**
- * @brief Execute Printer - print tree
- */
-void trp_main(struct trt_printer_ctx, struct trt_tree_ctx*);
-
-/**
  * @brief Print one line
  */
 void trp_print_line(trt_node, trt_pck_print, trt_pck_indent, trt_printing);
@@ -730,11 +727,6 @@ void trp_print_line_up_to_node_name(trt_node, trt_wrapper, trt_printing);
 void trp_print_entire_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
 
 void trp_print_divided_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
-
-/**
- * @brief Recursive nodes printing
- */
-void trp_print_nodes(struct trt_printer_ctx, struct trt_tree_ctx*, trt_pck_indent);
 
 /**
  * @brief Get default indent in node based on node values.
@@ -750,12 +742,28 @@ trt_indent_in_node trp_default_indent_in_node(trt_node);
  */
 trt_pair_indent_node trp_try_normal_indent_in_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll);
 
+/* ======================================== */
+/* --------- <Main trb functions> --------- */
+/* ======================================== */
+
 /**
  * @brief Find out if it is possible to unify the alignment in all subtrees
  *
  * The aim is to make it a little bit similar to two columns.
 */
-trt_indent_in_node trp_try_unified_indent(struct trt_printer_ctx);
+trt_indent_in_node trb_try_unified_indent(struct trt_printer_ctx*);
+
+/**
+ * @brief Recursive nodes printing
+ */
+//void trb_print_nodes(struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+void trb_print_subtree_nodes(trt_wrapper, struct trt_printer_ctx, struct trt_tree_ctx*);
+
+/**
+ * @brief Execute Printer - print tree
+ */
+void trb_main(struct trt_printer_ctx, struct trt_tree_ctx*);
 
 /* =================================== */
 /* ----------- <separator> ----------- */
