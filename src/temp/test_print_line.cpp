@@ -36,9 +36,7 @@ TEST(line, fully)
         {trd_type_target, "target"},
         trp_set_iffeature()
     };
-    trt_wrapper wr = trp_wrapper_set_mark(trp_init_wrapper_top());
-    wr = trp_wrapper_set_shift(wr);
-    wr = trp_wrapper_set_mark(wr);
+    trt_wrapper wr = trp_wrapper_set_mark(trp_wrapper_set_mark(trp_init_wrapper_top()));
     trp_print_line(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){wr, trp_default_indent_in_node(node)},
         (trt_printing){&out, Out::print_string});

@@ -17,6 +17,7 @@ add_executable(test_print_node test_print_node.cpp new.c)
 add_executable(test_print_line test_print_line.cpp new.c)
 add_executable(test_node_break test_node_break.cpp new.c)
 add_executable(test_keyword_stmt test_keyword_stmt.cpp new.c)
+add_executable(main test_print_nodes.cpp new.c)
 #add_executable(main main.cpp new.c)
 
 ADD_TEST(wrapper test_wrapper)
@@ -25,4 +26,4 @@ ADD_TEST(print_node test_print_node)
 ADD_TEST(print_line test_print_line)
 ADD_TEST(node_break test_node_break)
 ADD_TEST(keyword_stmt test_node_break)
-
+ADD_TEST(print_nodes main new.c)

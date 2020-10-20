@@ -9,9 +9,11 @@ extern "C"
 #include "new.h"
 }
 
-using Node = Node_rel::Node;
-using Tree = Node_rel::Tree;
-using tree_iter = Node_rel::tree_iter;
+/* Comment trt_tree_ctx struct definition in new.h */
+
+using Node = Node;
+using Tree = Tree;
+using tree_iter = tree_iter;
 using std::string;
 
 int main()
@@ -26,9 +28,8 @@ TEST(nodeRel, firstNode)
         {"A", {"B", "C"}},
         {"B", {}}, {"C", {}}
     });
-    Node_rel::trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
+    trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     trt_node uut;
-    using namespace Node_rel;
 
     uut = node(&ctx);
     ASSERT_STREQ(uut.name.str, "A");
@@ -41,9 +42,8 @@ TEST(nodeRel, firstGetFirstChild)
         {"A", {"B", "C"}},
         {"B", {}}, {"C", {}}
     });
-    Node_rel::trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
+    trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     trt_node uut;
-    using namespace Node_rel;
 
     uut = next_child(&ctx);
     ASSERT_STREQ(uut.name.str, "B");
@@ -58,9 +58,8 @@ TEST(nodeRel, firstNoSiblings)
         {"A", {"B", "C"}},
         {"B", {}}, {"C", {}}
     });
-    Node_rel::trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
+    trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     trt_node uut;
-    using namespace Node_rel;
 
     uut = next_sibling(&ctx);
     EXPECT_STREQ(uut.name.str, nullptr);
@@ -75,9 +74,8 @@ TEST(nodeRel, childThenSibling)
         {"A", {"B", "C"}},
         {"B", {}}, {"C", {}}
     });
-    Node_rel::trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
+    trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     trt_node uut;
-    using namespace Node_rel;
 
     uut = next_child(&ctx);
     ASSERT_STREQ(uut.name.str, "B");
@@ -94,9 +92,8 @@ TEST(nodeRel, endOfSiblings)
         {"A", {"B", "C"}},
         {"B", {}}, {"C", {}}
     });
-    Node_rel::trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
+    trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     trt_node uut;
-    using namespace Node_rel;
 
     uut = next_child(&ctx);
     ASSERT_STREQ(uut.name.str, "B");
@@ -115,9 +112,8 @@ TEST(nodeRel, noChilds)
         {"A", {"B", "C"}},
         {"B", {}}, {"C", {}}
     });
-    Node_rel::trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
+    trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     trt_node uut;
-    using namespace Node_rel;
 
     uut = next_child(&ctx);
     ASSERT_STREQ(uut.name.str, "B");
@@ -127,6 +123,55 @@ TEST(nodeRel, noChilds)
     EXPECT_STREQ(uut.name.str, nullptr);
     uut = node(&ctx);
     ASSERT_STREQ(uut.name.str, "C");
+}
+
+TEST(nodeRel, rootParent)
+{
+    Tree tree
+    ({
+        {"A", {"B", "C"}},
+        {"B", {}}, {"C", {}}
+    });
+    trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
+    trt_node uut;
+
+    uut = node(&ctx);
+    ASSERT_STREQ(uut.name.str, "A");
+    uut = parent(&ctx);
+    ASSERT_EQ(trp_node_is_empty(uut), true);
+}
+
+TEST(nodeRel, parentFromChild)
+{
+    Tree tree
+    ({
+        {"A", {"B", "C"}},
+        {"B", {}}, {"C", {}}
+    });
+    trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
+    trt_node uut;
+
+    uut = node(&ctx);
+    uut = next_child(&ctx);
+    uut = next_sibling(&ctx);
+    uut = parent(&ctx);
+    ASSERT_STREQ(uut.name.str, "A");
+}
+
+TEST(nodeRel, parentFromParent)
+{
+    Tree tree
+    ({
+        {"A", {"B", "C"}},
+        {"B", {}}, {"C", {}}
+    });
+    trt_tree_ctx ctx = {tree, tree.map.find("B"), -1};
+    trt_node uut;
+
+    uut = node(&ctx);
+    ASSERT_STREQ(uut.name.str, "B");
+    uut = parent(&ctx);
+    ASSERT_STREQ(uut.name.str, "A");
 }
 
 PRINT_TESTS_STATS();

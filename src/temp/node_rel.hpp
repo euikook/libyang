@@ -11,8 +11,7 @@ extern "C"
 #include "new.h"
 }
 
-namespace Node_rel
-{
+/* Comment trt_tree_ctx struct definition in new.h */
 
 using std::vector;
 using std::string;
@@ -49,23 +48,31 @@ struct trt_tree_ctx
     int64_t child_idx;
 };
 
-trt_node node(struct trt_tree_ctx *ctx)
+trt_node default_node(string const& name)
+{
+    return (trt_node)
+    {
+        trd_status_type_current, trd_flags_type_rw,
+        {trd_node_else, "", name.c_str()},
+        trp_empty_opts_keys(),
+        {trd_type_empty, ""},
+        trp_empty_iffeature()
+    };
+}
+
+trt_node node(const struct trt_tree_ctx *ctx)
 {
     /* if pointing to parent */
     if(ctx->child_idx < 0) {
         /* get parent name */ 
         auto& node_name = ctx->row->first;
         /* return node */
-        trt_node ret = trp_empty_node();
-        ret.name.str = node_name.c_str();
-        return ret;
+        return default_node(node_name);
     } else {
         /* get child name */ 
         auto& node_name = ctx->row->second[ctx->child_idx];
         /* return node */
-        trt_node ret = trp_empty_node();
-        ret.name.str = node_name.c_str();
-        return ret;
+        return default_node(node_name);
     }
 }
 
@@ -110,47 +117,48 @@ trt_node next_sibling(struct trt_tree_ctx *ctx)
         /* return sibling */
         child_idx++;
         auto& sibl_name = ctx->row->second[child_idx];
-        trt_node ret = trp_empty_node();
-        ret.name.str = sibl_name.c_str();
-        return ret;
+        return default_node(sibl_name);
     }
+}
+
+trt_node next_sibling_read(const struct trt_tree_ctx *ctx)
+{
+    struct trt_tree_ctx tmp = *ctx;
+    tmp.row = tmp.tree.map.find(ctx->row->first);
+    return next_sibling(&tmp);
 }
 
 trt_node next_child(struct trt_tree_ctx* ctx)
 {
+    if(ctx->row->second.empty())
+        return trp_empty_node();
+
     auto& child_idx = ctx->child_idx;
     /* if pointing to parent */ 
     if(child_idx < 0) {
         /* get his child */ 
         child_idx = 0;
-        trt_node ret = trp_empty_node();
-        ret.name.str = ctx->row->second[child_idx].c_str();
-        return ret;
+        auto node_name = ctx->row->second[child_idx];
+        return default_node(node_name);
     }
     /* else find child of child */ 
     auto& node_name = ctx->row->second[child_idx];
-    childs_iter iter;
-    bool succ = false;
+    tree_iter iter;
     /* find child as key in map */ 
-    for(auto& item: ctx->tree.map) {
-        auto& childs = item.second;
-        if((iter = std::find(childs.begin(), childs.end(), node_name)) != childs.end()) {
-            succ = true;
+    for(iter = ctx->tree.map.begin(); iter != ctx->tree.map.end(); ++iter) {
+        if(node_name == iter->first) {
             break;
         }
     }
 
-    /* actualize info -> pointing to parent */
-    ctx->row = ctx->tree.map.find(*iter);
-    child_idx = -1;
-
-    if(succ) {
+    if(iter != ctx->tree.map.end()) {
         /* try get child of child */ 
         /* if child has child */
-        if(!ctx->row->second.empty()){
-            trt_node ret = trp_empty_node();
-            ret.name.str = (*iter).c_str();
-            return ret;
+        if(!iter->second.empty()){
+            child_idx = 0;
+            auto node_name = iter->second[child_idx];
+            ctx->row = iter;
+            return default_node(node_name);
         } else {
             /* child has no child */
             return trp_empty_node();
@@ -161,6 +169,27 @@ trt_node next_child(struct trt_tree_ctx* ctx)
     }
 }
 
+trt_node parent(struct trt_tree_ctx* ctx)
+{
+    if(ctx->child_idx == -1) {
+        /* search where is parent as children */
+        auto& node_name = ctx->row->first;
+        for(auto iter = ctx->tree.map.begin(); iter != ctx->tree.map.end(); ++iter) {
+            for(auto const& item: iter->second) {
+                if(item == node_name) {
+                    ctx->row = iter;
+                    ctx->child_idx = -1;
+                    return default_node(iter->first);
+                }
+            }
+        }
+        /* root node or bad tree */
+        return trp_empty_node();
+    } else {
+        /* pointing to some child */
+        ctx->child_idx = -1;
+        return default_node(ctx->row->first);
+    }
 }
 
 #endif
