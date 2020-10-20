@@ -19,14 +19,14 @@
 #include "../macros.h"
 
 
-#define MODEL_CREATE(INPUT, MODEL) \
-                MODEL_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+#define LYD_NODE_CREATE(INPUT, MODEL) \
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
 
 #define CONTEXT_CREATE \
                 CONTEXT_CREATE_PATH(NULL)
 
-#define MODEL_CHECK_CHAR(MODEL, TEXT) \
-                MODEL_CHECK_CHAR_PARAM(MODEL, TEXT, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
+#define LYD_NODE_CHECK_CHAR(MODEL, TEXT) \
+                LYD_NODE_CHECK_CHAR_PARAM(MODEL, TEXT, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
 
 static void
 test_batch(void **state)
@@ -190,17 +190,17 @@ test_batch(void **state)
 
     CONTEXT_CREATE;
     struct lyd_node *target;
-    MODEL_CREATE_PARAM(start, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, "", target);
+    LYD_NODE_CREATE_PARAM(start, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, "", target);
 
     for (int32_t i = 0; i < 11; ++i) {
         struct lyd_node *source;
-        MODEL_CREATE_PARAM(data[i], LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, "", source);
+        LYD_NODE_CREATE_PARAM(data[i], LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, "", source);
         assert_int_equal(LY_SUCCESS, lyd_merge_siblings(&target, source, LYD_MERGE_DESTRUCT));
     }
 
-    MODEL_CHECK_CHAR(target, output_template);
+    LYD_NODE_CHECK_CHAR(target, output_template);
 
-    MODEL_DESTROY(target);
+    LYD_NODE_DESTROY(target);
     CONTEXT_DESTROY;
 }
 
@@ -226,18 +226,18 @@ test_leaf(void **state)
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
 
     struct lyd_node *source, *target;
-    MODEL_CREATE(src, source); //source
-    MODEL_CREATE(trg, target); //target
+    LYD_NODE_CREATE(src, source); //source
+    LYD_NODE_CREATE(trg, target); //target
 
     /* merge them */
     assert_int_equal(lyd_merge_siblings(&target, source, 0), LY_SUCCESS);
     assert_int_equal(lyd_validate_all(&target, NULL, LYD_VALIDATE_PRESENT, NULL), LY_SUCCESS);
 
     /* check the result */
-    MODEL_CHECK_CHAR(target, result);
+    LYD_NODE_CHECK_CHAR(target, result);
 
-    MODEL_DESTROY(target);
-    MODEL_DESTROY(source);
+    LYD_NODE_DESTROY(target);
+    LYD_NODE_DESTROY(source);
     CONTEXT_DESTROY;
 }
 
@@ -268,19 +268,19 @@ test_container(void **state)
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
 
     struct lyd_node *source, *target;
-    MODEL_CREATE(src, source);
-    MODEL_CREATE(trg, target);
+    LYD_NODE_CREATE(src, source);
+    LYD_NODE_CREATE(trg, target);
 
     /* merge them */
     assert_int_equal(lyd_merge_siblings(&target, source, 0), LY_SUCCESS);
     assert_int_equal(lyd_validate_all(&target, NULL, LYD_VALIDATE_PRESENT, NULL), LY_SUCCESS);
 
     /* check the result */
-    MODEL_CHECK_CHAR(target, result);
+    LYD_NODE_CHECK_CHAR(target, result);
 
     /* destroy */
-    MODEL_DESTROY(source);
-    MODEL_DESTROY(target);
+    LYD_NODE_DESTROY(source);
+    LYD_NODE_DESTROY(target);
     CONTEXT_DESTROY;
 }
 
@@ -339,18 +339,18 @@ test_list(void **state)
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
 
     struct lyd_node *source, *target;
-    MODEL_CREATE(src, source);
-    MODEL_CREATE(trg, target);
+    LYD_NODE_CREATE(src, source);
+    LYD_NODE_CREATE(trg, target);
 
     /* merge them */
     assert_int_equal(lyd_merge_siblings(&target, source, 0), LY_SUCCESS);
     assert_int_equal(lyd_validate_all(&target, NULL, LYD_VALIDATE_PRESENT, NULL), LY_SUCCESS);
 
     /* check the result */
-    MODEL_CHECK_CHAR(target, result);
+    LYD_NODE_CHECK_CHAR(target, result);
 
-    MODEL_DESTROY(target);
-    MODEL_DESTROY(source);
+    LYD_NODE_DESTROY(target);
+    LYD_NODE_DESTROY(source);
     CONTEXT_DESTROY;
 }
 
@@ -418,18 +418,18 @@ test_list2(void **state)
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
 
     struct lyd_node *source, *target;
-    MODEL_CREATE(src, source);
-    MODEL_CREATE(trg, target);
+    LYD_NODE_CREATE(src, source);
+    LYD_NODE_CREATE(trg, target);
 
     /* merge them */
     assert_int_equal(lyd_merge_siblings(&target, source, 0), LY_SUCCESS);
     assert_int_equal(lyd_validate_all(&target, NULL, LYD_VALIDATE_PRESENT, NULL), LY_SUCCESS);
 
     /* check the result */
-    MODEL_CHECK_CHAR(target, result);
+    LYD_NODE_CHECK_CHAR(target, result);
 
-    MODEL_DESTROY(source);
-    MODEL_DESTROY(target);
+    LYD_NODE_DESTROY(source);
+    LYD_NODE_DESTROY(target);
     CONTEXT_DESTROY;
 }
 
@@ -476,18 +476,18 @@ test_case(void **state)
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
 
     struct lyd_node *source, *target;
-    MODEL_CREATE(src, source);
-    MODEL_CREATE(trg, target);
+    LYD_NODE_CREATE(src, source);
+    LYD_NODE_CREATE(trg, target);
 
     /* merge them */
     assert_int_equal(lyd_merge_siblings(&target, source, 0), LY_SUCCESS);
     assert_int_equal(lyd_validate_all(&target, NULL, LYD_VALIDATE_PRESENT, NULL), LY_SUCCESS);
 
     /* check the result */
-    MODEL_CHECK_CHAR(target, result);
+    LYD_NODE_CHECK_CHAR(target, result);
 
-    MODEL_DESTROY(source);
-    MODEL_DESTROY(target);
+    LYD_NODE_DESTROY(source);
+    LYD_NODE_DESTROY(target);
     CONTEXT_DESTROY;
 }
 
@@ -533,8 +533,8 @@ test_dflt(void **state)
     assert_string_equal(lyd_child(target)->prev->schema->name, "c");
     assert_true(lyd_child(target)->prev->flags & LYD_DEFAULT);
 
-    MODEL_DESTROY(target);
-    MODEL_DESTROY(source);
+    LYD_NODE_DESTROY(target);
+    LYD_NODE_DESTROY(source);
     CONTEXT_DESTROY;
 }
 
@@ -577,8 +577,8 @@ test_dflt2(void **state)
     /* c should not be replaced, so c remains not default */
     assert_false(lyd_child(target)->flags & LYD_DEFAULT);
 
-    MODEL_DESTROY(target);
-    MODEL_DESTROY(source);
+    LYD_NODE_DESTROY(target);
+    LYD_NODE_DESTROY(source);
     CONTEXT_DESTROY;
 }
 
@@ -607,15 +607,15 @@ test_leafrefs(void **state)
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
 
     struct lyd_node *source, *target;
-    MODEL_CREATE(src, source);
-    MODEL_CREATE(trg, target);
+    LYD_NODE_CREATE(src, source);
+    LYD_NODE_CREATE(trg, target);
 
     assert_int_equal(lyd_merge_siblings(&target, source, 0), LY_SUCCESS);
 
-    MODEL_CHECK_CHAR(target, res);
+    LYD_NODE_CHECK_CHAR(target, res);
 
-    MODEL_DESTROY(source);
-    MODEL_DESTROY(target);
+    LYD_NODE_DESTROY(source);
+    LYD_NODE_DESTROY(target);
     CONTEXT_DESTROY;
 }
 

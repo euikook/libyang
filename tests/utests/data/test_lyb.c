@@ -20,15 +20,15 @@
 #include "../macros.h"
 #include "hash_table.h"
 
-#define MODEL_CREATE(INPUT, MODEL) \
-                MODEL_CREATE_PARAM(INPUT, LYD_XML, LYD_PARSE_ONLY | LYD_PARSE_STRICT, 0,LY_SUCCESS, "", MODEL)
+#define LYD_NODE_CREATE(INPUT, MODEL) \
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, LYD_PARSE_ONLY | LYD_PARSE_STRICT, 0,LY_SUCCESS, "", MODEL)
 
 
 #define CONTEXT_CREATE \
                 CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG)
 
-#define MODEL_CHECK_CHAR(MODEL, TEXT) \
-                MODEL_CHECK_CHAR_PARAM(MODEL, TEXT, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
+#define LYD_NODE_CHECK_CHAR(MODEL, TEXT) \
+                LYD_NODE_CHECK_CHAR_PARAM(MODEL, TEXT, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
 
 static void
 test_ietf_interfaces(void **state)
@@ -78,7 +78,7 @@ test_ietf_interfaces(void **state)
 
     /* model_1 */
     struct lyd_node *model_1;
-    MODEL_CREATE(data_xml, model_1);
+    LYD_NODE_CREATE(data_xml, model_1);
 
     /* model_2 */
     char * xml_out;
@@ -88,12 +88,12 @@ test_ietf_interfaces(void **state)
     assert_non_null(model_2);
 
     /* compare models */
-    MODEL_CHECK(model_1, model_2);
+    LYD_NODE_CHECK(model_1, model_2);
 
     /* clean */
     free(xml_out);
-    MODEL_DESTROY(model_1);
-    MODEL_DESTROY(model_2);
+    LYD_NODE_DESTROY(model_1);
+    LYD_NODE_DESTROY(model_2);
     CONTEXT_DESTROY;
 }
 
@@ -134,7 +134,7 @@ test_origin(void **state)
 
     /* model_1 */
     struct lyd_node *model_1;
-    MODEL_CREATE(data_xml, model_1);
+    LYD_NODE_CREATE(data_xml, model_1);
 
     /* model_2 */
     char * xml_out;
@@ -144,12 +144,12 @@ test_origin(void **state)
     assert_non_null(model_2);
 
     /* compare models */
-    MODEL_CHECK(model_1, model_2);
+    LYD_NODE_CHECK(model_1, model_2);
 
     /* clean */
     free(xml_out);
-    MODEL_DESTROY(model_1);
-    MODEL_DESTROY(model_2);
+    LYD_NODE_DESTROY(model_1);
+    LYD_NODE_DESTROY(model_2);
     CONTEXT_DESTROY;
 }
 
@@ -353,7 +353,7 @@ test_statements(void **state)
 
     /* model_1 */
     struct lyd_node *model_1;
-    MODEL_CREATE(data_xml, model_1);
+    LYD_NODE_CREATE(data_xml, model_1);
 
     /* model_2 */
     char * xml_out;
@@ -363,12 +363,12 @@ test_statements(void **state)
     assert_non_null(model_2);
 
     /* compare models */
-    MODEL_CHECK(model_1, model_2);
+    LYD_NODE_CHECK(model_1, model_2);
 
     /* clean */
     free(xml_out);
-    MODEL_DESTROY(model_1);
-    MODEL_DESTROY(model_2);
+    LYD_NODE_DESTROY(model_1);
+    LYD_NODE_DESTROY(model_2);
     CONTEXT_DESTROY;
 }
 

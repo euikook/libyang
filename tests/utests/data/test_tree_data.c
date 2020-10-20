@@ -63,12 +63,12 @@ logger(LY_LOG_LEVEL level, const char *msg, const char *path)
                 ly_set_log_clb(logger, 1)
 
 
-#define MODEL_CREATE(INPUT, MODEL) \
-                MODEL_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+#define LYD_NODE_CREATE(INPUT, MODEL) \
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
 
 
-#define MODEL_CHECK_CHAR(IN_MODEL, TEXT) \
-                MODEL_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_XML, LYD_PRINT_SHRINK | LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
+#define LYD_NODE_CHECK_CHAR(IN_MODEL, TEXT) \
+                LYD_NODE_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_XML, LYD_PRINT_SHRINK | LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
 
 
 
@@ -98,63 +98,63 @@ test_compare(void **state)
 
     assert_int_equal(LY_SUCCESS, lyd_compare_single(NULL, NULL, 0));
 
-    MODEL_CREATE(data1, tree1);
-    MODEL_CREATE(data2, tree2);
+    LYD_NODE_CREATE(data1, tree1);
+    LYD_NODE_CREATE(data2, tree2);
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, 0));
     assert_int_equal(LY_ENOT, lyd_compare_single(tree1, tree2, LYD_COMPARE_FULL_RECURSION));
     assert_int_equal(LY_ENOT, lyd_compare_single(((struct lyd_node_inner*)tree1)->child, tree2, 0));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     data1 = "<l2 xmlns=\"urn:tests:a\"><c><x>a</x></c></l2><l2 xmlns=\"urn:tests:a\"><c><x>b</x></c></l2>";
     data2 = "<l2 xmlns=\"urn:tests:a\"><c><x>b</x></c></l2>";
-    MODEL_CREATE(data1, tree1);
-    MODEL_CREATE(data2, tree2);
+    LYD_NODE_CREATE(data1, tree1);
+    LYD_NODE_CREATE(data2, tree2);
     assert_int_equal(LY_ENOT, lyd_compare_single(tree1, tree2, 0));
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1->next, tree2, 0));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     data1 = "<ll xmlns=\"urn:tests:a\">a</ll><ll xmlns=\"urn:tests:a\">b</ll>";
     data2 = "<ll xmlns=\"urn:tests:a\">b</ll>";
-    MODEL_CREATE(data1, tree1);
-    MODEL_CREATE(data2, tree2);
+    LYD_NODE_CREATE(data1, tree1);
+    LYD_NODE_CREATE(data2, tree2);
     assert_int_equal(LY_ENOT, lyd_compare_single(tree1, tree2, 0));
     assert_int_equal(LY_ENOT, lyd_compare_single(NULL, tree2, 0));
     assert_int_equal(LY_ENOT, lyd_compare_single(tree1, NULL, 0));
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1->next, tree2, 0));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     data1 = "<c xmlns=\"urn:tests:a\"><x>x</x></c>";
     data2 = "<c xmlns=\"urn:tests:a\"><x>y</x></c>";
-    MODEL_CREATE(data1, tree1);
-    MODEL_CREATE(data2, tree2);
+    LYD_NODE_CREATE(data1, tree1);
+    LYD_NODE_CREATE(data2, tree2);
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, 0));
     assert_int_equal(LY_ENOT, lyd_compare_single(tree1, tree2, LYD_COMPARE_FULL_RECURSION));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     data1 = "<c xmlns=\"urn:tests:a\"><x>x</x></c>";
     data2 = "<c xmlns=\"urn:tests:a\"><x>x</x><x>y</x></c>";
-    MODEL_CREATE(data1, tree1);
-    MODEL_CREATE(data2, tree2);
+    LYD_NODE_CREATE(data1, tree1);
+    LYD_NODE_CREATE(data2, tree2);
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, 0));
     assert_int_equal(LY_ENOT, lyd_compare_single(tree1, tree2, LYD_COMPARE_FULL_RECURSION));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     data1 = "<any xmlns=\"urn:tests:a\"><x>x</x></any>";
     data2 = "<any xmlns=\"urn:tests:a\"><x>x</x><x>y</x></any>";
-    MODEL_CREATE(data1, tree1);
-    MODEL_CREATE(data2, tree2);
+    LYD_NODE_CREATE(data1, tree1);
+    LYD_NODE_CREATE(data2, tree2);
     assert_int_equal(LY_ENOT, lyd_compare_single(tree1, tree2, 0));
-    MODEL_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree1);
     data1 = "<any xmlns=\"urn:tests:a\"><x>x</x><x>y</x></any>";
-    MODEL_CREATE(data1, tree1);
+    LYD_NODE_CREATE(data1, tree1);
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, 0));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     CONTEXT_DESTROY;
 }
@@ -169,84 +169,84 @@ test_dup(void **state)
     const char *data = "<l1 xmlns=\"urn:tests:a\"><a>a</a><b>b</b><c>x</c></l1>";
 
     CONTEXT_CREATE;
-    MODEL_CREATE(data, tree1);
+    LYD_NODE_CREATE(data, tree1);
     assert_int_equal(LY_SUCCESS, lyd_dup_single(tree1, NULL, LYD_DUP_RECURSIVE, &tree2));
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, LYD_COMPARE_FULL_RECURSION));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     data = "<l1 xmlns=\"urn:tests:a\"><a>a</a><b>b</b><c>x</c></l1>";
     result = "<l1 xmlns=\"urn:tests:a\"><a>a</a><b>b</b></l1>";
-    MODEL_CREATE(data, tree1);
+    LYD_NODE_CREATE(data, tree1);
     assert_int_equal(LY_SUCCESS, lyd_dup_single(tree1, NULL, 0, &tree2));
-    MODEL_DESTROY(tree1);
-    MODEL_CREATE(result, tree1);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_CREATE(result, tree1);
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, LYD_COMPARE_FULL_RECURSION));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     data = "<l2 xmlns=\"urn:tests:a\"><c><x>a</x></c></l2><l2 xmlns=\"urn:tests:a\"><c><x>b</x></c></l2>";
     result = "<l2 xmlns=\"urn:tests:a\"><c><x>a</x></c></l2>";
-    MODEL_CREATE(data, tree1);
+    LYD_NODE_CREATE(data, tree1);
     assert_int_equal(LY_SUCCESS, lyd_dup_siblings(tree1, NULL, LYD_DUP_RECURSIVE, &tree2));
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, LYD_COMPARE_FULL_RECURSION));
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree2);
     assert_int_equal(LY_SUCCESS, lyd_dup_single(tree1, NULL, LYD_DUP_RECURSIVE, &tree2));
-    MODEL_DESTROY(tree1);
-    MODEL_CREATE(result, tree1);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_CREATE(result, tree1);
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, LYD_COMPARE_FULL_RECURSION));
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree2);
 
     assert_int_equal(LY_SUCCESS, lyd_dup_single(tree1, NULL, 0, &tree2));
-    MODEL_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree1);
     result = "<l2 xmlns=\"urn:tests:a\"/>";
-    MODEL_CREATE_PARAM(result, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, "", tree1);
+    LYD_NODE_CREATE_PARAM(result, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, "", tree1);
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, LYD_COMPARE_FULL_RECURSION));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     data = "<any xmlns=\"urn:tests:a\"><c><a>a</a></c></any>";
-    MODEL_CREATE(data, tree1);
+    LYD_NODE_CREATE(data, tree1);
     assert_int_equal(LY_SUCCESS, lyd_dup_single(tree1, NULL, 0, &tree2));
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, LYD_COMPARE_FULL_RECURSION));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     data = "<l2 xmlns=\"urn:tests:a\"><c><x>b</x></c></l2>";
-    MODEL_CREATE(data, tree1);
+    LYD_NODE_CREATE(data, tree1);
     assert_int_equal(LY_SUCCESS, lyd_dup_single(((struct lyd_node_inner*)((struct lyd_node_inner*)tree1)->child)->child, NULL,
                                          LYD_DUP_WITH_PARENTS, &tree2));
     LYSC_NODE_CHECK(tree2->schema, LYS_LEAF, "x");
     assert_non_null(tree2->parent);
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, (struct lyd_node*)tree2->parent->parent, LYD_COMPARE_FULL_RECURSION));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     data = "<l1 xmlns=\"urn:tests:a\"><a>a</a><b>b</b><c>c</c></l1>";
-    MODEL_CREATE(data, tree1);
+    LYD_NODE_CREATE(data, tree1);
     assert_int_equal(LY_SUCCESS, lyd_dup_single(((struct lyd_node_inner*)tree1)->child->prev, NULL,
                                                 LYD_DUP_WITH_PARENTS, &tree2));
     LYSC_NODE_CHECK(tree2->schema, LYS_LEAF, "c");
     assert_non_null(tree2->parent);
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, (struct lyd_node*)tree2->parent, LYD_COMPARE_FULL_RECURSION));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     data = "<l2 xmlns=\"urn:tests:a\"><c><x>b</x></c></l2>";
-    MODEL_CREATE(data, tree1);
+    LYD_NODE_CREATE(data, tree1);
     assert_int_equal(LY_SUCCESS, lyd_dup_single(tree1, NULL, 0, &tree2));
     assert_int_equal(LY_SUCCESS, lyd_dup_single(((struct lyd_node_inner*)((struct lyd_node_inner*)tree1)->child)->child,
                                  (struct lyd_node_inner*)tree2, LYD_DUP_WITH_PARENTS, NULL));
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, LYD_COMPARE_FULL_RECURSION));
-    MODEL_DESTROY(tree1);
-    MODEL_DESTROY(tree2);
+    LYD_NODE_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree2);
 
     /* invalid */
     data = "<l1 xmlns=\"urn:tests:a\"><a>a</a><b>b</b><c>c</c></l1><l2 xmlns=\"urn:tests:a\"><c><x>b</x></c></l2>";
-    MODEL_CREATE(data, tree1);
+    LYD_NODE_CREATE(data, tree1);
     assert_int_equal(LY_EINVAL, lyd_dup_single(((struct lyd_node_inner*)tree1)->child->prev,
                                                (struct lyd_node_inner*)tree1->next, LYD_DUP_WITH_PARENTS, NULL));
-    MODEL_DESTROY(tree1);
+    LYD_NODE_DESTROY(tree1);
 
     CONTEXT_DESTROY;
 }
@@ -277,7 +277,7 @@ test_target(void **state)
 
     CONTEXT_CREATE;
 
-    MODEL_CREATE(data, tree);
+    LYD_NODE_CREATE(data, tree);
     assert_int_equal(LY_SUCCESS, ly_path_parse(CONTEXT_GET, NULL, path_str, strlen(path_str), LY_PATH_BEGIN_EITHER, LY_PATH_LREF_FALSE,
                                                LY_PATH_PREFIX_OPTIONAL, LY_PATH_PRED_SIMPLE, &exp));
     assert_int_equal(LY_SUCCESS, ly_path_compile(CONTEXT_GET, NULL, NULL, exp, LY_PATH_LREF_FALSE, LY_PATH_OPER_INPUT,
@@ -288,7 +288,7 @@ test_target(void **state)
     assert_string_equal(LYD_CANON_VALUE(term), "b");
     assert_string_equal(LYD_CANON_VALUE(term->prev), "b");
 
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
     ly_path_free(CONTEXT_GET, path);
     lyxp_expr_free(CONTEXT_GET, exp);
 

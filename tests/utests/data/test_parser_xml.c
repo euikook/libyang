@@ -55,8 +55,8 @@ const char *schema_a = "module a {namespace urn:tests:a;prefix a;yang-version 1.
 
 
 
-#define MODEL_CREATE(INPUT, PARSE_OPTION, MODEL) \
-                MODEL_CREATE_PARAM(INPUT, LYD_XML, PARSE_OPTION, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+#define LYD_NODE_CREATE(INPUT, PARSE_OPTION, MODEL) \
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, PARSE_OPTION, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
 
 #define PARSER_CHECK_ERROR(INPUT, PARSE_OPTION, MODEL, RET_VAL, ERR_MESSAGE) \
                 assert_int_equal(RET_VAL, lyd_parse_data_mem(CONTEXT_GET, data, LYD_XML, PARSE_OPTION, LYD_VALIDATE_PRESENT, &MODEL));\
@@ -65,8 +65,8 @@ const char *schema_a = "module a {namespace urn:tests:a;prefix a;yang-version 1.
 
 
 
-#define MODEL_CHECK_CHAR(IN_MODEL, TEXT) \
-                MODEL_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_XML, LYD_PRINT_SHRINK | LYD_PRINT_WITHSIBLINGS)
+#define LYD_NODE_CHECK_CHAR(IN_MODEL, TEXT) \
+                LYD_NODE_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_XML, LYD_PRINT_SHRINK | LYD_PRINT_WITHSIBLINGS)
 
 
 
@@ -124,7 +124,7 @@ test_leaf(void **state)
 
     CONTEXT_CREATE;
 
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LEAF, "foo");
     leaf = (struct lyd_node_term*)tree;
     LYD_VALUE_CHECK(leaf->value, STRING, "foo value");
@@ -134,27 +134,27 @@ test_leaf(void **state)
     LYD_VALUE_CHECK(leaf->value, STRING, "default-val");
     assert_true(leaf->flags & LYD_DEFAULT);
 
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
 
     /* make foo2 explicit */
     data = "<foo2 xmlns=\"urn:tests:a\">default-val</foo2>";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LEAF, "foo2");
     leaf = (struct lyd_node_term*)tree;
     LYD_VALUE_CHECK(leaf->value, STRING, "default-val");
     assert_false(leaf->flags & LYD_DEFAULT);
 
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
 
     /* parse foo2 but make it implicit, skip metadata xxx from missing schema */
     data = "<foo2 xmlns=\"urn:tests:a\" xmlns:wd=\"urn:ietf:params:xml:ns:yang:ietf-netconf-with-defaults\" wd:default=\"true\" xmlns:x=\"urn:x\" x:xxx=\"false\">default-val</foo2>";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LEAF, "foo2");
     leaf = (struct lyd_node_term*)tree;
     LYD_VALUE_CHECK(leaf->value, STRING, "default-val");
     assert_true(leaf->flags & LYD_DEFAULT);
 
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
 
     CONTEXT_DESTROY;
 }
@@ -177,7 +177,7 @@ test_anydata(void **state)
         "</element1>"
         "<element1a/>"
     "</any>";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_ANYDATA, "any");
     const char *data_expected = "<any xmlns=\"urn:tests:a\">"
             "<element1>"
@@ -185,9 +185,9 @@ test_anydata(void **state)
             "</element1>"
             "<element1a/>"
         "</any>";
-    MODEL_CHECK_CHAR(tree, data_expected);
+    LYD_NODE_CHECK_CHAR(tree, data_expected);
 
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
     CONTEXT_DESTROY;
 }
 
@@ -204,13 +204,13 @@ test_list(void **state)
     /* check hashes */
     CONTEXT_CREATE;
 
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LIST, "l1");
     list = (struct lyd_node_inner*)tree;
     LY_LIST_FOR(list->child, iter) {
         assert_int_not_equal(0, iter->hash);
     }
-    MODEL_DESTROY(tree); 
+    LYD_NODE_DESTROY(tree); 
 
     /* missing keys */
     data = "<l1 xmlns=\"urn:tests:a\"><c>1</c><b>b</b></l1>";
@@ -228,7 +228,7 @@ test_list(void **state)
 
     /* keys order */
     data = "<l1 xmlns=\"urn:tests:a\"><d>d</d><a>a</a><c>1</c><b>b</b></l1>";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LIST, "l1");
     list = (struct lyd_node_inner*)tree;
     assert_non_null(leaf = (struct lyd_node_term*)list->child);
@@ -241,10 +241,10 @@ test_list(void **state)
     LYSC_NODE_CHECK(leaf->schema, LYS_LEAF, "d");
     logbuf_assert("Invalid position of the key \"b\" in a list.");
     logbuf_clean();
-    MODEL_DESTROY(tree); 
+    LYD_NODE_DESTROY(tree); 
 
     data = "<l1 xmlns=\"urn:tests:a\"><c>1</c><b>b</b><a>a</a></l1>";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LIST, "l1");
     list = (struct lyd_node_inner*)tree;
     assert_non_null(leaf = (struct lyd_node_term*)list->child);
@@ -255,7 +255,7 @@ test_list(void **state)
     LYSC_NODE_CHECK(leaf->schema, LYS_LEAF, "c");
     logbuf_assert("Invalid position of the key \"a\" in a list.");
     logbuf_clean();
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
 
 
     PARSER_CHECK_ERROR(data, LYD_PARSE_STRICT, tree, LY_EVALID, "Invalid position of the key \"b\" in a list. Line number 1.");
@@ -273,18 +273,18 @@ test_container(void **state)
     struct lyd_node_inner *cont;
 
     CONTEXT_CREATE;
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_CONTAINER, "c");
     cont = (struct lyd_node_inner*)tree;
     assert_true(cont->flags & LYD_DEFAULT);
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
 
     data = "<cp xmlns=\"urn:tests:a\"/>";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_CONTAINER, "cp");
     cont = (struct lyd_node_inner*)tree;
     assert_false(cont->flags & LYD_DEFAULT);
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
 
     CONTEXT_DESTROY;
 }
@@ -303,33 +303,33 @@ test_opaq(void **state)
     PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "Invalid empty uint32 value. /a:foo3");
 
     /* opaq flag */
-    MODEL_CREATE(data, LYD_PARSE_OPAQ, tree);
+    LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
     assert_null(tree->schema);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "foo3", "", 0, LYD_XML);
-    MODEL_CHECK_CHAR(tree, "<foo3 xmlns=\"urn:tests:a\"/>");
-    MODEL_DESTROY(tree);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0, LYD_XML, 0, "foo3", "");
+    LYD_NODE_CHECK_CHAR(tree, "<foo3 xmlns=\"urn:tests:a\"/>");
+    LYD_NODE_DESTROY(tree);
 
     /* missing key, no flags */
     data = "<l1 xmlns=\"urn:tests:a\"><a>val_a</a><b>val_b</b><d>val_d</d></l1>";
     PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "List instance is missing its key \"c\". /a:l1[a='val_a'][b='val_b']");
 
     /* opaq flag */
-    MODEL_CREATE(data, LYD_PARSE_OPAQ, tree);
+    LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
     assert_null(tree->schema);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "l1", "", 0, LYD_XML);
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_XML, 0, "l1", "");
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* invalid key, no flags */
     data = "<l1 xmlns=\"urn:tests:a\"><a>val_a</a><b>val_b</b><c>val_c</c></l1>";
     PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "Invalid int16 value \"val_c\". /a:l1/c");
 
     /* opaq flag */
-    MODEL_CREATE(data, LYD_PARSE_OPAQ, tree);
+    LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
     assert_null(tree->schema);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "l1", "", 0, LYD_XML);
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_XML, 0, "l1", "");
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* opaq flag and fail */
     assert_int_equal(LY_EVALID, lyd_parse_data_mem(CONTEXT_GET, "<a xmlns=\"ns\"><b>x</b><c xml:id=\"D\">1</c></a>", LYD_XML,
@@ -379,7 +379,7 @@ test_rpc(void **state)
     assert_non_null(tree);
     assert_null(tree->schema);
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "rpc", "",0x1, LYD_XML);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0x1, 0x1, LYD_XML, 0, "rpc", "");
     node = lyd_child(tree);
     LYSC_ACTION_CHECK(node->schema, LYS_RPC , "edit-config");
     node = lyd_child(node)->next;
@@ -391,10 +391,10 @@ test_rpc(void **state)
     node = lyd_child(node);
     /* z has no value */
     assert_null(node->schema);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, "z", "",0x1, LYD_XML);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0x1, 0, LYD_XML, 0, "z", "");
     node = node->parent->next;
     /* l1 key c has invalid value so it is at the end */
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, "l1", "",0x1, LYD_XML);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0x1, 0x1, LYD_XML, 0, "l1", "");
 
     const char *str_expected = "<rpc xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\" msgid=\"25\" custom-attr=\"val\">"
             "<edit-config>"
@@ -413,9 +413,9 @@ test_rpc(void **state)
                 "</config>"
             "</edit-config>"
         "</rpc>";
-    MODEL_CHECK_CHAR(tree, str_expected);
+    LYD_NODE_CHECK_CHAR(tree, str_expected);
 
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
     CONTEXT_DESTROY;
     /* wrong namespace, element name, whatever... */
     /* TODO */
@@ -452,9 +452,9 @@ test_action(void **state)
     LYSC_ACTION_CHECK(op->schema, LYS_ACTION,"act");
 
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "rpc", "",0x1, LYD_XML);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0x1, 0x1, LYD_XML, 0, "rpc", "");
     node = lyd_child(tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, "action", "",0x0, LYD_XML);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0x0, 0x1, LYD_XML, 0, "action", "");
     
     const char *str_exp = "<rpc xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\" msgid=\"25\" custom-attr=\"val\">"
             "<action xmlns=\"urn:ietf:params:xml:ns:yang:1\">"
@@ -466,9 +466,9 @@ test_action(void **state)
             "</action>"
         "</rpc>";
 
-    MODEL_CHECK_CHAR(tree, str_exp);
+    LYD_NODE_CHECK_CHAR(tree, str_exp);
 
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
     CONTEXT_DESTROY;
     /* wrong namespace, element name, whatever... */
     /* TODO */
@@ -500,16 +500,16 @@ test_notification(void **state)
     ly_in_free(in, 0);
 
     assert_non_null(ntf);
-    LYSC_NOTIF_CHECK(ntf->schema, LYS_NOTIF,"n1");
+    LYSC_NOTIF_CHECK(ntf->schema, "n1");
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "notification", "", 0x0, LYD_XML);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0x0, 0x1, LYD_XML, 0, "notification", "");
     node = lyd_child(tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, "eventTime", "2037-07-08T00:01:00Z", 0x0, LYD_XML);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0x0, 0, LYD_XML, 0, "eventTime", "2037-07-08T00:01:00Z");
     node = node->next;
     LYSC_NODE_CHECK(node->schema, LYS_CONTAINER, "c");
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* top-level notif without envelope */
     data = "<n2 xmlns=\"urn:tests:a\"/>";
@@ -518,13 +518,13 @@ test_notification(void **state)
     ly_in_free(in, 0);
 
     assert_non_null(ntf);
-    LYSC_NOTIF_CHECK(ntf->schema, LYS_NOTIF,"n2");
+    LYSC_NOTIF_CHECK(ntf->schema, "n2");
 
     assert_non_null(tree);
     assert_ptr_equal(ntf, tree);
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     CONTEXT_DESTROY;
     /* wrong namespace, element name, whatever... */
@@ -570,13 +570,13 @@ test_reply(void **state)
     assert_true(node->schema->flags & LYS_CONFIG_R);
 
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "rpc-reply", "", 0x1, LYD_XML);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0x1, 0x1, LYD_XML, 0, "rpc-reply", "");
     node = lyd_child(tree);
     LYSC_NODE_CHECK(node->schema, LYS_CONTAINER, "c");
 
     /* TODO print only rpc-reply node and then output subtree */
-    MODEL_CHECK_CHAR(lyd_child(op), "<al xmlns=\"urn:tests:a\">25</al>");
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(lyd_child(op), "<al xmlns=\"urn:tests:a\">25</al>");
+    LYD_NODE_DESTROY(tree);
 
     /* wrong namespace, element name, whatever... */
     /* TODO */

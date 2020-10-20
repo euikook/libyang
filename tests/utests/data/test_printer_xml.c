@@ -129,8 +129,8 @@ const char *schema_c =
                 ly_set_log_clb(logger, 1)
 
 
-#define MODEL_CREATE(INPUT, MODEL) \
-                MODEL_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+#define LYD_NODE_CREATE(INPUT, MODEL) \
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
 
 #define PARSER_CHECK_ERROR(INPUT, PARSE_OPTION, MODEL, RET_VAL, ERR_MESSAGE) \
                 assert_int_equal(RET_VAL, lyd_parse_data_mem(CONTEXT_GET, data, LYD_XML, PARSE_OPTION, LYD_VALIDATE_PRESENT, &MODEL));\
@@ -138,8 +138,8 @@ const char *schema_c =
                 assert_null(MODEL)
 
 
-#define MODEL_CHECK_CHAR(IN_MODEL, TEXT, PARAM) \
-                MODEL_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_XML, PARAM | LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
+#define LYD_NODE_CHECK_CHAR(IN_MODEL, TEXT, PARAM) \
+                LYD_NODE_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_XML, PARAM | LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
 
 
 void
@@ -166,9 +166,9 @@ test_leaf(void **state)
 
     data = "<int8 xmlns=\"urn:tests:types\">\n 15 \t\n  </int8>";
     result = "<int8 xmlns=\"urn:tests:types\">15</int8>";
-    MODEL_CREATE(data, tree);
-    MODEL_CHECK_CHAR(tree, result, LYD_PRINT_SHRINK);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CREATE(data, tree);
+    LYD_NODE_CHECK_CHAR(tree, result, LYD_PRINT_SHRINK);
+    LYD_NODE_DESTROY(tree);
 
     CONTEXT_DESTROY;
 }
@@ -183,16 +183,16 @@ test_anydata(void **state)
     CONTEXT_CREATE;
 
     data = "<any xmlns=\"urn:tests:types\"><somexml xmlns:x=\"url:x\" xmlns=\"example.com\"><x:x/></somexml></any>";
-    MODEL_CREATE(data, tree);
+    LYD_NODE_CREATE(data, tree);
     /* canonized */
     data = "<any xmlns=\"urn:tests:types\"><somexml xmlns=\"example.com\"><x xmlns=\"url:x\"/></somexml></any>";
-    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_SHRINK);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_SHRINK);
+    LYD_NODE_DESTROY(tree);
 
     data = "<any xmlns=\"urn:tests:types\"/>";
-    MODEL_CREATE(data, tree);
-    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_SHRINK);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CREATE(data, tree);
+    LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_SHRINK);
+    LYD_NODE_DESTROY(tree);
 
     data =
         "<any xmlns=\"urn:tests:types\">"
@@ -203,7 +203,7 @@ test_anydata(void **state)
                 "</defs:elem1>"
             "</cont>"
         "</any>";
-    MODEL_CREATE(data, tree);
+    LYD_NODE_CREATE(data, tree);
     /* cont should be normally parsed */
     LYSC_NODE_CHECK(tree->schema, LYS_ANYDATA, "any");
     LYD_NODE_ANY_CHECK((struct lyd_node_any *)tree, LYD_ANYDATA_DATATREE);
@@ -220,9 +220,9 @@ test_anydata(void **state)
                 "</elem1>"
             "</cont>"
         "</any>";
-    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_SHRINK);
+    LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_SHRINK);
 
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
     CONTEXT_DESTROY;
 }
 
@@ -241,36 +241,36 @@ test_defaults(void **state)
 
     /* standard default value */
     data = "<c xmlns=\"urn:defaults\">aa</c>";
-    MODEL_CREATE(data, tree);
+    LYD_NODE_CREATE(data, tree);
     ROOT_GET(tree);
-    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_TRIM);
+    LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_TRIM);
 
     data = "<a xmlns=\"urn:defaults\" xmlns:d=\"urn:defaults\">/d:b</a><c xmlns=\"urn:defaults\">aa</c>";
-    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL);
+    LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL);
 
     data = "<a xmlns=\"urn:defaults\" xmlns:ncwd=\"urn:ietf:params:xml:ns:yang:ietf-netconf-with-defaults\""
         " ncwd:default=\"true\" xmlns:d=\"urn:defaults\">/d:b</a>"
         "<c xmlns=\"urn:defaults\">aa</c>";
-    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL_TAG);
+    LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL_TAG);
 
     data = "<a xmlns=\"urn:defaults\" xmlns:ncwd=\"urn:ietf:params:xml:ns:yang:ietf-netconf-with-defaults\""
         " ncwd:default=\"true\" xmlns:d=\"urn:defaults\">/d:b</a>"
         "<c xmlns=\"urn:defaults\">aa</c>";
-    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_IMPL_TAG);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_IMPL_TAG);
+    LYD_NODE_DESTROY(tree);
 
     /* string value equal to the default but default is an unresolved instance-identifier, so they are not considered equal */
     data = "<a xmlns=\"urn:defaults\">/d:b</a><c xmlns=\"urn:defaults\">aa</c>";
-    MODEL_CREATE(data, tree);
+    LYD_NODE_CREATE(data, tree);
     ROOT_GET(tree);
-    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_TRIM);
+    LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_TRIM);
 
-    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL);
+    LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL);
 
-    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL_TAG);
+    LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL_TAG);
 
-    MODEL_CHECK_CHAR(tree, data, LYD_PRINT_WD_IMPL_TAG);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_IMPL_TAG);
+    LYD_NODE_DESTROY(tree);
 
 
     /* instance-identifier value equal to the default, should be considered equal */
@@ -283,16 +283,16 @@ test_defaults(void **state)
         "<c xmlns=\"urn:defaults\">aa</c>";
     data_impl_tag = "<a xmlns=\"urn:defaults\" xmlns:d=\"urn:defaults\">/d:b</a><b xmlns=\"urn:defaults\">val</b><c xmlns=\"urn:defaults\">aa</c>";
 
-    MODEL_CREATE(data, tree);
+    LYD_NODE_CREATE(data, tree);
     ROOT_GET(tree);
-    MODEL_CHECK_CHAR(tree, data_trim, LYD_PRINT_WD_TRIM);
+    LYD_NODE_CHECK_CHAR(tree, data_trim, LYD_PRINT_WD_TRIM);
 
-    MODEL_CHECK_CHAR(tree, data_all, LYD_PRINT_WD_ALL);
+    LYD_NODE_CHECK_CHAR(tree, data_all, LYD_PRINT_WD_ALL);
 
-    MODEL_CHECK_CHAR(tree, data_all_tag, LYD_PRINT_WD_ALL_TAG);
+    LYD_NODE_CHECK_CHAR(tree, data_all_tag, LYD_PRINT_WD_ALL_TAG);
 
-    MODEL_CHECK_CHAR(tree, data_impl_tag, LYD_PRINT_WD_IMPL_TAG);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data_impl_tag, LYD_PRINT_WD_IMPL_TAG);
+    LYD_NODE_DESTROY(tree);
 
 
     CONTEXT_DESTROY;

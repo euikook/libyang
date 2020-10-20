@@ -42,8 +42,8 @@
 
 
 
-#define MODEL_CREATE(INPUT, PARSE_OPTION, MODEL) \
-                MODEL_CREATE_PARAM(INPUT, LYD_JSON, PARSE_OPTION, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+#define LYD_NODE_CREATE(INPUT, PARSE_OPTION, MODEL) \
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_JSON, PARSE_OPTION, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
 
 #define PARSER_CHECK_ERROR(INPUT, PARSE_OPTION, MODEL, RET_VAL, ERR_MESSAGE) \
                 assert_int_equal(RET_VAL, lyd_parse_data_mem(CONTEXT_GET, data, LYD_JSON, PARSE_OPTION, LYD_VALIDATE_PRESENT, &MODEL));\
@@ -52,8 +52,8 @@
 
 
 
-#define MODEL_CHECK_CHAR(IN_MODEL, TEXT) \
-                MODEL_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_JSON, LYD_PRINT_SHRINK | LYD_PRINT_WITHSIBLINGS)
+#define LYD_NODE_CHECK_CHAR(IN_MODEL, TEXT) \
+                LYD_NODE_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_JSON, LYD_PRINT_SHRINK | LYD_PRINT_WITHSIBLINGS)
 
 
 const char *schema_a = "module a {namespace urn:tests:a;prefix a;yang-version 1.1; import ietf-yang-metadata {prefix md;}"
@@ -124,7 +124,7 @@ test_leaf(void **state)
 
     CONTEXT_CREATE;
 
-    MODEL_CREATE(data, 0,  tree);
+    LYD_NODE_CREATE(data, 0,  tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LEAF, "foo");
     leaf = (struct lyd_node_term*)tree;
     LYD_VALUE_CHECK(leaf->value, STRING, "foo value");
@@ -135,23 +135,23 @@ test_leaf(void **state)
     LYD_VALUE_CHECK(leaf->value, STRING, "default-val");
     assert_true(leaf->flags & LYD_DEFAULT);
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* make foo2 explicit */
     data = "{\"a:foo2\":\"default-val\"}";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LEAF, "foo2");
     leaf = (struct lyd_node_term*)tree;
     LYD_VALUE_CHECK(leaf->value, STRING, "default-val");
     assert_false(leaf->flags & LYD_DEFAULT);
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* parse foo2 but make it implicit */
     data = "{\"a:foo2\":\"default-val\",\"@a:foo2\":{\"ietf-netconf-with-defaults:default\":true}}";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LEAF, "foo2");
     leaf = (struct lyd_node_term*)tree;
     LYD_VALUE_CHECK(leaf->value, STRING, "default-val");
@@ -162,11 +162,11 @@ test_leaf(void **state)
     assert_string_equal(printed, data);
     ly_out_reset(out);
     */
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
 
     /* multiple meatadata hint and unknown metadata xxx supposed to be skipped since it is from missing schema */
     data = "{\"@a:foo\":{\"a:hint\":1,\"a:hint\":2,\"x:xxx\":{\"value\":\"/x:no/x:yes\"}},\"a:foo\":\"xxx\"}";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LEAF, "foo");
     LYD_META_CHECK(tree->meta, tree, "hint", INT8, "1", 1);
 
@@ -174,8 +174,8 @@ test_leaf(void **state)
     LYD_META_CHECK(tree->meta->next, tree, "hint", INT8, "2", 2);
     assert_null(tree->meta->next->next);
 
-    MODEL_CHECK_CHAR(tree, "{\"a:foo\":\"xxx\",\"@a:foo\":{\"a:hint\":1,\"a:hint\":2}}");
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, "{\"a:foo\":\"xxx\",\"@a:foo\":{\"a:hint\":1,\"a:hint\":2}}");
+    LYD_NODE_DESTROY(tree);
 
     PARSER_CHECK_ERROR(data, LYD_PARSE_STRICT, tree, LY_EVALID, "Unknown (or not implemented) YANG module \"x\" for metadata \"x:xxx\". /a:foo");
 
@@ -201,7 +201,7 @@ test_leaflist(void **state)
 
     CONTEXT_CREATE;
 
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LEAFLIST, "ll1");
     ll = (struct lyd_node_term*)tree;
     LYD_VALUE_CHECK(ll->value, UINT8, "10", 10);
@@ -211,12 +211,12 @@ test_leaflist(void **state)
     ll = (struct lyd_node_term*)tree->next;
     LYD_VALUE_CHECK(ll->value, UINT8, "11", 11);
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* simple metadata */
     data = "{\"a:ll1\":[10,11],\"@a:ll1\":[null,{\"a:hint\":2}]}";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LEAFLIST, "ll1");
     ll = (struct lyd_node_term*)tree;
     LYD_VALUE_CHECK(ll->value, UINT8, "10", 10);
@@ -229,12 +229,12 @@ test_leaflist(void **state)
     LYD_META_CHECK(ll->meta, ll, "hint", INT8, "2", 2);
     assert_null(ll->meta->next);
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
         /* multiple meatadata hint and unknown metadata xxx supposed to be skipped since it is from missing schema */
     data = "{\"@a:ll1\" : [{\"a:hint\" : 1, \"x:xxx\" :  { \"value\" : \"/x:no/x:yes\" }, \"a:hint\" : 10},null,{\"a:hint\" : 3}], \"a:ll1\" : [1,2,3]}";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LEAFLIST, "ll1");
     ll = (struct lyd_node_term*)tree;
     LYD_VALUE_CHECK(ll->value, UINT8, "1", 1);
@@ -258,8 +258,8 @@ test_leaflist(void **state)
     LYD_META_CHECK(ll->meta, ll, "hint", INT8, "3", 3);
     assert_null(ll->meta->next);
 
-    MODEL_CHECK_CHAR(tree, "{\"a:ll1\":[1,2,3],\"@a:ll1\":[{\"a:hint\":1,\"a:hint\":10},null,{\"a:hint\":3}]}");
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, "{\"a:ll1\":[1,2,3],\"@a:ll1\":[{\"a:hint\":1,\"a:hint\":10},null,{\"a:hint\":3}]}");
+    LYD_NODE_DESTROY(tree);
 
     /* missing referenced metadata node */
     data = "{\"@a:ll1\":[{\"a:hint\":1}]}";
@@ -285,10 +285,10 @@ test_anydata(void **state)
     CONTEXT_CREATE;
 
     data = "{\"a:any\":{\"x:element1\":{\"element2\":\"/a:some/a:path\",\"list\":[{},{\"key\":\"a\"}]}}}";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_ANYDATA, "any");
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     CONTEXT_DESTROY;
 }
@@ -306,15 +306,15 @@ test_list(void **state)
     CONTEXT_CREATE;
 
     /* check hashes */
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema,LYS_LIST, "l1");
     list = (struct lyd_node_inner*)tree;
     LY_LIST_FOR(list->child, iter) {
         assert_int_not_equal(0, iter->hash);
     }
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* missing keys */
     data = "{ \"a:l1\": [ {\"c\" : 1, \"b\" : \"b\"}]}";
@@ -333,7 +333,7 @@ test_list(void **state)
     /* keys order, in contrast to XML, JSON accepts keys in any order even in strict mode */
     logbuf_clean();
     data = "{ \"a:l1\": [ {\"d\" : \"d\", \"a\" : \"a\", \"c\" : 1, \"b\" : \"b\"}]}";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LIST, "l1");
     list = (struct lyd_node_inner*)tree;
     assert_non_null(leaf = (struct lyd_node_term*)list->child);
@@ -346,12 +346,12 @@ test_list(void **state)
     LYSC_NODE_CHECK(leaf->schema, LYS_LEAF, "d");
     logbuf_assert("");
 
-    MODEL_CHECK_CHAR(tree, "{\"a:l1\":[{\"a\":\"a\",\"b\":\"b\",\"c\":1,\"d\":\"d\"}]}");
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, "{\"a:l1\":[{\"a\":\"a\",\"b\":\"b\",\"c\":1,\"d\":\"d\"}]}");
+    LYD_NODE_DESTROY(tree);
 
     /*  */
     data = "{\"a:l1\":[{\"c\":1,\"b\":\"b\",\"a\":\"a\"}]}";
-    MODEL_CREATE(data, LYD_PARSE_STRICT, tree);
+    LYD_NODE_CREATE(data, LYD_PARSE_STRICT, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LIST, "l1");
     list = (struct lyd_node_inner*)tree;
     assert_non_null(leaf = (struct lyd_node_term*)list->child);
@@ -363,18 +363,18 @@ test_list(void **state)
     logbuf_assert("");
 
 
-    MODEL_CHECK_CHAR(tree, "{\"a:l1\":[{\"a\":\"a\",\"b\":\"b\",\"c\":1}]}");
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, "{\"a:l1\":[{\"a\":\"a\",\"b\":\"b\",\"c\":1}]}");
+    LYD_NODE_DESTROY(tree);
 
     data = "{\"a:cp\":{\"@\":{\"a:hint\":1}}}";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_CONTAINER, "cp");
     assert_non_null(tree->meta);
     LYD_META_CHECK(tree->meta, tree, "hint", INT8, "1", 1);
     assert_null(tree->meta->next);
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     CONTEXT_DESTROY;
 }
@@ -390,22 +390,22 @@ test_container(void **state)
 
     CONTEXT_CREATE;
 
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_CONTAINER, "c");
     cont = (struct lyd_node_inner*)tree;
     assert_true(cont->flags & LYD_DEFAULT);
 
-    MODEL_CHECK_CHAR(tree, "{}");
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, "{}");
+    LYD_NODE_DESTROY(tree);
 
     data = "{\"a:cp\":{}}";
-    MODEL_CREATE(data, 0, tree);
+    LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_CONTAINER, "cp");
     cont = (struct lyd_node_inner*)tree;
     assert_false(cont->flags & LYD_DEFAULT);
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     CONTEXT_DESTROY;
 }
@@ -426,20 +426,20 @@ test_opaq(void **state)
     PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg);
 
     /* opaq flag */
-    MODEL_CREATE(data, LYD_PARSE_OPAQ, tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "foo3", "", 0, LYD_JSON);
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0, LYD_JSON, 0, "foo3", "");
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* missing key, no flags */
     data = "{\"a:l1\":[{\"a\":\"val_a\",\"b\":\"val_b\",\"d\":\"val_d\"}]}";
     PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "List instance is missing its key \"c\". /a:l1[a='val_a'][b='val_b']");
 
     /* opaq flag */
-    MODEL_CREATE(data, LYD_PARSE_OPAQ, tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "l1", "", 0, LYD_JSON);
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "l1", "");
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* invalid key, no flags */
     data = "{\"a:l1\":[{\"a\":\"val_a\",\"b\":\"val_b\",\"c\":\"val_c\"}]}";
@@ -447,22 +447,22 @@ test_opaq(void **state)
     PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg);
 
     /* opaq flag */
-    MODEL_CREATE(data, LYD_PARSE_OPAQ, tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "l1", "", 0, LYD_JSON);
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "l1", "");
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     data = "{\"a:l1\":[{\"a\":\"val_a\",\"b\":\"val_b\",\"c\":{\"val\":\"val_c\"}}]}";
-    MODEL_CREATE(data, LYD_PARSE_OPAQ, tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "l1", "", 0, LYD_JSON);
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "l1", "");
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     data = "{\"a:l1\":[{\"a\":\"val_a\",\"b\":\"val_b\"}]}";
-    MODEL_CREATE(data, LYD_PARSE_OPAQ, tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "l1", "", 0, LYD_JSON);
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "l1", "");
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     CONTEXT_DESTROY;
 }
@@ -491,7 +491,7 @@ test_rpc(void **state)
     assert_non_null(op);
     LYSC_ACTION_CHECK(op->schema, LYS_RPC, "edit-config");
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "rpc", "", 0, LYD_JSON);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "rpc", "");
     /* TODO support generic attributes in JSON ?
     assert_non_null(((struct lyd_node_opaq *)tree)->attr);
     */
@@ -505,13 +505,13 @@ test_rpc(void **state)
     LYSC_NODE_CHECK(node->schema, LYS_CONTAINER, "cp");
     node = lyd_child(node);
     /* z has no value */
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, "z", "", 0x1, LYD_JSON);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0x1, 0, LYD_JSON, 0, "z", "");
     node = node->parent->next;
     /* l1 key c has invalid value so it is at the end */
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, "l1", "", 0x1, LYD_JSON);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0x1, 0x1, LYD_JSON, 0, "l1", "");
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* wrong namespace, element name, whatever... */
     /* TODO */
@@ -538,12 +538,12 @@ test_action(void **state)
     assert_non_null(op);
     LYSC_ACTION_CHECK(op->schema, LYS_ACTION, "act");
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "rpc", "", 0, LYD_JSON);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "rpc", "");
     node = lyd_child(tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, "action", "", 0, LYD_JSON);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0, 0x1, LYD_JSON, 0, "action", "");
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* wrong namespace, element name, whatever... */
     /* TODO */
@@ -568,16 +568,16 @@ test_notification(void **state)
     ly_in_free(in, 0);
 
     assert_non_null(ntf);
-    LYSC_NOTIF_CHECK(ntf->schema, LYS_NOTIF, "n1");
+    LYSC_NOTIF_CHECK(ntf->schema, "n1");
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "notification", "", 0, LYD_JSON);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "notification", "");
     node = lyd_child(tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, "eventTime", "2037-07-08T00:01:00Z", 0, LYD_JSON);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0, 0, LYD_JSON, 0, "eventTime", "2037-07-08T00:01:00Z");
     node = node->next;
     LYSC_NODE_CHECK(node->schema, LYS_CONTAINER, "c");
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     /* top-level notif without envelope */
     data = "{\"a:n2\":{}}";
@@ -586,13 +586,13 @@ test_notification(void **state)
     ly_in_free(in, 0);
 
     assert_non_null(ntf);
-    LYSC_NOTIF_CHECK(ntf->schema, LYS_NOTIF, "n2");
+    LYSC_NOTIF_CHECK(ntf->schema, "n2");
 
     assert_non_null(tree);
     assert_ptr_equal(ntf, tree);
 
-    MODEL_CHECK_CHAR(tree, data);
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(tree, data);
+    LYD_NODE_DESTROY(tree);
 
     CONTEXT_DESTROY;
     /* wrong namespace, element name, whatever... */
@@ -620,7 +620,7 @@ test_reply(void **state)
     assert_int_equal(LY_SUCCESS, ly_in_new_memory(data, &in));
     assert_int_equal(LY_SUCCESS, lyd_parse_reply(request, in, LYD_JSON, &tree, &op));
     ly_in_free(in, 0);
-    MODEL_DESTROY(request);
+    LYD_NODE_DESTROY(request);
 
     assert_non_null(op);
     LYSC_ACTION_CHECK(op->schema, LYS_ACTION, "act");
@@ -628,14 +628,14 @@ test_reply(void **state)
     LYSC_NODE_CHECK(node->schema, LYS_LEAF, "al");
     assert_true(node->schema->flags & LYS_CONFIG_R);
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, "rpc-reply", "", 0, LYD_JSON);
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "rpc-reply", "");
     node = lyd_child(tree);
     LYSC_NODE_CHECK(node->schema, LYS_CONTAINER, "c");
 
     /* TODO print only rpc-reply node and then output subtree */
-    MODEL_CHECK_CHAR(lyd_child(op), "{\"a:al\":25}");
-    MODEL_CHECK_CHAR(lyd_child(tree), "{\"a:c\":{\"act\":{\"al\":25}}}");
-    MODEL_DESTROY(tree);
+    LYD_NODE_CHECK_CHAR(lyd_child(op), "{\"a:al\":25}");
+    LYD_NODE_CHECK_CHAR(lyd_child(tree), "{\"a:c\":{\"act\":{\"al\":25}}}");
+    LYD_NODE_DESTROY(tree);
 
     /* wrong namespace, element name, whatever... */
     /* TODO */
