@@ -83,14 +83,14 @@ trt_node next_sibling(struct trt_tree_ctx *ctx)
     /* if pointing to parent name */ 
     if(child_idx < 0) {
         /* find if has siblings */
-        childs_iter iter;
+        childs_iter citer;
         bool succ = false;
         auto& node_name = ctx->row->first;
         for(auto item = ctx->tree.map.begin(); item != ctx->tree.map.end(); ++item) {
             auto& childs = item->second;
-            if((iter = std::find(childs.begin(), childs.end(), node_name)) != childs.end()) {
+            if((citer = std::find(childs.begin(), childs.end(), node_name)) != childs.end()) {
                 /* he is already last sibling -> no sibling? */
-                if(iter+1 == childs.end())
+                if(citer+1 == childs.end())
                     continue;
                 succ = true;
                 /* store location */
@@ -102,13 +102,15 @@ trt_node next_sibling(struct trt_tree_ctx *ctx)
         if(succ) {
             /* siblings was founded */
             /* iterator to index */
-            child_idx = std::distance(ctx->row->second.begin(), iter);
+            child_idx = std::distance(ctx->row->second.begin(), citer);
             /* continue to get sibling */
         } else {
             /* maybe it is root node */
             tree_iter iter;
             /* warning: root nodes must be ordered */
-            for(auto iter = std::next(ctx->row); iter != ctx->tree.map.end(); ++iter) {
+            for(iter = std::next(ctx->row); iter != ctx->tree.map.end(); ++iter) {
+                if(iter->first.empty())
+                    break;
                 bool succ = true;
                 /* check if node is root node -> node cannot be in vector */
                 for(auto giter = ctx->tree.map.begin(); giter != ctx->tree.map.end(); ++giter)
