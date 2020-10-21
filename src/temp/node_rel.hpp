@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <iterator>
 
 extern "C"
 {
@@ -84,7 +85,7 @@ trt_node next_sibling(struct trt_tree_ctx *ctx)
         /* find if has siblings */
         childs_iter iter;
         bool succ = false;
-        auto node_name = ctx->row->first;
+        auto& node_name = ctx->row->first;
         for(auto item = ctx->tree.map.begin(); item != ctx->tree.map.end(); ++item) {
             auto& childs = item->second;
             if((iter = std::find(childs.begin(), childs.end(), node_name)) != childs.end()) {
@@ -104,7 +105,28 @@ trt_node next_sibling(struct trt_tree_ctx *ctx)
             child_idx = std::distance(ctx->row->second.begin(), iter);
             /* continue to get sibling */
         } else {
-            /* no siblings */
+            /* maybe it is root node */
+            tree_iter iter;
+            /* warning: root nodes must be ordered */
+            for(auto iter = std::next(ctx->row); iter != ctx->tree.map.end(); ++iter) {
+                bool succ = true;
+                /* check if node is root node -> node cannot be in vector */
+                for(auto giter = ctx->tree.map.begin(); giter != ctx->tree.map.end(); ++giter)
+                {
+                    if((std::find(giter->second.begin(), giter->second.end(), iter->first)) != giter->second.end()) {
+                        /* iter->first is not root node, continue */
+                        succ = false;
+                        break;
+                    }
+                }
+                if(succ) {
+                    auto& node_name = iter->first;
+                    ctx->row = iter;
+                    child_idx = -1;
+                    return default_node(node_name);
+                }
+            }
+            /* no sibling */
             return trp_empty_node();
         }
     }
@@ -156,7 +178,7 @@ trt_node next_child(struct trt_tree_ctx* ctx)
         /* if child has child */
         if(!iter->second.empty()){
             child_idx = 0;
-            auto node_name = iter->second[child_idx];
+            auto& node_name = iter->second[child_idx];
             ctx->row = iter;
             return default_node(node_name);
         } else {
