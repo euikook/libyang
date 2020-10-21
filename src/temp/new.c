@@ -860,7 +860,7 @@ trt_indent_in_node
 trb_try_unified_indent(struct trt_printer_ctx* UNUSED(pc))
 {
     trt_indent_in_node ind;
-    ind.type = trd_indent_in_node_failed;
+    ind.type = trd_indent_in_node_normal;
     return ind;
     /* TODO: get longest node name,
      * try indentation in all siblings

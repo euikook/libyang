@@ -35,6 +35,7 @@ TEST(nodeRel, firstNode)
     ASSERT_STREQ(uut.name.str, "A");
 }
 
+
 TEST(nodeRel, firstGetFirstChild)
 {
     Tree tree
@@ -85,6 +86,7 @@ TEST(nodeRel, childThenSibling)
     ASSERT_STREQ(uut.name.str, "C");
 }
 
+
 TEST(nodeRel, endOfSiblings)
 {
     Tree tree
@@ -104,6 +106,7 @@ TEST(nodeRel, endOfSiblings)
     uut = node(&ctx);
     ASSERT_STREQ(uut.name.str, "C");
 }
+
 
 TEST(nodeRel, noChilds)
 {
@@ -125,6 +128,7 @@ TEST(nodeRel, noChilds)
     ASSERT_STREQ(uut.name.str, "C");
 }
 
+
 TEST(nodeRel, rootParent)
 {
     Tree tree
@@ -140,6 +144,7 @@ TEST(nodeRel, rootParent)
     uut = parent(&ctx);
     ASSERT_EQ(trp_node_is_empty(uut), true);
 }
+
 
 TEST(nodeRel, parentFromChild)
 {
@@ -157,6 +162,7 @@ TEST(nodeRel, parentFromChild)
     uut = parent(&ctx);
     ASSERT_STREQ(uut.name.str, "A");
 }
+
 
 TEST(nodeRel, parentFromParent)
 {
