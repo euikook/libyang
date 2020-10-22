@@ -184,7 +184,6 @@ typedef enum
 typedef enum
 {
     trd_indent_in_node_normal = 0,  /**< Node fits on one line. */
-    trd_indent_in_node_unified,     /**< Alignment for sibling nodes is common. */
     trd_indent_in_node_divided,     /**< The node must be split into multiple rows. */
     trd_indent_in_node_failed       /**< Cannot be crammed into one line. The condition for the maximum line length is violated. */
 } trt_indent_in_node_type;
@@ -751,7 +750,7 @@ trt_pair_indent_node trp_try_normal_indent_in_node(trt_node, trt_pck_print, trt_
  *
  * The aim is to make it a little bit similar to two columns.
 */
-trt_indent_in_node trb_try_unified_indent(struct trt_printer_ctx*);
+uint32_t trb_try_unified_indent(trt_wrapper, struct trt_printer_ctx*, struct trt_tree_ctx*);
 
 /**
  * @brief Recursive nodes printing
@@ -775,6 +774,8 @@ static trt_separator trd_separator_space = " ";
 static trt_separator trd_separator_dashes = "--";
 static trt_separator trd_separator_slash = "/";
 static trt_separator trd_separator_linebreak = "\n";
+
+uint32_t trg_abs(int32_t);
 
 void trg_print_n_times(int32_t n, char, trt_printing);
 
