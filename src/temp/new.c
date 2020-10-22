@@ -680,12 +680,6 @@ trp_default_indent_in_node(trt_node node)
 void
 trp_print_entire_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, uint32_t mll, trt_printing p)
 {
-    if(ipck.in_node.type == trd_indent_in_node_unified) {
-        /* TODO: special case */
-        trp_print_line(node, ppck, ipck, p);
-        return;
-    }
-
     if(trp_leafref_target_is_too_long(node, ipck.wrapper, mll)) {
         node.type.type = trd_type_leafref;
     }
@@ -856,17 +850,172 @@ trp_try_normal_indent_in_node(trt_node n, trt_pck_print p, trt_pck_indent ind, u
 
 /* ----------- <Definition of tree browsing functions> ----------- */
 
-trt_indent_in_node
-trb_try_unified_indent(struct trt_printer_ctx* UNUSED(pc))
+void
+trb_jump_to_first_sibling(struct trt_fp_modify_ctx fp, struct trt_tree_ctx* tc)
 {
-    trt_indent_in_node ind;
-    ind.type = trd_indent_in_node_normal;
-    return ind;
-    /* TODO: get longest node name,
-     * try indentation in all siblings
-     * if failed, than second longest node and repeat
-     * restore to the initial pc session by next_child(parent)
+    /* expect that parent exists */
+    fp.parent(tc);
+    fp.next_child(tc);
+}
+
+void
+trb_jump_to_the_nth_sibling(uint32_t n, struct trt_fp_modify_ctx fp, struct trt_tree_ctx* tc)
+{
+    trb_jump_to_first_sibling(fp, tc);
+    uint32_t cnt = 0;
+    do {
+        if(cnt == n)
+            break;
+    } while(!trp_node_is_empty(fp.next_sibling(tc)));
+
+}
+
+uint32_t
+trb_get_number_of_siblings(struct trt_fp_modify_ctx fp, struct trt_tree_ctx* tc)
+{
+    /* including actual node */
+    trb_jump_to_first_sibling(fp, tc);
+    uint32_t ret = 1;
+    while(!trp_node_is_empty(fp.next_sibling(tc))) {
+        ret++;
+    }
+    trb_jump_to_first_sibling(fp, tc);
+    return ret;
+}
+
+int32_t
+trb_strlen_of_name_and_mark(trt_node_name name)
+{
+    return trp_mark_is_used(name) ?
+        (strlen(name.str) + trd_opts_mark_length) * (-1) :
+        strlen(name.str);
+}
+
+trt_indent_btw
+trb_calc_btw_opts_type(trt_node_name name, trt_indent_btw max_len4all)
+{
+    int32_t name_len = trb_strlen_of_name_and_mark(name);
+    /* negative value indicate that in name is some opt mark */
+    trt_indent_btw min_len = name_len < 0 ?
+        trd_indent_before_type - trd_opts_mark_length :
+        trd_indent_before_type;
+    trt_indent_btw ret = trg_abs(max_len4all) - trg_abs(name_len);
+    /* correction -> negative indicate that name is too long. */
+    return ret < 0 ? min_len : ret;
+}
+
+int32_t
+trb_maxlen_node_name(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc, int32_t upper_limit)
+{
+    trb_jump_to_first_sibling(pc->fp.modify, tc);
+    int32_t ret = 0;
+    for(trt_node node = pc->fp.read.node(tc); !trp_node_is_empty(node); node = pc->fp.modify.next_sibling(tc)) {
+        int32_t maxlen = trb_strlen_of_name_and_mark(node.name);
+        ret = trg_abs(maxlen) > trg_abs(ret) && trg_abs(maxlen) < trg_abs(upper_limit) ? maxlen : ret; 
+    }
+    trb_jump_to_first_sibling(pc->fp.modify, tc);
+    return ret;
+}
+
+int32_t
+trb_nth_maxlen_node_name(uint32_t nth, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    trb_jump_to_first_sibling(pc->fp.modify, tc);
+    int32_t upper_limit = INT32_MAX;
+    for(uint32_t i = 0; i <= nth; i++) {
+        upper_limit = trb_maxlen_node_name(pc, tc, upper_limit);
+    }
+    trb_jump_to_first_sibling(pc->fp.modify, tc);
+    return upper_limit;
+}
+
+trt_indent_btw
+trb_max_btw_opts_type4siblings(uint32_t nth_biggest_node, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    int32_t maxlen_node_name = trb_nth_maxlen_node_name(nth_biggest_node, pc, tc);
+    trt_indent_btw ind_before_type = maxlen_node_name < 0 ?
+        trd_indent_before_type - 1 : /* mark was present */
+        trd_indent_before_type;
+    return trg_abs(maxlen_node_name) + ind_before_type;
+}
+
+uint32_t
+trb_try_unified_indent(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    /* expect that tc point to non-empty node */
+    uint32_t ret; /* max_gap_before_type for all siblings */
+    uint32_t total_siblings = trb_get_number_of_siblings(pc->fp.modify, tc);
+    ly_bool succ = 0;
+    /* tolerance of the number of divided nodes = tdn */
+    for(uint32_t tdn = 0; tdn < total_siblings; tdn++) {
+        /* get max_gap_before_type (aka unified_indent or indent_before_type) from nth node */
+        ret = trb_max_btw_opts_type4siblings(tdn, pc, tc);
+        trb_jump_to_first_sibling(pc->fp.modify, tc);
+        uint32_t j; /* iterator over all siblings */
+        uint32_t tdn_cnt = 0; /* number of divided nodes */
+        /* for all nodes try if unified indent can be applied */
+        for(j = 0; j < total_siblings; j++) {
+            trt_node node = pc->fp.read.node(tc);
+            trt_indent_in_node ind = trp_default_indent_in_node(node);
+
+            /* calculate btw_opts_type for node from actual unified_indent */
+            ind.btw_opts_type = trb_calc_btw_opts_type(node.name, ret);
+
+            /* check if node will not be divided with indent_before_type >= 4. */
+            trt_pair_indent_node ind_node = trp_try_normal_indent_in_node(
+                node, (trt_pck_print){tc, pc->fp.print},
+                (trt_pck_indent){wr, ind}, pc->max_line_length);
+
+            if(ind_node.indent.type != trd_indent_in_node_normal) {
+                if(tdn_cnt == tdn) {
+                    /* The tolerance of the maximum number of divided nodes has been exceeded.
+                     * Some node should have a unified gap with siblings but unexpectedly cannot.
+                     */
+                    break;
+                } else {
+                    /* The node with the long name will be divided.
+                     * It is not possible for him to have a unified gap with siblings.
+                     */
+                    tdn_cnt++;
+                }
+            }
+            /* else - node fits to the unified gap and will not be divided.
+             * Success is coming. Continue with rest nodes.
+             */
+            pc->fp.modify.next_sibling(tc);
+        }
+        /* Check if all siblings was tested with max_gap_before_type (ret). */
+        if(j == total_siblings) {
+            /* jump out from loop. The unified max gap was finded. */
+            succ = 1;
+            break;
+        }
+        /* Try another node to create a new max unified length. */
+    }
+
+    /* tc is set to the first sibling */
+    trb_jump_to_first_sibling(pc->fp.modify, tc);
+
+    /* if all nodes will be divided anyway, then return 0.
+     * Otherwise it is possible to unified least one node.
+     * (Ignore that unifying spaces for one node doesn't make sense.)
      */
+    return succ ? ret : 0;
+}
+
+void
+trb_print_entire_node(uint32_t max_gap_before_type, trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    trt_node node = pc->fp.read.node(tc);
+    trt_indent_in_node ind = trp_default_indent_in_node(node);
+    if(max_gap_before_type > 0 && node.type.type != trd_type_empty) {
+        /* print actual node with unified indent */
+        ind.btw_opts_type = trb_calc_btw_opts_type(node.name, max_gap_before_type);
+    }
+    /* else - print actual node with default indent */
+    trp_print_entire_node(node, (trt_pck_print){tc, pc->fp.print},
+        (trt_pck_indent){wr, ind},
+        pc->max_line_length, pc->print);
 }
 
 ly_bool
@@ -887,30 +1036,19 @@ trb_parent_is_last_sibling(struct trt_fp_all fp, struct trt_tree_ctx* tc)
 void
 trb_print_nodes(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
 {
-    /* try unified indentation in node */
-    trt_indent_in_node unified_ind = trb_try_unified_indent(pc);
     /* if node is last sibling, then do not add '|' to wrapper */
     wr = trb_parent_is_last_sibling(pc->fp, tc) ?
         trp_wrapper_set_shift(wr) :
         trp_wrapper_set_mark(wr);
+    /* try unified indentation in node */
+    uint32_t max_gap_before_type = trb_try_unified_indent(wr, pc, tc);
 
     /* print all siblings */
     do {
         /* print linebreak before printing actual node */
         trg_print_linebreak(pc->print);
-        /* set unified_indentation if trb_try_unified_indent succeeded */
-        if(unified_ind.type == trd_indent_in_node_unified) {
-            /* print actual node with unified indent */
-            trp_print_entire_node(pc->fp.read.node(tc), (trt_pck_print){tc, pc->fp.print},
-                (trt_pck_indent){wr, unified_ind},
-                pc->max_line_length, pc->print);
-        } else {
-            /* print actual node with default node indent */
-            trt_node node = pc->fp.read.node(tc);
-            trp_print_entire_node(node, (trt_pck_print){tc, pc->fp.print},
-                (trt_pck_indent){wr, trp_default_indent_in_node(node)},
-                pc->max_line_length, pc->print);
-        }
+        /* print node */
+        trb_print_entire_node(max_gap_before_type, wr, pc, tc);
         /* go to the actual node's child or stay in actual node */
         if(!trp_node_is_empty(pc->fp.modify.next_child(tc))) {
             /* print all childs - recursive call */
@@ -964,6 +1102,12 @@ trg_print_n_times(int32_t n, char c, trt_printing p)
     buffer[rest] = '\0';
     memset(&buffer[0], c, rest);
     trp_print(p, 1, &buffer[0]);
+}
+
+uint32_t
+trg_abs(int32_t a)
+{
+    return a < 0 ? a * (-1) : a;
 }
 
 ly_bool

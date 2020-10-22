@@ -29,12 +29,32 @@ struct Node
 };
 using childs_iter = Node::childs_v::iterator;
 
+struct Attributes
+{
+    struct Data
+    {
+        trt_node_type node_type;
+        string type_name;
+        bool feature;
+    };
+    string key;
+    Data data;
+};
+
 struct Tree
 {
     using tree_t = std::map<string, vector<string>>;
+    vector<Attributes> att_v;
     tree_t map;
 
     Tree(vector<Node> nodes)
+    {
+        for(auto const& node: nodes)
+            map.insert({node.name, node.childs});
+    }
+
+    Tree(vector<Node> nodes, vector<Attributes> att):
+        att_v(att)
     {
         for(auto const& node: nodes)
             map.insert({node.name, node.childs});
@@ -49,6 +69,21 @@ struct trt_tree_ctx
     int64_t child_idx;
 };
 
+trt_node attributed_node(Attributes const& att)
+{
+    trt_type type = att.data.type_name.empty() ?
+        (trt_type){trd_type_empty, ""} :
+        (trt_type){trd_type_name, att.data.type_name.c_str()};
+    return 
+        {
+            trd_status_type_current, trd_flags_type_rw,
+            {att.data.node_type, "", att.key.c_str()},
+            trp_empty_opts_keys(),
+            type,
+            att.data.feature
+        };
+}
+
 trt_node default_node(string const& name)
 {
     return (trt_node)
@@ -61,6 +96,17 @@ trt_node default_node(string const& name)
     };
 }
 
+trt_node get_node(string const& name, vector<Attributes> const& att)
+{
+    if(att.empty())
+        return default_node(name);
+    for(auto const& item: att) {
+        if(item.key == name)
+            return attributed_node(item);
+    }
+    return default_node(name);
+}
+
 trt_node node(const struct trt_tree_ctx *ctx)
 {
     /* if pointing to parent */
@@ -68,12 +114,12 @@ trt_node node(const struct trt_tree_ctx *ctx)
         /* get parent name */ 
         auto& node_name = ctx->row->first;
         /* return node */
-        return default_node(node_name);
+        return get_node(node_name, ctx->tree.att_v);
     } else {
         /* get child name */ 
         auto& node_name = ctx->row->second[ctx->child_idx];
         /* return node */
-        return default_node(node_name);
+        return get_node(node_name, ctx->tree.att_v);
     }
 }
 
@@ -125,7 +171,7 @@ trt_node next_sibling(struct trt_tree_ctx *ctx)
                     auto& node_name = iter->first;
                     ctx->row = iter;
                     child_idx = -1;
-                    return default_node(node_name);
+                    return get_node(node_name, ctx->tree.att_v);
                 }
             }
             /* no sibling */
@@ -141,7 +187,7 @@ trt_node next_sibling(struct trt_tree_ctx *ctx)
         /* return sibling */
         child_idx++;
         auto& sibl_name = ctx->row->second[child_idx];
-        return default_node(sibl_name);
+        return get_node(sibl_name, ctx->tree.att_v);
     }
 }
 
@@ -163,7 +209,7 @@ trt_node next_child(struct trt_tree_ctx* ctx)
         /* get his child */ 
         child_idx = 0;
         auto node_name = ctx->row->second[child_idx];
-        return default_node(node_name);
+        return get_node(node_name, ctx->tree.att_v);
     }
     /* else find child of child */ 
     auto& node_name = ctx->row->second[child_idx];
@@ -182,7 +228,7 @@ trt_node next_child(struct trt_tree_ctx* ctx)
             child_idx = 0;
             auto& node_name = iter->second[child_idx];
             ctx->row = iter;
-            return default_node(node_name);
+            return get_node(node_name, ctx->tree.att_v);
         } else {
             /* child has no child */
             return trp_empty_node();
@@ -203,7 +249,7 @@ trt_node parent(struct trt_tree_ctx* ctx)
                 if(item == node_name) {
                     ctx->row = iter;
                     ctx->child_idx = -1;
-                    return default_node(iter->first);
+                    return get_node(iter->first, ctx->tree.att_v);
                 }
             }
         }
@@ -212,7 +258,7 @@ trt_node parent(struct trt_tree_ctx* ctx)
     } else {
         /* pointing to some child */
         ctx->child_idx = -1;
-        return default_node(ctx->row->first);
+        return get_node(ctx->row->first, ctx->tree.att_v);
     }
 }
 
