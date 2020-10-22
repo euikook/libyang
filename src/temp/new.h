@@ -402,7 +402,7 @@ ly_bool trp_opts_keys_is_empty(trt_opts_keys);
  * @param[in] k flag if keys is present.
  * @param[in] ind number of spaces between name and [keys].
  * @param[in] pf basically a pointer to the function that prints the keys.
- * @param[in] p basically a pointer to a function that handles the printing itself.
+ * @param[in,out] p basically a pointer to a function that handles the printing itself.
  */
 void trp_print_opts_keys(trt_opts_keys k, trt_indent_btw ind, trt_cf_print_keys pf, trt_printing p);
 
@@ -471,7 +471,7 @@ ly_bool trp_iffeature_is_empty(trt_iffeature);
  *
  * @param[in] i flag if keys is present.
  * @param[in] pf basically a pointer to the function that prints the list of features.
- * @param[in] p basically a pointer to a function that handles the printing itself.
+ * @param[in,out] p basically a pointer to a function that handles the printing itself.
  */
 void trp_print_iffeatures(trt_iffeature i, trt_cf_print_iffeatures pf, trt_printing p);
 
@@ -513,7 +513,7 @@ void trp_print_divided_node_up_to_name(trt_node, trt_printing);
  * @param[in] n node structure for printing.
  * @param[in] ppck package of functions for printing opts_keys and iffeatures.
  * @param[in] ind indent in node.
- * @param[in] p basically a pointer to a function that handles the printing itself.
+ * @param[in,out] p basically a pointer to a function that handles the printing itself.
  */
 void trp_print_node(trt_node n, trt_pck_print ppck, trt_indent_in_node ind, trt_printing p);
 
@@ -559,6 +559,9 @@ trt_pair_indent_node trp_first_half_node(trt_node node, trt_indent_in_node ind);
  */
 trt_pair_indent_node trp_second_half_node(trt_node node, trt_indent_in_node ind);
 
+/** Get default indent in node based on node values. */
+trt_indent_in_node trp_default_indent_in_node(trt_node);
+
 /* =================================== */
 /* ----------- <statement> ----------- */
 /* =================================== */
@@ -601,16 +604,23 @@ typedef enum
 typedef struct
 {
     trt_keyword_stmt_type type; /**< Type of the keyword_stmt. */
-    trt_keyword_type keyword;    /**< String containing some of the top or body keyword. */
+    trt_keyword_type keyword;   /**< String containing some of the top or body keyword. */
     const char* str;            /**< Name or path, it determines the type. */
 } trt_keyword_stmt;
 
+/** Create trt_keyword_stmt as empty. */
 trt_keyword_stmt trp_empty_keyword_stmt();
+/** Check if trt_keyword_stmt is empty. */
 ly_bool trp_keyword_stmt_is_empty(trt_keyword_stmt);
+/** Print .keyword based on .type. */
 void trt_print_keyword_stmt_begin(trt_keyword_stmt, trt_printing);
+/** Print .str which is string of name or path. */
 void trt_print_keyword_stmt_str(trt_keyword_stmt, uint32_t mll, trt_printing);
+/** Print separator based on .type. */
 void trt_print_keyword_stmt_end(trt_keyword_stmt, trt_printing);
-void trp_print_keyword_stmt(trt_keyword_stmt, uint32_t mll, trt_printing);
+/** Print entire trt_keyword_stmt structure. */
+void trp_print_keyword_stmt(trt_keyword_stmt ks, uint32_t mll, trt_printing p);
+/** Get string length of stored keyword. */
 size_t trp_keyword_type_strlen(trt_keyword_type);
 
 /* ======================================== */
@@ -618,18 +628,19 @@ size_t trp_keyword_type_strlen(trt_keyword_type);
 /* ======================================== */
 
 /**
- * @brief Functions that change the state of the tree_ctx structure
+ * @brief Functions that change the state of the tree_ctx structure.
  *
- * For all, if the value cannot be returned, its empty version obtained by the corresponding function returning the empty value is returned.
+ * For all, if the value cannot be returned,
+ * its empty version obtained by relevant trp_empty* function is returned.
  */
 struct trt_fp_modify_ctx
 {
-    trt_node (*parent)(struct trt_tree_ctx*);
-    trt_node (*next_sibling)(struct trt_tree_ctx*);
-    trt_node (*next_child)(struct trt_tree_ctx*);
-    trt_keyword_stmt (*next_augment)(struct trt_tree_ctx*);
-    trt_keyword_stmt (*next_grouping)(struct trt_tree_ctx*);
-    trt_keyword_stmt (*next_yang_data)(struct trt_tree_ctx*);
+    trt_node (*parent)(struct trt_tree_ctx*);                   /**< Jump to parent node. */
+    trt_node (*next_sibling)(struct trt_tree_ctx*);             /**< Jump to next sibling of the current node. */
+    trt_node (*next_child)(struct trt_tree_ctx*);               /**< Jump to the child of the current node. */
+    trt_keyword_stmt (*next_augment)(struct trt_tree_ctx*);     /**< Jump to the augment section. */
+    trt_keyword_stmt (*next_grouping)(struct trt_tree_ctx*);    /**< Jump to the grouping section. */
+    trt_keyword_stmt (*next_yang_data)(struct trt_tree_ctx*);   /**< Jump to the yang-data section. */
 };
 
 /* ====================================== */
@@ -637,15 +648,16 @@ struct trt_fp_modify_ctx
 /* ====================================== */
 
 /**
- * @brief Functions providing information for the print
+ * @brief Functions that do not change the state of the tree_structure.
  *
- * For all, if the value cannot be returned, its empty version obtained by the corresponding function returning the empty value is returned.
+ * For all, if the value cannot be returned,
+ * its empty version obtained by relevant trp_empty* function is returned.
  */
 struct trt_fp_read
 {
-    trt_keyword_stmt (*module_name)(const struct trt_tree_ctx*);
-    trt_node (*node)(const struct trt_tree_ctx*);
-    trt_node (*next_sibling)(const struct trt_tree_ctx*);
+    trt_keyword_stmt (*module_name)(const struct trt_tree_ctx*);    /**< Get name of the module. */
+    trt_node (*node)(const struct trt_tree_ctx*);                   /**< Get current node. */
+    trt_node (*next_sibling)(const struct trt_tree_ctx*);           /**< Get next sibling of the current node. */
 };
 
 /* ===================================== */
@@ -653,13 +665,13 @@ struct trt_fp_read
 /* ===================================== */
 
 /**
- * @brief A set of all necessary functions that must be provided for the printer
+ * @brief A set of all necessary functions that must be provided for the printer.
  */
 struct trt_fp_all
 {
-    struct trt_fp_modify_ctx modify;
-    struct trt_fp_read read;
-    struct trt_fp_print print;
+    struct trt_fp_modify_ctx modify;    /**< Function pointers which modify state of trt_tree_ctx. */
+    struct trt_fp_read read;            /**< Function pointers which only reads state of trt_tree_ctx. */
+    struct trt_fp_print print;          /**< Functions pointers for printing special items in node. */
 };
 
 /* ========================================= */
@@ -667,14 +679,14 @@ struct trt_fp_all
 /* ========================================= */
 
 /**
- * @brief Main structure for part of the printer
+ * @brief Main structure for trp component (printer part).
  */
 struct trt_printer_ctx
 {
     trt_printer_opts options;
-    trt_printing print;
-    struct trt_fp_all fp;
-    uint32_t max_line_length;   /**< including last character */
+    trt_printing print;         /**< The lowest layer over which it is printed. */
+    struct trt_fp_all fp;       /**< Set of various function pointers. */
+    uint32_t max_line_length;   /**< The maximum number of characters that can be printed on one line, including the last. */
 };
 
 /* ====================================== */
@@ -713,27 +725,26 @@ struct trt_tree_ctx
 /* --------- <Main trp functions> --------- */
 /* ======================================== */
 
-/**
- * @brief Print one line
- */
+/* --------- <Printing line> --------- */
+
+/** Printing one line including wrapper and node which can be incomplete. */
 void trp_print_line(trt_node, trt_pck_print, trt_pck_indent, trt_printing);
 
+/** Printing one line including wrapper and <status>--<flags> <name><option_mark>. */
 void trp_print_line_up_to_node_name(trt_node, trt_wrapper, trt_printing);
 
-/**
- * @brief Print an entire node that can be split into multiple lines.
- */
+/* --------- <Printing node> --------- */
+
+/** Printing of the wrapper and the whole node, which can be divided into several lines. */
 void trp_print_entire_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
 
+/** Auxiliary function for trp_print_entire_node that prints split nodes. */
 void trp_print_divided_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
 
-/**
- * @brief Get default indent in node based on node values.
- */
-trt_indent_in_node trp_default_indent_in_node(trt_node);
+/* --------- <Special> --------- */
 
 /**
- * @brief Get the correct alignment for the node
+ * @brief Get the correct alignment for the node.
  *
  * @return .type == trd_indent_in_node_divided - the node does not fit in the line, some .trt_indent_btw has negative value as a line break sign.
  * @return .type == trd_indent_in_node_normal - the node fits into the line, all .trt_indent_btw values has non-negative number.
@@ -745,24 +756,110 @@ trt_pair_indent_node trp_try_normal_indent_in_node(trt_node, trt_pck_print, trt_
 /* --------- <Main trb functions> --------- */
 /* ======================================== */
 
+/* --------- <Printing tree> --------- */
+
+/** Execute Printer - print tree. */
+void trb_main(struct trt_printer_ctx, struct trt_tree_ctx*);
+
 /**
- * @brief Find out if it is possible to unify the alignment in all subtrees
+ * @brief Print subtree of nodes.
  *
- * The aim is to make it a little bit similar to two columns.
+ * The current node is expected to be the root of the subtree.
+ * Before root node is no linebreak printing. This must be addressed by the caller.
+ * Root node will also be printed. Behind last printed node is no linebreak.
+ */
+void trb_print_subtree_nodes(trt_wrapper, struct trt_printer_ctx, struct trt_tree_ctx*);
+
+/**
+ * @brief For the current node: recursively print all of its child nodes and all of its siblings, including their children.
+ *
+ * Nodes are printed, including unified sibling node alignment (align <type> to column).
+ * Side-effect -> current node is set to the last sibling.
+ */
+void trb_print_nodes(trt_wrapper, struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/* --------- <For browse tree> --------- */
+
+/** Modify trt_tree_ctx so that current node is first sibling. */
+void trb_jump_to_first_sibling(struct trt_fp_modify_ctx, struct trt_tree_ctx*);
+
+/**
+ * @brief Get number of siblings.
+ *
+ * Side-effect -> current node is set to the first sibling.
+ */
+uint32_t trb_get_number_of_siblings(struct trt_fp_modify_ctx, struct trt_tree_ctx*);
+
+/**
+ * @brief Check if parent of the current node is the last of his siblings.
+ *
+ * Side-effect -> current node is set to the first sibling.
+ */
+ly_bool trb_parent_is_last_sibling(struct trt_fp_all, struct trt_tree_ctx*);
+
+/* --------- <For unified indentation> --------- */
+
+/**
+ * @brief Find out if it is possible to unify the alignment before <type>.
+ *
+ * The goal is for all node siblings to have the same alignment for <type> as if they were in a column.
+ * All siblings who cannot adapt because they do not fit on the line at all are ignored.
+ * @return 0 if all siblings cannot fit on the line.
+ * @return positive number indicating the maximum number of spaces before <type> if the length of the node name is 0.
+ *  To calculate the btw_opts_type indent size for a particular node, use the trb_calc_btw_opts_type function.
 */
 uint32_t trb_try_unified_indent(trt_wrapper, struct trt_printer_ctx*, struct trt_tree_ctx*);
 
 /**
- * @brief Recursive nodes printing
+ * @brief Calculate the btw_opts_type indent size for a particular node.
+ *
+ * @param[in] name is the node for which we get btw_opts_type.
+ * @param[in] max_len is the maximum value of btw_opts_type that it can have.
+ * @return btw_opts_type for node.
  */
-//void trb_print_nodes(struct trt_printer_ctx*, struct trt_tree_ctx*);
-
-void trb_print_subtree_nodes(trt_wrapper, struct trt_printer_ctx, struct trt_tree_ctx*);
+trt_indent_btw trb_calc_btw_opts_type(trt_node_name, trt_indent_btw max_len);
 
 /**
- * @brief Execute Printer - print tree
+ * @brief Print node.
+ *
+ * This function is wrapper for trp_print_entire_node function.
+ * But difference is that take max_gap_before_type parameter which will be used to set the unified alignment.
  */
-void trb_main(struct trt_printer_ctx, struct trt_tree_ctx*);
+void trb_print_entire_node(uint32_t max_gap_before_type, trt_wrapper, struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/**
+ * @brief Get size of node name.
+ * @return positive value total size of the node name.
+ * @return negative value as an indication that option mark is included in the total size.
+ */
+int32_t trb_strlen_of_name_and_mark(trt_node_name);
+
+/**
+ * @brief Find sibling with the biggest node name and return that size.
+ *
+ * Side-effect -> Current node is set to the first sibling.
+ * @param[in] upper_limit delimits the return value from above.
+ * @return positive number lesser than upper_limit as a sign that only the node name is included in the size.
+ * @return negative number whose absolute value is less than upper_limit and sign that node name and his opt mark is included in the size.
+ */
+int32_t trb_maxlen_node_name(struct trt_printer_ctx*, struct trt_tree_ctx*, int32_t upper_limit);
+
+/**
+ * @brief Find sibling with the nth biggest node name and return that size.
+ *
+ * Function has the same return value as trb_maxlen_node_name but for nth biggest node name.
+ * Side-effect -> Current node is set to the first sibling.
+ */
+int32_t trb_nth_maxlen_node_name(uint32_t nth, struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/**
+ * @brief Find sibling with the nth biggest node name.
+ *
+ * Side-effect -> Current node is set to the first sibling.
+ * @return max btw_opts_type value for rest of the siblings
+ */
+trt_indent_btw trb_max_btw_opts_type4siblings(uint32_t nth_biggest_node, struct trt_printer_ctx*, struct trt_tree_ctx*);
+
 
 /* =================================== */
 /* ----------- <separator> ----------- */
@@ -775,16 +872,24 @@ static trt_separator trd_separator_dashes = "--";
 static trt_separator trd_separator_slash = "/";
 static trt_separator trd_separator_linebreak = "\n";
 
+/* =================================== */
+/* ------ <auxiliary functions> ------ */
+/* =================================== */
+
+/** Get absolute value of integer. */
 uint32_t trg_abs(int32_t);
 
+/** Print character n times. */
 void trg_print_n_times(int32_t n, char, trt_printing);
 
+/** Test if the bit on the index is set. */
 ly_bool trg_test_bit(uint64_t number, uint32_t bit);
 
+/** Print trd_separator_linebreak. */
 void trg_print_linebreak(trt_printing);
 
+/** Print a substring but limited to the maximum length. */
 const char* trg_print_substr(const char*, size_t len, trt_printing);
-
 
 /* ================================ */
 /* ----------- <symbol> ----------- */
