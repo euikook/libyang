@@ -850,6 +850,62 @@ trp_try_normal_indent_in_node(trt_node n, trt_pck_print p, trt_pck_indent ind, u
 /* ----------- <Definition of tree browsing functions> ----------- */
 
 void
+trb_print_family_tree(trd_wrapper_type wr_t, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    trt_wrapper wr = wr_t == trd_wrapper_top ?
+        trp_init_wrapper_top() :
+        trp_init_wrapper_body();
+    uint32_t total_parents = trb_get_number_of_siblings(pc->fp.modify, tc);
+    for(uint32_t i = 0; i < total_parents; i++) {
+        trg_print_linebreak(pc->print);
+        trb_print_subtree_nodes(wr, pc, tc);
+    }
+}
+
+void
+trb_print_subtree_nodes(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    /* print root node */
+    trt_node root = pc->fp.read.node(tc);
+    trp_print_entire_node(root, (trt_pck_print){tc, pc->fp.print},
+        (trt_pck_indent){wr, trp_default_indent_in_node(root)}, pc->max_line_length, pc->print);
+    /* go to the actual node's child or stay in actual node */
+    if(!trp_node_is_empty(pc->fp.modify.next_child(tc))) {
+        /* print root's nodes */
+        trb_print_nodes(wr, pc, tc);
+        /* get back from child node to actual node */
+        pc->fp.modify.parent(tc);
+    }
+}
+
+void
+trb_print_nodes(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    /* if node is last sibling, then do not add '|' to wrapper */
+    wr = trb_parent_is_last_sibling(pc->fp, tc) ?
+        trp_wrapper_set_shift(wr) :
+        trp_wrapper_set_mark(wr);
+    /* try unified indentation in node */
+    uint32_t max_gap_before_type = trb_try_unified_indent(wr, pc, tc);
+
+    /* print all siblings */
+    do {
+        /* print linebreak before printing actual node */
+        trg_print_linebreak(pc->print);
+        /* print node */
+        trb_print_entire_node(max_gap_before_type, wr, pc, tc);
+        /* go to the actual node's child or stay in actual node */
+        if(!trp_node_is_empty(pc->fp.modify.next_child(tc))) {
+            /* print all childs - recursive call */
+            trb_print_nodes(wr, pc, tc);
+            /* get back from child node to actual node */
+            pc->fp.modify.parent(tc);
+        }
+        /* go to the next sibling or stay in actual node */
+    } while(!trp_node_is_empty(pc->fp.modify.next_sibling(tc)));
+}
+
+void
 trb_jump_to_first_sibling(struct trt_fp_modify_ctx fp, struct trt_tree_ctx* tc)
 {
     /* expect that parent exists */
@@ -1013,47 +1069,83 @@ trb_parent_is_last_sibling(struct trt_fp_all fp, struct trt_tree_ctx* tc)
     return ret;
 }
 
-void
-trb_print_nodes(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
-{
-    /* if node is last sibling, then do not add '|' to wrapper */
-    wr = trb_parent_is_last_sibling(pc->fp, tc) ?
-        trp_wrapper_set_shift(wr) :
-        trp_wrapper_set_mark(wr);
-    /* try unified indentation in node */
-    uint32_t max_gap_before_type = trb_try_unified_indent(wr, pc, tc);
+/* ----------- <Definition of trm main functions> ----------- */
 
-    /* print all siblings */
-    do {
-        /* print linebreak before printing actual node */
-        trg_print_linebreak(pc->print);
-        /* print node */
-        trb_print_entire_node(max_gap_before_type, wr, pc, tc);
-        /* go to the actual node's child or stay in actual node */
-        if(!trp_node_is_empty(pc->fp.modify.next_child(tc))) {
-            /* print all childs - recursive call */
-            trb_print_nodes(wr, pc, tc);
-            /* get back from child node to actual node */
-            pc->fp.modify.parent(tc);
-        }
-        /* go to the next sibling or stay in actual node */
-    } while(!trp_node_is_empty(pc->fp.modify.next_sibling(tc)));
+void
+trm_print_sections(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    trm_print_module_section(pc, tc);
+    trg_print_linebreak(pc->print);
+    trm_print_augmentations(pc, tc);
+    trg_print_linebreak(pc->print);
+    trm_print_rpcs(pc, tc);
+    trg_print_linebreak(pc->print);
+    trm_print_notifications(pc, tc);
+    trg_print_linebreak(pc->print);
+    trm_print_groupings(pc, tc);
+    trg_print_linebreak(pc->print);
+    trm_print_yang_data(pc, tc);
 }
 
 void
-trb_print_subtree_nodes(trt_wrapper wr, struct trt_printer_ctx pc, struct trt_tree_ctx* tc)
+trm_print_module_section(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
 {
-    /* print root node */
-    trt_node root = pc.fp.read.node(tc);
-    trp_print_entire_node(root, (trt_pck_print){tc, pc.fp.print},
-        (trt_pck_indent){wr, trp_default_indent_in_node(root)}, pc.max_line_length, pc.print);
-    /* go to the actual node's child or stay in actual node */
-    if(!trp_node_is_empty(pc.fp.modify.next_child(tc))) {
-        /* print root's nodes */
-        trb_print_nodes(wr, &pc, tc);
-        /* get back from child node to actual node */
-        pc.fp.modify.parent(tc);
+    trp_print_keyword_stmt(pc->fp.read.module_name(tc), pc->max_line_length, pc->print);
+    trg_print_linebreak(pc->print);
+    trb_print_family_tree(trd_wrapper_top, pc, tc);
+}
+
+void
+trm_print_augmentations(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    for(trt_keyword_stmt ks = pc->fp.modify.next_augment(tc);
+        !trp_keyword_stmt_is_empty(ks); 
+        ks = pc->fp.modify.next_augment(tc))
+    {
+        trm_print_body_section(ks, pc, tc);
     }
+}
+
+void
+trm_print_rpcs(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    trm_print_body_section(pc->fp.modify.get_rpcs(tc), pc, tc);
+}
+
+void
+trm_print_notifications(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    trm_print_body_section(pc->fp.modify.get_notifications(tc), pc, tc);
+}
+
+void
+trm_print_groupings(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    for(trt_keyword_stmt ks = pc->fp.modify.next_grouping(tc);
+        !trp_keyword_stmt_is_empty(ks); 
+        ks = pc->fp.modify.next_grouping(tc))
+    {
+        trm_print_body_section(ks, pc, tc);
+    }
+}
+
+void
+trm_print_yang_data(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    for(trt_keyword_stmt ks = pc->fp.modify.next_yang_data(tc);
+        !trp_keyword_stmt_is_empty(ks); 
+        ks = pc->fp.modify.next_yang_data(tc))
+    {
+        trm_print_body_section(ks, pc, tc);
+    }
+}
+
+void
+trm_print_body_section(trt_keyword_stmt ks, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+{
+    trp_print_keyword_stmt(ks, pc->max_line_length, pc->print);
+    trg_print_linebreak(pc->print);
+    trb_print_family_tree(trd_wrapper_body, pc, tc);
 }
 
 

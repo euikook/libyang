@@ -45,7 +45,7 @@ TEST(tryUnifIndent, allFits)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },
@@ -56,7 +56,7 @@ TEST(tryUnifIndent, allFits)
     uint32_t uut = trb_try_unified_indent(wr, &pc, &ctx);
     EXPECT_EQ(uut, check_unif.size());
     pc.fp.modify.parent(&ctx);
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -83,7 +83,7 @@ TEST(tryUnifIndent, biggerHasPriority)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },
@@ -94,7 +94,7 @@ TEST(tryUnifIndent, biggerHasPriority)
     uint32_t uut = trb_try_unified_indent(wr, &pc, &ctx);
     EXPECT_EQ(uut, check_unif.size());
     pc.fp.modify.parent(&ctx);
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -129,7 +129,7 @@ TEST(tryUnifIndent, biggestIsTooBig)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },
@@ -140,7 +140,7 @@ TEST(tryUnifIndent, biggestIsTooBig)
     uint32_t uut = trb_try_unified_indent(wr, &pc, &ctx);
     EXPECT_EQ(uut, check_unif.size());
     pc.fp.modify.parent(&ctx);
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -178,7 +178,7 @@ TEST(tryUnifIndent, TwoBiggestAreTooBig)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },
@@ -189,7 +189,7 @@ TEST(tryUnifIndent, TwoBiggestAreTooBig)
     uint32_t uut = trb_try_unified_indent(wr, &pc, &ctx);
     EXPECT_EQ(uut, check_unif.size());
     pc.fp.modify.parent(&ctx);
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -219,7 +219,7 @@ TEST(tryUnifIndent, allIsTooBig)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },

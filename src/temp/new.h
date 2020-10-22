@@ -147,7 +147,7 @@ void trp_injected_strlen(void *out, int arg_count, va_list ap);
 struct trt_fp_print
 {
     void (*print_features_names)(const struct trt_tree_ctx*, trt_printing);   /**< Print list of features. */
-    void (*print_keys)(const struct trt_tree_ctx *, trt_printing);            /**< Print  list's keys. */
+    void (*print_keys)(const struct trt_tree_ctx *, trt_printing);            /**< Print list's keys. */
 };
 
 /**
@@ -638,12 +638,14 @@ size_t trp_keyword_type_strlen(trt_keyword_type);
  */
 struct trt_fp_modify_ctx
 {
-    trt_node (*parent)(struct trt_tree_ctx*);                   /**< Jump to parent node. */
-    trt_node (*next_sibling)(struct trt_tree_ctx*);             /**< Jump to next sibling of the current node. */
-    trt_node (*next_child)(struct trt_tree_ctx*);               /**< Jump to the child of the current node. */
-    trt_keyword_stmt (*next_augment)(struct trt_tree_ctx*);     /**< Jump to the augment section. */
-    trt_keyword_stmt (*next_grouping)(struct trt_tree_ctx*);    /**< Jump to the grouping section. */
-    trt_keyword_stmt (*next_yang_data)(struct trt_tree_ctx*);   /**< Jump to the yang-data section. */
+    trt_node (*parent)(struct trt_tree_ctx*);                       /**< Jump to parent node. */
+    trt_node (*next_sibling)(struct trt_tree_ctx*);                 /**< Jump to next sibling of the current node. */
+    trt_node (*next_child)(struct trt_tree_ctx*);                   /**< Jump to the child of the current node. */
+    trt_keyword_stmt (*next_augment)(struct trt_tree_ctx*);         /**< Jump to the augment section. */
+    trt_keyword_stmt (*get_rpcs)(struct trt_tree_ctx*);             /**< Jump to the rpcs section. */
+    trt_keyword_stmt (*get_notifications)(struct trt_tree_ctx*);    /**< Jump to the notifications section. */
+    trt_keyword_stmt (*next_grouping)(struct trt_tree_ctx*);        /**< Jump to the grouping section. */
+    trt_keyword_stmt (*next_yang_data)(struct trt_tree_ctx*);       /**< Jump to the yang-data section. */
 };
 
 /* ====================================== */
@@ -761,8 +763,13 @@ trt_pair_indent_node trp_try_normal_indent_in_node(trt_node, trt_pck_print, trt_
 
 /* --------- <Printing tree> --------- */
 
-/** Execute Printer - print tree. */
-void trb_main(struct trt_printer_ctx, struct trt_tree_ctx*);
+/** 
+ * @brief Print all parents and their children. 
+ * 
+ * Function call print_subtree_nodes for all parents.
+ * Use this function after 'module' keyword or 'augment' and so.
+ */
+void trb_print_family_tree(trd_wrapper_type, struct trt_printer_ctx*, struct trt_tree_ctx*);
 
 /**
  * @brief Print subtree of nodes.
@@ -771,11 +778,13 @@ void trb_main(struct trt_printer_ctx, struct trt_tree_ctx*);
  * Before root node is no linebreak printing. This must be addressed by the caller.
  * Root node will also be printed. Behind last printed node is no linebreak.
  */
-void trb_print_subtree_nodes(trt_wrapper, struct trt_printer_ctx, struct trt_tree_ctx*);
+void trb_print_subtree_nodes(trt_wrapper, struct trt_printer_ctx*, struct trt_tree_ctx*);
 
 /**
  * @brief For the current node: recursively print all of its child nodes and all of its siblings, including their children.
  *
+ * This function is an auxiliary function for trb_print_subtree_nodes.
+ * The parent of the current node is expected to exist.
  * Nodes are printed, including unified sibling node alignment (align <type> to column).
  * Side-effect -> current node is set to the last sibling.
  */
@@ -862,6 +871,34 @@ int32_t trb_nth_maxlen_node_name(uint32_t nth, struct trt_printer_ctx*, struct t
  * @return max btw_opts_type value for rest of the siblings
  */
 trt_indent_btw trb_max_btw_opts_type4siblings(uint32_t nth_biggest_node, struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/* ======================================== */
+/* --------- <Main trm functions> --------- */
+/* ======================================== */
+
+/** Print sections module, augment, rpcs, notifications, grouping, yang-data. */
+void trm_print_sections(struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/** Print 'module' keyword, its name and all nodes. */
+void trm_print_module_section(struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/** For all augment sections: print 'augment' keyword, its target node and all nodes. */
+void trm_print_augmentations(struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/** For rpcs section: print 'rpcs' keyword and all its nodes. */
+void trm_print_rpcs(struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/** For notifications section: print 'notifications' keyword and all its nodes. */
+void trm_print_notifications(struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/** For all grouping sections: print 'grouping' keyword, its name and all nodes. */
+void trm_print_groupings(struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/** For all yang-data sections: print 'yang-data' keyword and all its nodes. */
+void trm_print_yang_data(struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/** General function to prevent repetitiveness code. */
+void trm_print_body_section(trt_keyword_stmt, struct trt_printer_ctx*, struct trt_tree_ctx*);
 
 
 /* =================================== */
