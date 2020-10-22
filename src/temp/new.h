@@ -287,6 +287,7 @@ typedef enum
     trd_status_type_obsolete,
 } trt_status_type;
 
+/** Print <status> of the node. */
 void trp_print_status(trt_status_type, trt_printing);
 
 /* ================================== */
@@ -313,7 +314,9 @@ typedef enum
     trd_flags_type_mount_point,
 } trt_flags_type;
 
+/** Print <flags>. */
 void trp_print_flags(trt_flags_type, trt_printing);
+/** Get size of the <flags>. */
 size_t trp_print_flags_strlen(trt_flags_type);
 
 /* ================================== */

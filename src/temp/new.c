@@ -24,11 +24,6 @@ trp_injected_strlen(void *out, int arg_count, va_list ap)
         cnt->bytes += strlen(va_arg(ap, char*));
 }
 
-trt_indent_in_node trp_empty_indent_in_node()
-{
-    return (trt_indent_in_node){trd_indent_in_node_normal, 0, 0, 0};
-}
-
 ly_bool
 trp_indent_in_node_are_eq(trt_indent_in_node f, trt_indent_in_node s)
 {
@@ -470,7 +465,8 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
     trp_print_iffeatures(a.iffeatures, cf_print_iffeatures, p);
 }
 
-void trt_print_keyword_stmt_begin(trt_keyword_stmt a, trt_printing p)
+void
+trt_print_keyword_stmt_begin(trt_keyword_stmt a, trt_printing p)
 {
     switch(a.type) {
     case trd_keyword_stmt_top:
@@ -514,7 +510,8 @@ void trt_print_keyword_stmt_begin(trt_keyword_stmt a, trt_printing p)
     }
 }
 
-size_t trp_keyword_type_strlen(trt_keyword_type a)
+size_t
+trp_keyword_type_strlen(trt_keyword_type a)
 {
     switch(a) {
     case trd_keyword_module:
@@ -738,16 +735,16 @@ trp_print_divided_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, u
     if(!entire_node_was_printed) {
         trg_print_linebreak(p);
         /* continue with second half node */
-        //ind_node = trp_second_half_node(ind_node.node, ind_node.indent);
         ind_node = trp_second_half_node(node, ind_node.indent);
-        /* continue with printing entire node */
+        /* continue with printing node */
         trp_print_divided_node(ind_node.node, ppck, (trt_pck_indent){ipck.wrapper, ind_node.indent}, mll, p);
     } else { 
         return;
     }
 }
 
-trt_pair_indent_node trp_first_half_node(trt_node node, trt_indent_in_node ind)
+trt_pair_indent_node
+trp_first_half_node(trt_node node, trt_indent_in_node ind)
 {
     trt_pair_indent_node ret = {ind, node};
 
@@ -765,7 +762,8 @@ trt_pair_indent_node trp_first_half_node(trt_node node, trt_indent_in_node ind)
     return ret;
 }
 
-trt_pair_indent_node trp_second_half_node(trt_node node, trt_indent_in_node ind)
+trt_pair_indent_node
+trp_second_half_node(trt_node node, trt_indent_in_node ind)
 {
     trt_pair_indent_node ret = {ind, node};
 
@@ -795,7 +793,8 @@ trt_pair_indent_node trp_second_half_node(trt_node node, trt_indent_in_node ind)
     return ret;
 }
 
-trt_indent_in_node trp_indent_in_node_place_break(trt_indent_in_node ind)
+trt_indent_in_node
+trp_indent_in_node_place_break(trt_indent_in_node ind)
 {
     /* somewhere must be set a line break in node */
     trt_indent_in_node ret = ind;
