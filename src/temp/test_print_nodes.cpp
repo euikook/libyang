@@ -37,13 +37,13 @@ TEST(printNodes, oneNode)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },
         72
     };
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -65,13 +65,13 @@ TEST(printNodes, twoSiblings)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },
         72
     };
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -95,13 +95,13 @@ TEST(printNodes, twoSiblingsFirstOneHasChild)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },
         72
     };
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -125,13 +125,13 @@ TEST(printNodes, twoSiblingsSecondOneHasChild)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },
         72
     };
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -159,16 +159,16 @@ TEST(printNodes, twoRoots)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },
         72
     };
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     trg_print_linebreak((trt_printing){&out, Out::print_vecLines});
     pc.fp.modify.next_sibling(&ctx);
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -204,13 +204,13 @@ TEST(printNodes, rootChildChildChildWithSiblings)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },
         72
     };
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
     out.clear();
 }
@@ -234,13 +234,13 @@ TEST(printNodes, twoSiblingsFirstOneHasChild)
         0,
         (trt_printing){&out, Out::print_vecLines},
         { /* trt_fp_all */
-            {parent, next_sibling, next_child, NULL, NULL, NULL},
+            {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
             {NULL, NULL}
         },
         72
     };
-    trb_print_subtree_nodes(trp_init_wrapper_top(), pc, &ctx);
+    trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
     out.clear();
 }
