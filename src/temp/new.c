@@ -858,18 +858,6 @@ trb_jump_to_first_sibling(struct trt_fp_modify_ctx fp, struct trt_tree_ctx* tc)
     fp.next_child(tc);
 }
 
-void
-trb_jump_to_the_nth_sibling(uint32_t n, struct trt_fp_modify_ctx fp, struct trt_tree_ctx* tc)
-{
-    trb_jump_to_first_sibling(fp, tc);
-    uint32_t cnt = 0;
-    do {
-        if(cnt == n)
-            break;
-    } while(!trp_node_is_empty(fp.next_sibling(tc)));
-
-}
-
 uint32_t
 trb_get_number_of_siblings(struct trt_fp_modify_ctx fp, struct trt_tree_ctx* tc)
 {
@@ -950,7 +938,6 @@ trb_try_unified_indent(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tr
     for(uint32_t tdn = 0; tdn < total_siblings; tdn++) {
         /* get max_gap_before_type (aka unified_indent or indent_before_type) from nth node */
         ret = trb_max_btw_opts_type4siblings(tdn, pc, tc);
-        trb_jump_to_first_sibling(pc->fp.modify, tc);
         uint32_t j; /* iterator over all siblings */
         uint32_t tdn_cnt = 0; /* number of divided nodes */
         /* for all nodes try if unified indent can be applied */
@@ -1019,12 +1006,6 @@ trb_print_entire_node(uint32_t max_gap_before_type, trt_wrapper wr, struct trt_p
 }
 
 ly_bool
-trb_node_is_last_sibling(struct trt_fp_read read, struct trt_tree_ctx* tc)
-{
-    return trp_node_is_empty(read.next_sibling(tc));
-}
-
-ly_bool
 trb_parent_is_last_sibling(struct trt_fp_all fp, struct trt_tree_ctx* tc)
 {
     fp.modify.parent(tc);
@@ -1060,13 +1041,9 @@ trb_print_nodes(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tree_ctx*
     } while(!trp_node_is_empty(pc->fp.modify.next_sibling(tc)));
 }
 
-/**
- * @brief Recursive nodes printing
- */
 void
 trb_print_subtree_nodes(trt_wrapper wr, struct trt_printer_ctx pc, struct trt_tree_ctx* tc)
 {
-    /* before root node is no linebreak printing. This must be addressed by the caller. */
     /* print root node */
     trt_node root = pc.fp.read.node(tc);
     trp_print_entire_node(root, (trt_pck_print){tc, pc.fp.print},
