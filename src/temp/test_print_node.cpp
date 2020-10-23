@@ -7,12 +7,12 @@ extern "C"
 #include "new.h"
 }
 
-void p_iff(const struct trt_tree_ctx*, trt_printing p)
+void p_iff(const struct trt_tree_ctx*, trt_printing* p)
 {
     trp_print(p, 1, "iffeature");
 }
 
-void p_key(const struct trt_tree_ctx*, trt_printing p)
+void p_key(const struct trt_tree_ctx*, trt_printing* p)
 {
     trp_print(p, 1, "key");
 }
@@ -36,8 +36,9 @@ TEST(node, fully)
         {trd_type_target, "target"},
         trp_set_iffeature()
     };
+    trt_printing p = {&out, Out::print_string, 0};
     trp_print_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
-        trp_default_indent_in_node(node), (trt_printing){&out, Out::print_string});
+        trp_default_indent_in_node(node), &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -54,8 +55,9 @@ TEST(node, onlyIffeature)
         {trd_type_empty, ""},
         trp_set_iffeature()
     };
+    trt_printing p = {&out, Out::print_string, 0};
     trp_print_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
-        trp_default_indent_in_node(node), (trt_printing){&out, Out::print_string});
+        trp_default_indent_in_node(node), &p);
 
     EXPECT_EQ(out, check);
     out.clear();

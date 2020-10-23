@@ -7,12 +7,12 @@ extern "C"
 #include "new.h"
 }
 
-void p_iff(const struct trt_tree_ctx*, trt_printing p)
+void p_iff(const struct trt_tree_ctx*, trt_printing* p)
 {
     trp_print(p, 1, "iffeature");
 }
 
-void p_key(const struct trt_tree_ctx*, trt_printing p)
+void p_key(const struct trt_tree_ctx*, trt_printing* p)
 {
     trp_print(p, 1, "key1 key2");
 }
@@ -38,9 +38,10 @@ TEST(nodeBreak, fits)
         {trd_type_name, "type"},
         trp_set_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        72, (trt_printing){&out, Out::print_vecLines});
+        72, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -58,9 +59,10 @@ TEST(nodeBreak, fitsTight)
         {trd_type_name, "type"},
         trp_set_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -82,9 +84,10 @@ TEST(nodeBreak, btwNameOpts)
         {trd_type_empty, ""},
         trp_empty_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -105,9 +108,10 @@ TEST(nodeBreak, btwOptsType)
         {trd_type_name, "string"},
         trp_empty_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -128,9 +132,10 @@ TEST(nodeBreak, btwOptsTypeWithIffeatures)
         {trd_type_name, "st"},
         trp_set_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
 
     EXPECT_EQ(out, check);
@@ -152,9 +157,10 @@ TEST(nodeBreak, btwTypeIffeatures)
         {trd_type_empty, ""},
         trp_set_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -175,9 +181,10 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeys)
         {trd_type_empty, ""},
         trp_set_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -198,9 +205,10 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeysType)
         {trd_type_name, "string"},
         trp_set_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -223,9 +231,10 @@ TEST(nodeBreak, allInNewLines)
         {trd_type_name, "string"},
         trp_set_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -246,9 +255,10 @@ TEST(nodeBreak, typeIsToolong)
         {trd_type_name, "longString"},
         trp_empty_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -268,9 +278,10 @@ TEST(nodeBreak, nodeNameIsTooLong)
         {trd_type_empty, ""},
         trp_empty_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -291,9 +302,10 @@ TEST(nodeBreak, breakLeafrefTarget)
         {trd_type_target, "/y:longStr/short"},
         trp_empty_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -313,9 +325,10 @@ TEST(nodeBreak, changeLeafrefTargetToLeafrefKeyword)
         {trd_type_target, "/y:longStr/short/eventuallyIsReallyLong"},
         trp_empty_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -336,9 +349,10 @@ TEST(nodeBreak, changeLeafrefTargetToLeafrefKeywordWithIffeature)
         {trd_type_target, "/y:longStr/short/eventuallyIsReallyLong"},
         trp_set_iffeature()
     };
+    trt_printing p = {&out, Out::print_vecLines, 0};
     trp_print_entire_node(node, (trt_pck_print){NULL, {p_iff, p_key}},
         (trt_pck_indent){trp_init_wrapper_top(), trp_default_indent_in_node(node)},
-        mll, (trt_printing){&out, Out::print_vecLines});
+        mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();

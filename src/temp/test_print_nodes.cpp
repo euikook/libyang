@@ -35,7 +35,7 @@ TEST(printNodes, oneNode)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
@@ -63,7 +63,7 @@ TEST(printNodes, twoSiblings)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
@@ -93,7 +93,7 @@ TEST(printNodes, twoSiblingsFirstOneHasChild)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
@@ -123,7 +123,7 @@ TEST(printNodes, twoSiblingsSecondOneHasChild)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
@@ -157,7 +157,7 @@ TEST(printNodes, twoRoots)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
@@ -166,7 +166,7 @@ TEST(printNodes, twoRoots)
         72
     };
     trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
-    trg_print_linebreak((trt_printing){&out, Out::print_vecLines});
+    trg_print_linebreak(&pc.print);
     pc.fp.modify.next_sibling(&ctx);
     trb_print_subtree_nodes(trp_init_wrapper_top(), &pc, &ctx);
     EXPECT_EQ(out, check);
@@ -202,7 +202,7 @@ TEST(printNodes, rootChildChildChildWithSiblings)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
@@ -232,7 +232,7 @@ TEST(printNodes, twoSiblingsFirstOneHasChild)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
