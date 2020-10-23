@@ -43,7 +43,7 @@ TEST(tryUnifIndent, allFits)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
@@ -81,7 +81,7 @@ TEST(tryUnifIndent, biggerHasPriority)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
@@ -127,7 +127,7 @@ TEST(tryUnifIndent, biggestIsTooBig)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
@@ -176,7 +176,7 @@ TEST(tryUnifIndent, TwoBiggestAreTooBig)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},
@@ -217,7 +217,7 @@ TEST(tryUnifIndent, allIsTooBig)
     struct trt_printer_ctx pc = 
     {
         0,
-        (trt_printing){&out, Out::print_vecLines},
+        (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
             {NULL, node, next_sibling_read},

@@ -87,10 +87,16 @@ typedef void (*trt_print_func)(void *out, int arg_count, va_list ap);
  */
 typedef struct
 {
-    void* out;          /**< Pointer to output data. Typical ly_out* or any c++ container in the case of testing. */
-    trt_print_func pf;  /**< Pointer to function which takes void* out and do typically printing actions. */
+    void* out;              /**< Pointer to output data. Typical ly_out* or any c++ container in the case of testing. */
+    trt_print_func pf;      /**< Pointer to function which takes void* out and do typically printing actions. */
+    uint32_t cnt_linebreak; /**< Counter of printed line breaks. */
 } trt_printing,
   trt_injecting_strlen;
+
+/** Set .cnt_linebreak to zero. */
+void trp_cnt_linebreak_reset(trt_printing*);
+/** Increment .cnt_linebreak by one. */
+void trp_cnt_linebreak_increment(trt_printing*);
 
 /**
  * @brief Print variadic number of char* pointers.
@@ -98,7 +104,7 @@ typedef struct
  * @param[in] p struct ly_out* or other auxiliary structure for printing.
  * @param[in] arg_count number of arguments in va_list.
  */
-void trp_print(trt_printing p, int arg_count, ...);
+void trp_print(trt_printing* p, int arg_count, ...);
 
 /**
  * @brief Callback functions that print themselves without printer overhead
@@ -111,7 +117,7 @@ void trp_print(trt_printing p, int arg_count, ...);
 typedef struct 
 {
     const struct trt_tree_ctx* ctx;                         /**< Context of libyang tree. */
-    void (*pf)(const struct trt_tree_ctx *, trt_printing);  /**< Pointing to definition of printing e.g. keys or features. */
+    void (*pf)(const struct trt_tree_ctx *, trt_printing*);  /**< Pointing to definition of printing e.g. keys or features. */
 } trt_cf_print_keys,
   trt_cf_print_iffeatures;
 
@@ -146,8 +152,8 @@ void trp_injected_strlen(void *out, int arg_count, va_list ap);
  */
 struct trt_fp_print
 {
-    void (*print_features_names)(const struct trt_tree_ctx*, trt_printing);   /**< Print list of features. */
-    void (*print_keys)(const struct trt_tree_ctx *, trt_printing);            /**< Print list's keys. */
+    void (*print_features_names)(const struct trt_tree_ctx*, trt_printing*);   /**< Print list of features. */
+    void (*print_keys)(const struct trt_tree_ctx*, trt_printing*);            /**< Print list's keys. */
 };
 
 /**
@@ -259,7 +265,7 @@ trt_wrapper trp_wrapper_set_shift(trt_wrapper);
 ly_bool trp_wrapper_eq(trt_wrapper, trt_wrapper);
 
 /** Print "  |  " sequence. */
-void trp_print_wrapper(trt_wrapper, trt_printing);
+void trp_print_wrapper(trt_wrapper, trt_printing*);
 
 
 /**
@@ -288,7 +294,7 @@ typedef enum
 } trt_status_type;
 
 /** Print <status> of the node. */
-void trp_print_status(trt_status_type, trt_printing);
+void trp_print_status(trt_status_type, trt_printing*);
 
 /* ================================== */
 /* ------------ <flags> ------------- */
@@ -315,7 +321,7 @@ typedef enum
 } trt_flags_type;
 
 /** Print <flags>. */
-void trp_print_flags(trt_flags_type, trt_printing);
+void trp_print_flags(trt_flags_type, trt_printing*);
 /** Get size of the <flags>. */
 size_t trp_print_flags_strlen(trt_flags_type);
 
@@ -365,7 +371,7 @@ trt_node_name trp_empty_node_name();
 /** Check if trt_node_name is empty. */
 ly_bool trp_node_name_is_empty(trt_node_name);
 /** Print entire trt_node_name structure. */
-void trp_print_node_name(trt_node_name, trt_printing);
+void trp_print_node_name(trt_node_name, trt_printing*);
 /** Check if mark (?, !, *, /, @) is implicitly contained in trt_node_name. */
 ly_bool trp_mark_is_used(trt_node_name);
 
@@ -407,7 +413,7 @@ ly_bool trp_opts_keys_is_empty(trt_opts_keys);
  * @param[in] pf basically a pointer to the function that prints the keys.
  * @param[in,out] p basically a pointer to a function that handles the printing itself.
  */
-void trp_print_opts_keys(trt_opts_keys k, trt_indent_btw ind, trt_cf_print_keys pf, trt_printing p);
+void trp_print_opts_keys(trt_opts_keys k, trt_indent_btw ind, trt_cf_print_keys pf, trt_printing *p);
 
 /* ============================== */
 /* ----------- <type> ----------- */
@@ -444,7 +450,7 @@ trt_type trp_empty_type();
 /** Check if trt_type is empty. */
 ly_bool trp_type_is_empty(trt_type);
 /** Print entire trt_type structure. */
-void trp_print_type(trt_type, trt_printing);
+void trp_print_type(trt_type, trt_printing*);
 
 /* ==================================== */
 /* ----------- <iffeatures> ----------- */
@@ -476,7 +482,7 @@ ly_bool trp_iffeature_is_empty(trt_iffeature);
  * @param[in] pf basically a pointer to the function that prints the list of features.
  * @param[in,out] p basically a pointer to a function that handles the printing itself.
  */
-void trp_print_iffeatures(trt_iffeature i, trt_cf_print_iffeatures pf, trt_printing p);
+void trp_print_iffeatures(trt_iffeature i, trt_cf_print_iffeatures pf, trt_printing *p);
 
 /* ============================== */
 /* ----------- <node> ----------- */
@@ -506,9 +512,9 @@ ly_bool trp_node_is_empty(trt_node);
 /** Check if opts_keys, type and iffeatures are empty. */
 ly_bool trp_node_body_is_empty(trt_node);
 /** Print just <status>--<flags> <name> with opts mark. */
-void trp_print_node_up_to_name(trt_node, trt_printing);
+void trp_print_node_up_to_name(trt_node, trt_printing*);
 /** Print alignment (spaces) instead of <status>--<flags> <name> for divided node. */
-void trp_print_divided_node_up_to_name(trt_node, trt_printing);
+void trp_print_divided_node_up_to_name(trt_node, trt_printing*);
 
 /**
  * @brief Print trt_node structure.
@@ -518,7 +524,7 @@ void trp_print_divided_node_up_to_name(trt_node, trt_printing);
  * @param[in] ind indent in node.
  * @param[in,out] p basically a pointer to a function that handles the printing itself.
  */
-void trp_print_node(trt_node n, trt_pck_print ppck, trt_indent_in_node ind, trt_printing p);
+void trp_print_node(trt_node n, trt_pck_print ppck, trt_indent_in_node ind, trt_printing *p);
 
 /**
  * @brief Check if leafref target must be change to string 'leafref' because his target string is too long.
@@ -616,13 +622,13 @@ trt_keyword_stmt trp_empty_keyword_stmt();
 /** Check if trt_keyword_stmt is empty. */
 ly_bool trp_keyword_stmt_is_empty(trt_keyword_stmt);
 /** Print .keyword based on .type. */
-void trt_print_keyword_stmt_begin(trt_keyword_stmt, trt_printing);
+void trt_print_keyword_stmt_begin(trt_keyword_stmt, trt_printing*);
 /** Print .str which is string of name or path. */
-void trt_print_keyword_stmt_str(trt_keyword_stmt, uint32_t mll, trt_printing);
+void trt_print_keyword_stmt_str(trt_keyword_stmt, uint32_t mll, trt_printing*);
 /** Print separator based on .type. */
-void trt_print_keyword_stmt_end(trt_keyword_stmt, trt_printing);
+void trt_print_keyword_stmt_end(trt_keyword_stmt, trt_printing*);
 /** Print entire trt_keyword_stmt structure. */
-void trp_print_keyword_stmt(trt_keyword_stmt ks, uint32_t mll, trt_printing p);
+void trp_print_keyword_stmt(trt_keyword_stmt ks, uint32_t mll, trt_printing *p);
 /** Get string length of stored keyword. */
 size_t trp_keyword_type_strlen(trt_keyword_type);
 
@@ -733,18 +739,18 @@ struct trt_tree_ctx
 /* --------- <Printing line> --------- */
 
 /** Printing one line including wrapper and node which can be incomplete. */
-void trp_print_line(trt_node, trt_pck_print, trt_pck_indent, trt_printing);
+void trp_print_line(trt_node, trt_pck_print, trt_pck_indent, trt_printing*);
 
 /** Printing one line including wrapper and <status>--<flags> <name><option_mark>. */
-void trp_print_line_up_to_node_name(trt_node, trt_wrapper, trt_printing);
+void trp_print_line_up_to_node_name(trt_node, trt_wrapper, trt_printing*);
 
 /* --------- <Printing node> --------- */
 
 /** Printing of the wrapper and the whole node, which can be divided into several lines. */
-void trp_print_entire_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
+void trp_print_entire_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing*);
 
 /** Auxiliary function for trp_print_entire_node that prints split nodes. */
-void trp_print_divided_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing);
+void trp_print_divided_node(trt_node, trt_pck_print, trt_pck_indent, uint32_t mll, trt_printing*);
 
 /* --------- <Special> --------- */
 
@@ -920,16 +926,16 @@ static trt_separator trd_separator_linebreak = "\n";
 uint32_t trg_abs(int32_t);
 
 /** Print character n times. */
-void trg_print_n_times(int32_t n, char, trt_printing);
+void trg_print_n_times(int32_t n, char, trt_printing*);
 
 /** Test if the bit on the index is set. */
 ly_bool trg_test_bit(uint64_t number, uint32_t bit);
 
 /** Print trd_separator_linebreak. */
-void trg_print_linebreak(trt_printing);
+void trg_print_linebreak(trt_printing*);
 
 /** Print a substring but limited to the maximum length. */
-const char* trg_print_substr(const char*, size_t len, trt_printing);
+const char* trg_print_substr(const char*, size_t len, trt_printing*);
 
 /* ================================ */
 /* ----------- <symbol> ----------- */

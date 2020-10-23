@@ -26,7 +26,8 @@ TEST(keywordStmt, module)
         trd_keyword_module,
         name.c_str()
     };
-    trp_print_keyword_stmt(k, 72, (trt_printing){&out, Out::print_vecLines});
+    trt_printing p = {&out, Out::print_vecLines, 0};
+    trp_print_keyword_stmt(k, 72, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -42,7 +43,8 @@ TEST(keywordStmt, noPath)
         trd_keyword_augment,
         path.c_str()
     };
-    trp_print_keyword_stmt(k, 72, (trt_printing){&out, Out::print_vecLines});
+    trt_printing p = {&out, Out::print_vecLines, 0};
+    trp_print_keyword_stmt(k, 72, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -58,7 +60,8 @@ TEST(keywordStmt, rootPath)
         trd_keyword_augment,
         path.c_str()
     };
-    trp_print_keyword_stmt(k, 72, (trt_printing){&out, Out::print_vecLines});
+    trt_printing p = {&out, Out::print_vecLines, 0};
+    trp_print_keyword_stmt(k, 72, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -77,7 +80,8 @@ TEST(keywordStmt, oneTooBigPath)
         trd_keyword_augment,
         path.c_str()
     };
-    trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
+    trt_printing p = {&out, Out::print_vecLines, 0};
+    trp_print_keyword_stmt(k, mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -97,7 +101,8 @@ TEST(keywordStmt, splitPath2len)
         trd_keyword_augment,
         path.c_str()
     };
-    trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
+    trt_printing p = {&out, Out::print_vecLines, 0};
+    trp_print_keyword_stmt(k, mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -125,7 +130,8 @@ TEST(keywordStmt, longPathSplitMll10)
         trd_keyword_augment,
         path.c_str()
     };
-    trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
+    trt_printing p = {&out, Out::print_vecLines, 0};
+    trp_print_keyword_stmt(k, mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -153,7 +159,8 @@ TEST(keywordStmt, longPathSplitMll50)
         trd_keyword_augment,
         path.c_str()
     };
-    trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
+    trt_printing p = {&out, Out::print_vecLines, 0};
+    trp_print_keyword_stmt(k, mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
@@ -177,7 +184,8 @@ TEST(keywordStmt, longPathSplitMll1000)
         trd_keyword_augment,
         path.c_str()
     };
-    trp_print_keyword_stmt(k, mll, (trt_printing){&out, Out::print_vecLines});
+    trt_printing p = {&out, Out::print_vecLines, 0};
+    trp_print_keyword_stmt(k, mll, &p);
 
     EXPECT_EQ(out, check);
     out.clear();
