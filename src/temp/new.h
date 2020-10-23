@@ -700,38 +700,6 @@ struct trt_printer_ctx
     uint32_t max_line_length;   /**< The maximum number of characters that can be printed on one line, including the last. */
 };
 
-/* ====================================== */
-/* ----------- <Tree context> ----------- */
-/* ====================================== */
-
-#if 0
-
-struct lys_module;
-struct lysc_node;
-struct lysp_node;
-
-typedef enum
-{
-    data,
-    augment,
-    grouping,
-    yang_data,
-} trt_subtree_type;
-
-/**
- * @brief Main structure for browsing the libyang tree
- */
-struct trt_tree_ctx
-{
-    struct ly_out *out;
-    const struct lys_module *module;
-    trt_subtree_type node_ctx;
-    struct lysc_node *act_cnode;
-    struct lysp_node *act_pnode;
-};
-
-#endif
-
 /* ======================================== */
 /* --------- <Main trp functions> --------- */
 /* ======================================== */
@@ -905,6 +873,54 @@ void trm_print_yang_data(struct trt_printer_ctx*, struct trt_tree_ctx*);
 
 /** General function to prevent repetitiveness code. */
 void trm_print_body_section(trt_keyword_stmt, struct trt_printer_ctx*, struct trt_tree_ctx*);
+
+/**
+ * @brief Get default settings for trt_printer_ctx.
+ *
+ * Get trt_printer_ctx containing all structure items correctly defined except for trt_printer_opts and max_line_length,
+ * which are parameters of the printer tree module.
+ * TODO: add correct definition.
+ */
+struct trt_printer_ctx trm_default_printer_ctx(trt_printer_opts, uint32_t max_line_length);
+
+/**
+ * @brief Get default settings for trt_tree_ctx.
+ *
+ * TODO: set pointer in trt_tree_ctx to trt_printer_ctx->print.cnt_linebreak
+ */
+struct trt_tree_ctx trm_default_tree_ctx(struct trt_printer_ctx*);
+
+/* ====================================== */
+/* ----------- <Tree context> ----------- */
+/* ====================================== */
+
+#if 0
+
+struct lys_module;
+struct lysc_node;
+struct lysp_node;
+
+typedef enum
+{
+    data,
+    augment,
+    grouping,
+    yang_data,
+} trt_subtree_type;
+
+/**
+ * @brief Main structure for browsing the libyang tree
+ */
+struct trt_tree_ctx
+{
+    struct ly_out *out;
+    const struct lys_module *module;
+    trt_subtree_type node_ctx;
+    struct lysc_node *act_cnode;
+    struct lysp_node *act_pnode;
+};
+
+#endif
 
 
 /* =================================== */
