@@ -857,8 +857,6 @@ trp_try_normal_indent_in_node(trt_node n, trt_pck_print p, trt_pck_indent ind, u
     }
 }
 
-/* ----------- <Definition of tree functions> ----------- */
-
 /* ----------- <Definition of tree browsing functions> ----------- */
 
 void
@@ -1178,6 +1176,26 @@ trm_print_body_section(trt_keyword_stmt ks, struct trt_printer_ctx* pc, struct t
     trg_print_linebreak(&pc->print);
     trb_print_family_tree(trd_wrapper_body, pc, tc);
 }
+
+struct trt_printer_ctx
+trm_default_printer_ctx(trt_printer_opts opts, uint32_t max_line_length)
+{
+    /* TODO: change NULL pointers to correct pointers. */
+    return (struct trt_printer_ctx)
+    {
+        opts,
+        {NULL, NULL, 0},
+        {
+            {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
+            {NULL, NULL, NULL},
+            {NULL, NULL}
+        },
+        max_line_length
+    };
+}
+
+
+/* ----------- <Definition of tree functions> ----------- */
 
 
 /* ----------- <Definition of the other functions> ----------- */
