@@ -1178,12 +1178,11 @@ trm_print_body_section(trt_keyword_stmt ks, struct trt_printer_ctx* pc, struct t
 }
 
 struct trt_printer_ctx
-trm_default_printer_ctx(trt_printer_opts opts, uint32_t max_line_length)
+trm_default_printer_ctx(uint32_t max_line_length)
 {
     /* TODO: change NULL pointers to correct pointers. */
     return (struct trt_printer_ctx)
     {
-        opts,
         {NULL, NULL, 0},
         {
             {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},

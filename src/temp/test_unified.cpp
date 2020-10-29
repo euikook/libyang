@@ -42,7 +42,6 @@ TEST(tryUnifIndent, allFits)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
@@ -80,7 +79,6 @@ TEST(tryUnifIndent, biggerHasPriority)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
@@ -126,7 +124,6 @@ TEST(tryUnifIndent, biggestIsTooBig)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
@@ -175,7 +172,6 @@ TEST(tryUnifIndent, TwoBiggestAreTooBig)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
@@ -216,7 +212,6 @@ TEST(tryUnifIndent, allIsTooBig)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
