@@ -59,6 +59,7 @@
  * tro - functions for Obtaining information from libyang 
  * trm - Main functions
  * trg - General functions
+ * TRC - constant that is not configurable
  */
 
 
@@ -121,8 +122,6 @@ typedef struct
     void (*pf)(const struct trt_tree_ctx *, trt_printing*);  /**< Pointing to definition of printing e.g. keys or features. */
 } trt_cf_print_keys,
   trt_cf_print_iffeatures;
-
-typedef uint32_t trt_printer_opts;
 
 /**
  * @brief Used for counting characters. Used in trt_injecting_strlen as void* out.
@@ -330,13 +329,11 @@ size_t trp_print_flags_strlen(trt_flags_type);
 /* ----------- <node_name> ----------- */
 /* ================================== */
 
-typedef const char* trt_node_name_prefix;
 static const char trd_node_name_prefix_choice[] = "(";
 static const char trd_node_name_prefix_case[] = ":(";
-
-typedef const char* trt_node_name_suffix;
 static const char trd_node_name_suffix_choice[] = ")";
 static const char trd_node_name_suffix_case[] = ")";
+static const char trd_node_name_triple_dot[] = "...";
 
 /**
  * @brief Type of the node.
@@ -352,7 +349,8 @@ typedef enum
     trd_node_listLeaflist,          /**< For a leaf-list or list (without keys). */
     trd_node_keys,                  /**< For a list's keys. */
     trd_node_top_level1,            /**< For a top-level data node in a mounted module. */
-    trd_node_top_level2             /**< For a top-level data node of a module identified in a mount point parent reference. */
+    trd_node_top_level2,            /**< For a top-level data node of a module identified in a mount point parent reference. */
+    trd_node_triple_dot             /**< For collapsed sibling nodes and their children. */
 } trt_node_type;
 
 
@@ -695,7 +693,6 @@ struct trt_fp_all
  */
 struct trt_printer_ctx
 {
-    trt_printer_opts options;
     trt_printing print;         /**< The lowest layer over which it is printed. */
     struct trt_fp_all fp;       /**< Set of various function pointers. */
     uint32_t max_line_length;   /**< The maximum number of characters that can be printed on one line, including the last. */
@@ -880,9 +877,9 @@ void trm_print_body_section(trt_keyword_stmt, struct trt_printer_ctx*, struct tr
  *
  * Get trt_printer_ctx containing all structure items correctly defined except for trt_printer_opts and max_line_length,
  * which are parameters of the printer tree module.
- * TODO: add correct definition.
+ * TODO: add correct definition, add ly_out pointer.
  */
-struct trt_printer_ctx trm_default_printer_ctx(trt_printer_opts, uint32_t max_line_length);
+struct trt_printer_ctx trm_default_printer_ctx(uint32_t max_line_length);
 
 /**
  * @brief Get default settings for trt_tree_ctx.
@@ -895,33 +892,69 @@ struct trt_tree_ctx trm_default_tree_ctx(struct trt_printer_ctx*);
 /* ----------- <Tree context> ----------- */
 /* ====================================== */
 
-#if 0
-
-struct lys_module;
-struct lysc_node;
-struct lysp_node;
-
 typedef enum
 {
-    data,
+    module,
     augment,
+    rpcs,
+    notifications,
     grouping,
     yang_data,
-} trt_subtree_type;
+} trt_tree_ctx_type;
+
+typedef uint32_t trt_opt;
+
+#define TRC_OPT_SECT_MODULE         (1u << 0)   /**< Don't print module section. */
+#define TRC_OPT_SECT_AUGMENT        (1u << 1)   /**< Don't print augment section. */
+#define TRC_OPT_SECT_RPCS           (1u << 2)   /**< Don't print rpcs section. */
+#define TRC_OPT_SECT_NOTIF          (1u << 3)   /**< Don't print notifications section. */
+#define TRC_OPT_SECT_GROUPING       (1u << 4)   /**< Don't print grouping section. */
+#define TRC_OPT_SECT_YANGDATA       (1u << 5)   /**< Don't print yang-data section. */
+#define TRC_OPT_U                   (1u << 6)   /**< Don't expand nodes within groupings. Instead write <flags> "-u". */
+#define TRC_OPT_MP                  (1u << 7)   /**< Don't print nodes with <flags> "mp". Instead write "...". */
+#define TRC_OPT_SLASH               (1u << 8)   /**< Don't print nodes with <opts> '/'. Instead write "...". */
+#define TRC_OPT_ATSIGN              (1u << 9)   /**< Don't print nodes with <opts> '@'. Instead write "...". */
+#define TRC_OPT_MAX_LB_PER_SECT     (1u << 10)  /**< The number of line breaks in one section must not exceed. */
+
+#define TRC_OPT_DEFAULT (TRC_OPT_MP | TRC_OPT_SLASH | TRC_OPT_ATSIGN)   /**< Default settings for trt_options.code variable. TODO: change to 0.*/
+
+typedef struct
+{
+    trt_opt code;
+    uint32_t max_linebreaks;    /**< Max linebreaks per section. Variable is used if TRC_OPT_MAX_LB_PER_SECT in code is set. */
+    uint32_t* cnt_linebreak;    /**< Pointer to trt_printing.cnt_linebreak counter. Value is used if TRC_OPT_MAX_LB_PER_SECT in code is set. */
+} trt_options;
 
 /**
  * @brief Main structure for browsing the libyang tree
  */
 struct trt_tree_ctx
 {
-    struct ly_out *out;
+    trt_tree_ctx_type type;
     const struct lys_module *module;
-    trt_subtree_type node_ctx;
-    struct lysc_node *act_cnode;
-    struct lysp_node *act_pnode;
+    //struct lysc_node *cn;
+    struct lysp_node *pn;               /**< Actual pointer to parsed node. */
+    trt_options opt;
 };
 
-#endif
+/* --------- <Read getters> --------- */
+trt_keyword_stmt tro_read_module_name(const struct trt_tree_ctx*);
+trt_node tro_read_node(const struct trt_tree_ctx*);
+trt_node tro_read_next_sibling(const struct trt_tree_ctx*);
+
+/* --------- <Modify getters> --------- */
+trt_node tro_modi_parent(struct trt_tree_ctx*);
+trt_node tro_modi_next_sibling(struct trt_tree_ctx*);
+trt_node tro_modi_next_child(struct trt_tree_ctx*);
+trt_node tro_modi_next_augment(struct trt_tree_ctx*);
+trt_node tro_modi_next_rpcs(struct trt_tree_ctx*);
+trt_node tro_modi_next_notifications(struct trt_tree_ctx*);
+trt_node tro_modi_next_grouping(struct trt_tree_ctx*);
+trt_node tro_modi_next_yang_data(struct trt_tree_ctx*);
+
+/* --------- <Print getters> --------- */
+void tro_print_features_names(const struct trt_tree_ctx*, trt_printing*);
+void tro_print_keys(const struct trt_tree_ctx*, trt_printing*);
 
 
 /* =================================== */
@@ -1309,6 +1342,9 @@ trp_print_node_name(trt_node_name a, trt_printing* p)
     case trd_node_top_level2:
         trp_print(p, 4, a.module_prefix, colon, a.str, trd_opts_at_sign);
         break;
+    case trd_node_triple_dot:
+        trp_print(p, 1, trd_node_name_triple_dot);
+        break;
     default:
         break;
     }
@@ -1377,6 +1413,10 @@ trp_print_iffeatures(trt_iffeature a, trt_cf_print_iffeatures cf, trt_printing* 
 void
 trp_print_node_up_to_name(trt_node a, trt_printing* p)
 {
+    if(a.name.type == trd_node_triple_dot) {
+        trp_print_node_name(a.name, p);
+        return;
+    }
     /* <status>--<flags> */
     trp_print_status(a.status, p);
     trp_print(p, 1, trd_separator_dashes);
@@ -1420,10 +1460,14 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
 
     /* <status>--<flags> <name><opts> <type> <if-features> */
 
+    const ly_bool triple_dot = a.name.type == trd_node_triple_dot;
     const ly_bool divided = ind.type == trd_indent_in_node_divided;
     const char char_space = trd_separator_space[0];
 
-    if(!divided) {
+    if(triple_dot) { 
+        trp_print_node_name(a.name, p);
+        return;
+    } else if(!divided) {
         trp_print_node_up_to_name(a, p);
     } else {
         trp_print_divided_node_up_to_name(a, p);
@@ -2149,12 +2193,11 @@ trm_print_body_section(trt_keyword_stmt ks, struct trt_printer_ctx* pc, struct t
 }
 
 struct trt_printer_ctx
-trm_default_printer_ctx(trt_printer_opts opts, uint32_t max_line_length)
+trm_default_printer_ctx(uint32_t max_line_length)
 {
     /* TODO: change NULL pointers to correct pointers. */
     return (struct trt_printer_ctx)
     {
-        opts,
         {NULL, NULL, 0},
         {
             {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
@@ -2167,6 +2210,106 @@ trm_default_printer_ctx(trt_printer_opts opts, uint32_t max_line_length)
 
 
 /* ----------- <Definition of tree functions> ----------- */
+
+trt_keyword_stmt
+tro_read_module_name(const struct trt_tree_ctx*);
+
+trt_node
+tro_read_node(const struct trt_tree_ctx* a)
+{
+    struct lysp_node *pn = a->pn;
+    trt_node ret = trp_empty_node();
+    if((pn == NULL) || (pn->nodetype == LYS_UNKNOWN))
+        return ret;
+
+    /* define <status> */
+    ret.status =
+        pn->flags & LYS_STATUS_CURR  ? trd_status_type_current :
+        pn->flags & LYS_STATUS_DEPRC ? trd_status_type_deprecated :
+        pn->flags & LYS_STATUS_OBSLT ? trd_status_type_obsolete :
+        trd_status_type_empty;
+
+    /* define <flags> */
+    ret.flags = 
+        pn->nodetype & LYS_INPUT ?              trd_flags_type_rpc_input_params :
+        pn->nodetype & LYS_GROUPING ?           trd_flags_type_uses_of_grouping :
+        pn->nodetype & (LYS_RPC | LYS_ACTION) ? trd_flags_type_rpc :
+        pn->nodetype & LYS_NOTIF ?              trd_flags_type_notif :
+        /* TODO: trd_flags_type_mount_point aka "mp" */
+        pn->flags & LYS_CONFIG_W ?              trd_flags_type_rw :
+        pn->flags & LYS_CONFIG_R ?              trd_flags_type_ro :
+        trd_flags_type_empty;
+
+    ret.name.type =
+        pn->nodetype & LYS_CASE ?           trd_node_case :
+        pn->nodetype & LYS_CHOICE
+            && pn->flags & LYS_MAND_TRUE ?  trd_node_optional_choice :
+        pn->nodetype & LYS_CHOICE ?         trd_node_choice :
+        pn->nodetype & LYS_CONTAINER ?      trd_node_container :
+        /* TODO: trd_node_listLeaflist (without keys) */
+        /* TODO: trd_node_keys [keys] */
+        /* TODO: trd_node_top_level1 aka '/' */
+        /* TODO: trd_node_top_level2 aka '@' */
+        pn->flags & LYS_MAND_TRUE ?         trd_node_optional :
+        trd_node_else;
+
+    /* TODO: module_prefix */
+    /* ret.name.module_prefix =  ;*/
+
+    ret.name.str = pn->name;
+
+    /* TODO: opts_keys */
+    /* ret.opts_keys =  true/false;*/
+
+    /* TODO: set trt_type */
+    if(pn->nodetype & (LYS_LEAFLIST | LYS_LEAF) ) {
+        /* ret.type.type = trd_type_target; */
+        /* ret.type.type = trd_type_name; */
+        /* ret.type.str = ; */
+        ;
+    } else {
+        ret.type.type = trd_type_empty;
+    }
+
+    ret.iffeatures = pn->iffeatures != NULL;
+
+    return ret;
+}
+
+trt_node
+tro_read_next_sibling(const struct trt_tree_ctx*);
+
+/* --------- <Modify getters> --------- */
+trt_node
+tro_modi_parent(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_sibling(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_child(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_augment(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_rpcs(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_notifications(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_grouping(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_yang_data(struct trt_tree_ctx*);
+
+/* --------- <Print getters> --------- */
+void
+tro_print_features_names(const struct trt_tree_ctx*, trt_printing*);
+
+void
+tro_print_keys(const struct trt_tree_ctx*, trt_printing*);
 
 
 /* ----------- <Definition of the other functions> ----------- */
