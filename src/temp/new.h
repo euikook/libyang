@@ -121,8 +121,6 @@ typedef struct
 } trt_cf_print_keys,
   trt_cf_print_iffeatures;
 
-typedef uint32_t trt_printer_opts;
-
 /**
  * @brief Used for counting characters. Used in trt_injecting_strlen as void* out.
  */
@@ -694,7 +692,6 @@ struct trt_fp_all
  */
 struct trt_printer_ctx
 {
-    trt_printer_opts options;
     trt_printing print;         /**< The lowest layer over which it is printed. */
     struct trt_fp_all fp;       /**< Set of various function pointers. */
     uint32_t max_line_length;   /**< The maximum number of characters that can be printed on one line, including the last. */
@@ -881,7 +878,7 @@ void trm_print_body_section(trt_keyword_stmt, struct trt_printer_ctx*, struct tr
  * which are parameters of the printer tree module.
  * TODO: add correct definition.
  */
-struct trt_printer_ctx trm_default_printer_ctx(trt_printer_opts, uint32_t max_line_length);
+struct trt_printer_ctx trm_default_printer_ctx(uint32_t max_line_length);
 
 /**
  * @brief Get default settings for trt_tree_ctx.
