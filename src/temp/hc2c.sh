@@ -19,6 +19,7 @@ echo "
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include \"common.h\"
 #include \"context.h\"
