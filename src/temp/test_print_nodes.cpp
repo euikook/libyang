@@ -34,7 +34,6 @@ TEST(printNodes, oneNode)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
@@ -62,7 +61,6 @@ TEST(printNodes, twoSiblings)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
@@ -92,7 +90,6 @@ TEST(printNodes, twoSiblingsFirstOneHasChild)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
@@ -122,7 +119,6 @@ TEST(printNodes, twoSiblingsSecondOneHasChild)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
@@ -156,7 +152,6 @@ TEST(printNodes, twoRoots)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
@@ -201,7 +196,6 @@ TEST(printNodes, rootChildChildChildWithSiblings)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
@@ -231,7 +225,6 @@ TEST(printNodes, twoSiblingsFirstOneHasChild)
     trt_tree_ctx ctx = {tree, tree.map.begin(), -1};
     struct trt_printer_ctx pc = 
     {
-        0,
         (trt_printing){&out, Out::print_vecLines, 0},
         { /* trt_fp_all */
             {parent, next_sibling, next_child, NULL, NULL, NULL, NULL, NULL},
