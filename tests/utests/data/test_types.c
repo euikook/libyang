@@ -661,7 +661,7 @@ test_identityref(void **state)
     TEST_PATTERN_1(tree, "ident", IDENT, "types:gigabit-ethernet", "gigabit-ethernet");
     leaf = (struct lyd_node_term*)tree;
     test_printed_value(&leaf->value, "t:gigabit-ethernet", LY_PREF_SCHEMA, mod_types->parsed);
-    MODEL_DESTROY(tree);
+    LYD_NODE_DESTROY(tree);
 
     data = "<ident xmlns=\"urn:tests:types\" xmlns:x=\"urn:tests:defs\">x:fast-ethernet</ident>";
     LYD_NODE_CREATE(data,tree);
@@ -1209,7 +1209,7 @@ test_union(void **state)
     LYD_NODE_CREATE(data,tree);
     TEST_PATTERN_1(tree,"un1", UNION, "defs:fast-ethernet", IDENT, "defs:fast-ethernet", "fast-ethernet");
     leaf = (struct lyd_node_term*)tree;
-    assert_int_equal(((struct ly_set *)leaf->value.subvalue->prefix_data)->count, 2);
+    assert_int_equal(((struct ly_set *)leaf->value.subvalue->prefix_data)->count, 1);
     test_printed_value(&leaf->value, "d:fast-ethernet", LY_PREF_SCHEMA, mod_defs->parsed);
     test_printed_value(&leaf->value.subvalue->value, "d:fast-ethernet", LY_PREF_SCHEMA, mod_defs->parsed);
     LYD_NODE_DESTROY(tree);
@@ -1218,7 +1218,7 @@ test_union(void **state)
     LYD_NODE_CREATE(data,tree);
     TEST_PATTERN_1(tree,"un1", UNION, "d:superfast-ethernet", STRING, "d:superfast-ethernet");
     leaf = (struct lyd_node_term*)tree;
-    assert_int_equal(((struct ly_set *)leaf->value.subvalue->prefix_data)->count, 2);
+    assert_int_equal(((struct ly_set *)leaf->value.subvalue->prefix_data)->count, 1);
     LYD_NODE_DESTROY(tree);
 
     data = "<leaflisttarget xmlns=\"urn:tests:types\">x</leaflisttarget><leaflisttarget xmlns=\"urn:tests:types\">y</leaflisttarget>"
@@ -1228,7 +1228,8 @@ test_union(void **state)
     const enum ly_path_pred_type result_1[] = {LY_PATH_PREDTYPE_LEAFLIST};
     TEST_PATTERN_1(tree, "un1", UNION, "/types:leaflisttarget[.='y']", INST, "/types:leaflisttarget[.='y']", result_1);
     leaf = (struct lyd_node_term*)tree;
-    assert_int_equal(((struct ly_set *)leaf->value.subvalue->prefix_data)->count, 2);
+
+    assert_int_equal(((struct ly_set *)leaf->value.subvalue->prefix_data)->count, 1);
     LYD_NODE_DESTROY(tree);
 
     data = "<leaflisttarget xmlns=\"urn:tests:types\">x</leaflisttarget><leaflisttarget xmlns=\"urn:tests:types\">y</leaflisttarget>"
@@ -1237,7 +1238,7 @@ test_union(void **state)
     tree = tree->prev->prev;
     TEST_PATTERN_1(tree, "un1", UNION, "/a:leaflisttarget[3]", STRING, "/a:leaflisttarget[3]");
     leaf = (struct lyd_node_term*)tree;
-    assert_int_equal(((struct ly_set *)leaf->value.subvalue->prefix_data)->count, 2);
+    assert_int_equal(((struct ly_set *)leaf->value.subvalue->prefix_data)->count, 1);
     LYD_NODE_DESTROY(tree);
 
     data    = "<un1 xmlns=\"urn:tests:types\">123456789012345678901</un1>";
