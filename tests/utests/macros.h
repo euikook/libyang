@@ -126,8 +126,386 @@
 
 
 /*
+    SUPPORT MACROS 
+*/
+
+/**
+ * @brief Macro check description in node 
+ * 
+ * @param[in] STRING input text 
+ * @param[in] TEXT   expected text 
+ */
+
+#define assert_string(STRING, TEXT)\
+                if (TEXT == NULL){\
+                    assert_null(STRING);\
+                }\
+                else {\
+                    assert_non_null(STRING);\
+                    assert_string_equal(STRING, TEXT);\
+                }\
+
+/**
+ * @brief Macro check if pointer 
+ * 
+ * @param[in] POINTER pointer to some variable 
+ * @param[in] FLAG    0 -> pointer is NULL, 1 -> pointer is not null
+ */
+#define assert_pointer(POINTER, FLAG)\
+                assert_true(FLAG == 0 ? POINTER == NULL : POINTER != NULL)
+
+/**
+ * @brief Macro check size of size array 
+ * 
+ * @param[in] POINTER pointer to sized array 
+ * @param[in] SIZE    array size 
+ */
+#define assert_array(ARRAY, SIZE)\
+                assert_true((SIZE == 0) ? \
+                            (ARRAY == NULL) : \
+                            (ARRAY != NULL && SIZE == LY_ARRAY_COUNT(ARRAY)));\
+
+/*
     LIBYANG NODE CHECKING
 */
+
+
+/**
+ * @brief Macro check if lysp_action_inout value is correct
+ * @param[in] NODE pointer to lysp_when variable
+ * @param[in] DATA 0 -> pointer is NULL, 1 -> pointer is not null
+ * @param[in] EXTS    size of list of extension array 
+ * @param[in] GROUPINGS size of list of grouping
+ * @param[in] MUSTS    size of list of must restriction
+ * @param[in] NODETYPE node type
+ * @param[in] PARENT 0 -> pointer is NULL, 1 -> pointer is not null
+ * @param[in] TYPEDEFS size of list of typedefs
+ */
+#define LYSP_ACTION_INOUT_CHECK(NODE, DATA, EXTS, GROUPINGS, MUSTS, NODETYPE, PARENT, TYPEDEFS)\
+                assert_non_null(NODE);\
+                assert_pointer((NODE)->data, DATA);\
+                assert_array((NODE)->exts, EXTS);\
+                assert_array((NODE)->groupings, GROUPINGS);\
+                assert_array((NODE)->musts, MUSTS);\
+                assert_int_equal((NODE)->nodetype, NODETYPE);\
+                assert_pointer((NODE)->parent, PARENT);\
+                assert_array((NODE)->typedefs, TYPEDEFS);
+
+/**
+ * @brief Macro check if lysp_action_inout value is correct
+ * @param[in] NODE pointer to lysp_when variable
+ * @param[in] DSC  string expected description
+ * @param[in] EXTS    size of list of extension array 
+ * @param[in] FLAGS   flags
+ * @param[in] GROUPINGS size of list of grouping
+ * @param[in] IFFEATURES size of list of if-feature expressions
+ * @param[in] INPUT_*    LYSP_ACTION_INOUT_CHECK
+ * @param[in] NAME     string reprezenting node name
+ * @param[in] NODETYPE node type
+ * @param[in] OUTPUT_*    LYSP_ACTION_INOUT_CHECK
+ * @param[in] PARENT 0 -> pointer is NULL, 1 -> pointer is not null
+ * @param[in] REF      string reprezenting reference
+ * @param[in] TYPEDEFS size of list of typedefs
+ */
+#define LYSP_ACTION_CHECK(NODE, DSC, EXTS, FLAGS, GROUPINGS, IFFEATURES,\
+                        INPUT_DATA, INPUT_EXTS, INPUT_GROUPINGS, INPUT_MUSTS,\
+                        INPUT_PARENT, INPUT_TYPEDEFS,\
+                        NAME, NODETYPE, \
+                        OUTPUT_DATA, OUTPUT_EXTS, OUTPUT_GROUPINGS, OUTPUT_MUSTS,\
+                        OUTPUT_PARENT, OUTPUT_TYPEDEFS,\
+                        PARENT, REF, TYPEDEFS)\
+                assert_non_null(NODE);\
+                assert_string((NODE)->dsc, DSC);\
+                assert_array((NODE)->exts, EXTS);\
+                assert_int_equal((NODE)->flags, FLAGS);\
+                assert_array((NODE)->groupings, GROUPINGS);\
+                assert_array((NODE)->iffeatures, IFFEATURES);\
+                LYSP_ACTION_INOUT_CHECK(&((NODE)->input), INPUT_DATA, INPUT_EXTS, INPUT_GROUPINGS,\
+                            INPUT_MUSTS, LYS_INPUT, INPUT_PARENT, INPUT_TYPEDEFS);\
+                assert_string_equal((NODE)->name, NAME);\
+                assert_int_equal((NODE)->flags, FLAGS);\
+                LYSP_ACTION_INOUT_CHECK(&((NODE)->output), OUTPUT_DATA, OUTPUT_EXTS, OUTPUT_GROUPINGS,\
+                            OUTPUT_MUSTS, LYS_OUTPUT, OUTPUT_PARENT, OUTPUT_TYPEDEFS);\
+                assert_pointer((NODE)->parent, PARENT);\
+                assert_string((NODE)->ref, REF);\
+                assert_array((NODE)->typedefs, TYPEDEFS)\
+                
+
+
+
+
+/**
+ * @brief Macro check if lysp_when value is correct
+ * @param[in] NODE pointer to lysp_when variable
+ * @param[in] COND string specifid condition
+ * @param[in] DSC  description or NULL
+ * @param[in] EXTS    size of list of extension array 
+ * @param[in] REF     string reference
+ */
+#define LYSP_WHEN_CHECK(NODE, COND, DSC, EXTS, REF)\
+                assert_non_null(NODE);\
+                assert_string_equal((NODE)->cond, COND);\
+                assert_string((NODE)->dsc, DSC);\
+                assert_array((NODE)->exts, EXTS);\
+                if (REF == NULL){\
+                    assert_null((NODE)->ref);\
+                }\
+                else {\
+                    assert_non_null((NODE)->ref);\
+                    assert_string_equal((NODE)->ref, REF);\
+                }               
+
+
+/**
+ * @brief Macro check if lysp_restr value is correct
+ * @param[in] NODE pointer to lysp_restr variable
+ * @param[in] ARG_STR string reprezenting
+ * @param[in] DSC  description or NULL
+ * @param[in] EAPPTAG string reprezenting error-app-tag value 
+ * @param[in] EMSG    string reprezenting error message
+ * @param[in] EXTS    size of list of extension array 
+ * @param[in] REF     string reference
+ */
+
+#define LYSP_RESTR_CHECK(NODE, ARG_STR, DSC, EAPPTAG, EMSG, EXTS, REF)\
+                assert_non_null(NODE);\
+                assert_non_null((NODE)->arg.mod);\
+                assert_string_equal((NODE)->arg.str, ARG_STR);\
+                if (DSC == NULL){\
+                    assert_null((NODE)->dsc);\
+                }\
+                else {\
+                    assert_non_null((NODE)->dsc);\
+                    assert_string_equal((NODE)->dsc, DSC);\
+                }\
+                if (EAPPTAG == NULL){\
+                    assert_null((NODE)->eapptag);\
+                }\
+                else {\
+                    assert_non_null((NODE)->eapptag);\
+                    assert_string_equal((NODE)->eapptag, EAPPTAG);\
+                }\
+                if (EMSG == NULL){\
+                    assert_null((NODE)->emsg);\
+                }\
+                else {\
+                    assert_non_null((NODE)->emsg);\
+                    assert_string_equal((NODE)->emsg, EMSG);\
+                }\
+                assert_array((NODE)->exts, EXTS);\
+                if (REF == NULL){\
+                    assert_null((NODE)->ref);\
+                }\
+                else {\
+                    assert_non_null((NODE)->ref);\
+                    assert_string_equal((NODE)->ref, REF);\
+                }\
+
+/**
+ * @brief Macro check if lysp_import value is correct
+ * @param[in] NODE pointer to lysp_import variable
+ * @param[in] DSC  description or NULL
+ * @param[in] EXTS size of list of extensions
+ * @param[in] NAME string name of imported module
+ * @param[in] PREFIX string prefix for the data from the imported schema
+ * @param[in] REF    string reference
+ * @prame[in] REV    string reprezenting date in format "11-10-2020"
+ */
+#define LYSP_IMPORT_CHECK(NODE, DSC, EXTS, NAME, PREFIX, REF, REV)\
+                assert_non_null(NODE);\
+                if (DSC == NULL){\
+                    assert_null((NODE)->dsc);\
+                }\
+                else {\
+                    assert_string_equal((NODE)->dsc, DSC);\
+                }\
+                assert_array((NODE)->exts, EXTS);\
+                /*assert_non_null((NODE)->module); // ?? it is mandatory but ... */\
+                assert_string_equal((NODE)->name, NAME);\
+                assert_string_equal((NODE)->prefix, PREFIX);\
+                if (REF == NULL){\
+                    assert_null((NODE)->ref);\
+                }\
+                else {\
+                    assert_string_equal((NODE)->ref, REF);\
+                }\
+                assert_string_equal((NODE)->rev, REV)
+
+
+/**
+ * @brief Macro check if lysp_stmt value is correct 
+ * 
+ * @param[in] NODE pointer to lysp_ext_instance variable
+ * @param[in] ARGUMENT string optional value of the extension's argument
+ * @param[in] COMPILED 0 -> compiled data dosnt exists, 1 -> compiled data exists
+ * @param[in] DSC      string reprezent description
+ * @param[in] EXTS     size of list of extension instances
+ * @param[in] FLAGS    schema nodes flags
+ * @param[in] NAME     string reprezent extension name
+ * @param[in] REF      string reprezent reference statement
+ */
+#define LYSP_EXT_CHECK(NODE, ARGUMENT, COMPILED, DSC, EXTS, FLAGS, NAME, REF)\
+                 assert_non_null(NODE);\
+                if (ARGUMENT == NULL) {\
+                    assert_null((NODE)->argument);\
+                }\
+                else {\
+                    assert_non_null((NODE)->argument);\
+                    assert_string_equal((NODE)->argument, ARGUMENT);\
+                }\
+                assert_pointer((NODE)->compiled, COMPILED);\
+                if (DSC == NULL) {\
+                    assert_null((NODE)->dsc);\
+                }\
+                else {\
+                    assert_non_null((NODE)->dsc);\
+                    assert_string_equal((NODE)->dsc, DSC);\
+                }\
+                assert_array((NODE)->exts, EXTS);\
+                assert_int_equal((NODE)->flags, FLAGS);\
+                assert_string_equal((NODE)->name, NAME);\
+                if (REF == NULL) {\
+                    assert_null((NODE)->ref);\
+                }\
+                else {\
+                    assert_non_null((NODE)->ref);\
+                    assert_string_equal((NODE)->ref, REF);\
+                }
+
+/**
+ * @brief Macro check if lysp_stmt value is correct 
+ * 
+ * @param[in] NODE pointer to lysp_ext_instance variable
+ * @param[in] ARGUMENT string optional value of the extension's argument
+ * @param[in] CHILD    0 -> node doesnt have child, 1 -> node have children
+ * @param[in] COMPILED 0 -> compiled data dosnt exists, 1 -> compiled data exists
+ * @param[in] INSUBSTMS value identifying placement of the extension instance
+ * @param[in] INSUBSTMS_INDEX indentifi index
+ * @param[in] PARENT   0 -> if node is root otherwise 1
+ * @param[in] PARENT_TYPE parent type. not relevat if PARENT == 0
+ * @param[in] YIN         int ?? 
+ */
+#define LYSP_EXT_INSTANCE_CHECK(NODE, ARGUMENT, CHILD, COMPILED, INSUBSTMT, INSUBSTMT_INDEX, NAME, PARENT, PARENT_TYPE, YIN)\
+                assert_non_null(NODE);\
+                if (ARGUMENT == NULL) {\
+                    assert_null((NODE)->argument);\
+                }\
+                else {\
+                    assert_non_null((NODE)->argument);\
+                    assert_string_equal((NODE)->argument, ARGUMENT);\
+                }\
+                assert_pointer((NODE)->compiled, COMPILED);\
+                assert_int_equal((NODE)->insubstmt, INSUBSTMT);\
+                assert_int_equal((NODE)->insubstmt_index, INSUBSTMT_INDEX);\
+                assert_string_equal((NODE)->name, NAME);\
+                if (PARENT != 0) { \
+                    assert_non_null((NODE)->parent); \
+                    assert_int_equal((NODE)->parent_type, PARENT_TYPE); \
+                } \
+                else { \
+                    assert_null((NODE)->parent); \
+                }\
+                assert_int_equal((NODE)->yin, YIN)
+
+
+/**
+ * @brief Macro check if lysp_stmt value is correct 
+ * 
+ * @param[in] NODE pointer to lysp_stmt variable
+ * @param[in] ARG  string statemet argumet
+ * @param[in] CHILD 0 -> pointer is NULL, 1 -> pointer is not null
+ * @param[in] FLAGS int statement flags
+ * @param[in] NEXT  0 -> pointer is NULL, 1 -> pointer is not null 
+ * @param[in] STMS  string identifier of the statement 
+ */
+#define LYSP_STMT_CHECK(NODE, ARG, CHILD, FLAGS, KW, NEXT, STMT)\
+                assert_non_null(NODE);\
+                if(ARG == NULL) {\
+                    assert_null((NODE)->arg);\
+                }\
+                else  {\
+                    assert_non_null((NODE)->arg);\
+                    assert_string_equal((NODE)->arg, ARG);\
+                }\
+                assert_pointer((NODE)->child, CHILD);\
+                assert_int_equal((NODE)->flags, FLAGS);\
+                assert_int_equal((NODE)->kw, KW);\
+                assert_pointer((NODE)->next, NEXT);\
+                assert_string_equal((NODE)->stmt, STMT)\
+
+/**
+ * @brief Macro check if lysp_type_enum value is correct 
+ * 
+ * @param[in] NODE pointer to lysp_type_enum variable
+ * @param[in] ARG  string statemet argumet
+ * @param[in] CHILD 0 -> pointer is NULL, 1 -> pointer is not null
+ * @param[in] FLAGS int statement flags
+ * @param[in] NEXT  0 -> pointer is NULL, 1 -> pointer is not null 
+ * @param[in] STMS  string identifier of the statement 
+ */
+#define LYSP_TYPE_ENUM_CHECK(NODE, DSC, EXTS, FLAGS, IFFEATURES, NAME, REF, VALUE)\
+                assert_non_null(NODE);\
+                if(DSC != NULL){\
+                    assert_string_equal(DSC, (NODE)->dsc);\
+                } else {\
+                    assert_null((NODE)->dsc);\
+                }\
+                assert_array((NODE)->exts, EXTS);\
+                assert_int_equal(FLAGS, (NODE)->flags);\
+                assert_array((NODE)->iffeatures, IFFEATURES);\
+                if(NAME != NULL){\
+                    assert_string_equal(NAME, (NODE)->name);\
+                } else {\
+                    assert_null((NODE)->name);\
+                }\
+                if(REF != NULL){\
+                    assert_string_equal(REF, (NODE)->ref);\
+                } else {\
+                    assert_null((NODE)->ref);\
+                }\
+                assert_int_equal(VALUE, (NODE)->value)
+
+
+/**
+ * @brief Macro check if lysp_node is correct 
+ * 
+ * @param[in] NODE  pointer to lysp_node variable
+ * @param[in] DSC   description statement
+ * @param[in] EXTS  0 pointer is null, 1 pointer is not null  
+ * @param[in] FLAGS flags
+ * @param[in] IFFEATURES  0 pointer is null, 1 pointer is not null
+ * @param[in] NAME  string reprezenting node name 
+ * @param[in] NEXT  0 pointer is null, 1 pointer is not null
+ * @param[in] TYPE  node type (LYS_LEAF, ....)
+ * @param[in] PARENT 0 pointer is null, 1 pointer is not null
+ * @param[in] REF   string
+ * @param[in] WHEN 0 pointer is null, 1 pointer is not null
+ */
+#define LYSP_NODE_CHECK(NODE, DSC, EXTS, FLAGS, IFFEATURES, NAME, NEXT, TYPE, PARENT, REF, WHEN) \
+                assert_non_null(NODE);\
+                if(DSC != NULL){\
+                    assert_non_null((NODE)->dsc);\
+                    assert_string_equal(DSC, (NODE)->dsc);\
+                } else {\
+                    assert_null((NODE)->dsc);\
+                }\
+                assert_array((NODE)->exts, EXTS);\
+                assert_int_equal(FLAGS, (NODE)->flags);\
+                assert_array((NODE)->iffeatures, IFFEATURES);\
+                assert_non_null((NODE)->name);\
+                assert_string_equal(NAME, (NODE)->name);\
+                assert_true(NEXT == 0 ? (NODE)->next == NULL : (NODE)->next != NULL);\
+                assert_int_equal(TYPE, (NODE)->nodetype);\
+                assert_true(PARENT == 0 ? (NODE)->parent == NULL : (NODE)->parent != NULL);\
+                if(REF != NULL){\
+                    assert_non_null((NODE)->ref);\
+                    assert_string_equal(REF, (NODE)->ref);\
+                } else {\
+                    assert_null((NODE)->ref);\
+                }\
+                assert_true(WHEN == 0 ? (NODE)->when == NULL : (NODE)->when != NULL)\
+
+
 
 /**
  * @brief Macro check if lyd_notif have correct values 
@@ -228,8 +606,7 @@
                 assert_string_equal((NODE)->name, NAME);\
                 assert_non_null((NODE)->prev);\
                 assert_null((NODE)->schema);\
-                assert_true((VAL_PREFS_COUNT == 0) ? ((NODE)->val_prefs == NULL)\
-                        : (VAL_PREFS_COUNT == LY_ARRAY_COUNT((NODE)->val_prefs)));\
+                assert_array((NODE)->val_prefs, VAL_PREFS_COUNT);\
                 assert_string_equal((NODE)->value, VALUE)\
 
 /**
