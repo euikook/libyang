@@ -404,7 +404,7 @@ cmd_print(const char *arg)
 #endif
             } else if (!strcmp(optarg, "tree-rfc")) {
                 format = LYS_OUT_TREE;
-                output_opts |= LYS_OUTOPT_TREE_RFC;
+                output_opts |= LYS_PRINT_TREE_RFC;
             } else if (!strcmp(optarg, "info")) {
                 format = LYS_OUT_YANG_COMPILED;
             } else {

@@ -27,22 +27,20 @@
 #include "tree_schema.h"
 #include "tree_schema_internal.h"
 
-/* module: <name>
- * <X>+--rw <node-name> */
-#define LY_TREE_MOD_DATA_INDENT 2
+#define LY_TREE_MOD_DATA_INDENT 2   /**<    module: <name>
+                                            <X>+--rw <node-name> */
 
-/* <^>rpcs:
- * <X>+---x <rpc-name> */
-#define LY_TREE_OP_DATA_INDENT 4
+#define LY_TREE_OP_DATA_INDENT 4    /**<    <^>rpcs:
+                                            <X>+---x <rpc-name> */
 
-/* +--rw leaf<X>string */
-#define LY_TREE_TYPE_INDENT 3
+#define LY_TREE_TYPE_INDENT 3       /**<    +--rw leaf<X>string */
 
-/* +--rw leaf
- * |     <X>string */
-#define LY_TREE_WRAP_INDENT 2
+#define LY_TREE_WRAP_INDENT 2       /**<    +--rw leaf
+                                            |     <X>string */
 
-/* these options are mostly inherited in recursive print, non-recursive options are parameters */
+/**
+ * @brief These options are mostly inherited in recursive print, non-recursive options are parameters
+ */
 struct tree_ctx {
     struct ly_out *out;              /**< output specification */
     const struct lys_module *module; /**< (sub)module we are printing from */
@@ -55,12 +53,12 @@ struct tree_ctx {
 };
 
 /*
- Abbreviations for functions:
-tree -> interface of tree printer
-trp  -> function whose parameters is from parsed tree
-trc  -> function whose parameters is from compiled tree
-trb  -> function whose parameters is from both forms of tree - parsed and compiled
-gen  -> parameter data types are simple or defined in this file
+ * Abbreviations for functions:
+ * tree -> interface of tree printer
+ * trp  -> function whose parameters is from parsed tree
+ * trc  -> function whose parameters is from compiled tree
+ * trb  -> function whose parameters is from both forms of tree - parsed and compiled
+ * gen  -> parameter data types are simple or defined in this file
 */
 
 #if 0
@@ -132,7 +130,7 @@ trc_print_prefix(struct ly_out *UNUSED(out), const struct lysc_node *UNUSED(node
     /* Skipped actions: */
     /* nodemod = lys_node_module(node); */
     /* if (lys_main_module(opts->module) != nodemod) { */
-    /*      if (opts->options & LYS_OUTOPT_TREE_RFC) { */
+    /*      if (opts->options & LYS_PRINT_TREE_RFC) { */
 
     return ret;
 }
@@ -218,43 +216,46 @@ trc_next_indent(struct tree_ctx *ctx, const struct lysc_node *node, const struct
 static int
 trc_print_node_typekeys(struct tree_ctx *ctx, const struct lysc_node *node, uint16_t mask, int level, int line_len, int node_len, uint16_t max_name_len)
 {
-    //struct ly_out *out = ctx->out;
-    //uint8_t text_indent, text_len;
-    //const char *text_str;
-    //switch (node->nodetype & mask) {
-    //case LYS_LEAF:
-    //case LYS_LEAFLIST:
-    //    assert(max_name_len);
-    //    text_indent = LY_TREE_TYPE_INDENT + (uint8_t)(max_name_len - node_len);
-    //    text_len = tree_print_type(out, &((struct lysc_node_leaf *)node)->type, ctx->options, &text_str);
-    //    line_len = tree_print_wrap(out, level, line_len, text_indent, text_len, ctx);
-    //    line_len += ly_print(out, text_str);
-    //    lydict_remove(ctx->module->ctx, text_str);
-    //    break;
-    //case LYS_ANYDATA:
-    //    assert(max_name_len);
-    //    text_indent = LY_TREE_TYPE_INDENT + (uint8_t)(max_name_len - node_len);
-    //    line_len = tree_print_wrap(out, level, line_len, text_indent, 7, ctx);
-    //    line_len += ly_print(out, "anydata");
-    //    break;
-    //case LYS_ANYXML:
-    //    assert(max_name_len);
-    //    text_indent = LY_TREE_TYPE_INDENT + (uint8_t)(max_name_len - node_len);
-    //    line_len = tree_print_wrap(out, level, line_len, text_indent, 6, ctx);
-    //    line_len += ly_print(out, "anyxml");
-    //    break;
-    //case LYS_LIST:
-    //    text_len = tree_print_keys(out, ((struct lysc_node_list *)node)->keys, ((struct lysc_node_list *)node)->keys_size,
-    //                               opts, &text_str);
-    //    if (text_len) {
-    //        line_len = tree_print_wrap(out, level, line_len, 1, text_len, opts);
-    //        line_len += ly_print(out, text_str);
-    //        lydict_remove(opts->module->ctx, text_str);
-    //    }
-    //    break;
-    //default:
-    //    break;
-    //}
+
+#if 0
+    struct ly_out *out = ctx->out;
+    uint8_t text_indent, text_len;
+    const char *text_str;
+    switch (node->nodetype & mask) {
+    case LYS_LEAF:
+    case LYS_LEAFLIST:
+        assert(max_name_len);
+        text_indent = LY_TREE_TYPE_INDENT + (uint8_t)(max_name_len - node_len);
+        text_len = tree_print_type(out, &((struct lysc_node_leaf *)node)->type, ctx->options, &text_str);
+        line_len = tree_print_wrap(out, level, line_len, text_indent, text_len, ctx);
+        line_len += ly_print(out, text_str);
+        lydict_remove(ctx->module->ctx, text_str);
+        break;
+    case LYS_ANYDATA:
+        assert(max_name_len);
+        text_indent = LY_TREE_TYPE_INDENT + (uint8_t)(max_name_len - node_len);
+        line_len = tree_print_wrap(out, level, line_len, text_indent, 7, ctx);
+        line_len += ly_print(out, "anydata");
+        break;
+    case LYS_ANYXML:
+        assert(max_name_len);
+        text_indent = LY_TREE_TYPE_INDENT + (uint8_t)(max_name_len - node_len);
+        line_len = tree_print_wrap(out, level, line_len, text_indent, 6, ctx);
+        line_len += ly_print(out, "anyxml");
+        break;
+    case LYS_LIST:
+        text_len = tree_print_keys(out, ((struct lysc_node_list *)node)->keys, ((struct lysc_node_list *)node)->keys_size,
+                                   opts, &text_str);
+        if (text_len) {
+            line_len = tree_print_wrap(out, level, line_len, 1, text_len, opts);
+            line_len += ly_print(out, text_str);
+            lydict_remove(opts->module->ctx, text_str);
+        }
+        break;
+    default:
+        break;
+    }
+#endif
 
     return line_len;
 }
@@ -262,30 +263,33 @@ trc_print_node_typekeys(struct tree_ctx *ctx, const struct lysc_node *node, uint
 static int
 trc_print_node_default(struct tree_ctx *ctx, const struct lysc_node *node, uint16_t mask, int level, int line_len)
 {
-    //struct ly_out *out = ctx->out;
-    //const char *text_str;
-    //struct lysc_node *sub;
 
-    //if (!(ctx->options & LYS_OUTOPT_TREE_RFC)) {
-    //    switch (node->nodetype & mask) {
-    //    case LYS_LEAF:
-    //        text_str = ((struct lysc_node_leaf *)node)->dflt->canonical;
-    //        if (text_str) {
-    //            line_len = tree_print_wrap(out, level, line_len, 1, 2 + strlen(text_str), ctx);
-    //            line_len += ly_print(out, "<%s>", text_str);
-    //        }
-    //        break;
-    //    case LYS_CHOICE:
-    //        sub = (struct lysc_node *) ((struct lysc_node_choice *)node)->dflt;
-    //        if (sub) {
-    //            line_len = tree_print_wrap(out, level, line_len, 1, 2 + strlen(sub->name), ctx);
-    //            line_len += ly_print(out, "<%s>", sub->name);
-    //        }
-    //        break;
-    //    default:
-    //        break;
-    //    }
-    //}
+#if 0
+    struct ly_out *out = ctx->out;
+    const char *text_str;
+    struct lysc_node *sub;
+
+    if (!(ctx->options & LYS_PRINT_TREE_RFC)) {
+        switch (node->nodetype & mask) {
+        case LYS_LEAF:
+            text_str = ((struct lysc_node_leaf *)node)->dflt->canonical;
+            if (text_str) {
+                line_len = tree_print_wrap(out, level, line_len, 1, 2 + strlen(text_str), ctx);
+                line_len += ly_print(out, "<%s>", text_str);
+            }
+            break;
+        case LYS_CHOICE:
+            sub = (struct lysc_node *) ((struct lysc_node_choice *)node)->dflt;
+            if (sub) {
+                line_len = tree_print_wrap(out, level, line_len, 1, 2 + strlen(sub->name), ctx);
+                line_len += ly_print(out, "<%s>", sub->name);
+            }
+            break;
+        default:
+            break;
+        }
+    }
+#endif
 
     return line_len;
 }
@@ -293,40 +297,42 @@ trc_print_node_default(struct tree_ctx *ctx, const struct lysc_node *node, uint1
 static int
 trc_print_node_iffeatures(struct tree_ctx *ctx, const struct lysc_node *node, uint16_t mask, int level, int line_len)
 {
-    //struct ly_out *out = ctx->out;
-    //uint8_t text_len = 0;
-    //const char *text_str;
+#if 0
+    struct ly_out *out = ctx->out;
+    uint8_t text_len = 0;
+    const char *text_str;
 
-    //switch (node->nodetype & mask) {
-    //case LYS_CONTAINER:
-    //case LYS_LIST:
-    //case LYS_CHOICE:
-    //case LYS_CASE:
-    //case LYS_ANYDATA:
-    //case LYS_ANYXML:
-    //case LYS_LEAF:
-    //case LYS_LEAFLIST:
-    //case LYS_RPC:
-    //case LYS_ACTION:
-    //case LYS_NOTIF:
-    //case LYS_USES:
-    //    if (node->parent && (node->parent->nodetype == LYS_AUGMENT)) {
-    //        /* if-features from an augment are de facto inherited */
-    //        //text_len = tree_print_features(out, node->iffeatures, node->iffeature_size,
-    //        //                               node->parent->iffeature, node->parent->iffeature_size, opts, &text_str);
-    //    } else {
-    //        //text_len = tree_print_features(out, node->iffeature, node->iffeature_size, NULL, 0, opts, &text_str);
-    //    }
-    //    if (text_len) {
-    //        line_len = tree_print_wrap(out, level, line_len, 1, text_len, ctx);
-    //        line_len += ly_print(out, text_str);
-    //        lydict_remove(ctx->module->ctx, text_str);
-    //    }
-    //    break;
-    //default:
-    //    /* only grouping */
-    //    break;
-    //}
+    switch (node->nodetype & mask) {
+    case LYS_CONTAINER:
+    case LYS_LIST:
+    case LYS_CHOICE:
+    case LYS_CASE:
+    case LYS_ANYDATA:
+    case LYS_ANYXML:
+    case LYS_LEAF:
+    case LYS_LEAFLIST:
+    case LYS_RPC:
+    case LYS_ACTION:
+    case LYS_NOTIF:
+    case LYS_USES:
+        if (node->parent && (node->parent->nodetype == LYS_AUGMENT)) {
+            /* if-features from an augment are de facto inherited */
+            //text_len = tree_print_features(out, node->iffeatures, node->iffeature_size,
+            //                               node->parent->iffeature, node->parent->iffeature_size, opts, &text_str);
+        } else {
+            //text_len = tree_print_features(out, node->iffeature, node->iffeature_size, NULL, 0, opts, &text_str);
+        }
+        if (text_len) {
+            line_len = tree_print_wrap(out, level, line_len, 1, text_len, ctx);
+            line_len += ly_print(out, text_str);
+            lydict_remove(ctx->module->ctx, text_str);
+        }
+        break;
+    default:
+        /* only grouping */
+        break;
+    }
+#endif
 
     return line_len;
 }
@@ -360,7 +366,7 @@ trc_print_data_node(struct tree_ctx *ctx, const struct lysc_node *node, const st
     line_len = gen_print_indent(out, ctx->base_indent, ctx->indent, level);
     /* print status */
     line_len += ly_print_(out, "%s--", (node->flags & LYS_STATUS_DEPRC ? "x" : (node->flags & LYS_STATUS_OBSLT ? "o" : "+")));
-    ///* print config flags (or special opening for case, choice) */
+    /* print config flags (or special opening for case, choice) */
     line_len += trc_print_config(out, ctx->spec_config, node->nodetype, node->flags);
     /* print optionally prefix */
     node_len = trc_print_prefix(out, node, ctx);
@@ -418,8 +424,8 @@ trb_print_module_body(struct tree_ctx *ctx)
     struct lysc_node *node;
 
     ctx->base_indent = LY_TREE_MOD_DATA_INDENT;
-    // mask = LYS_CHOICE | LYS_CONTAINER | LYS_LEAF | LYS_LEAFLIST | LYS_LIST | LYS_ANYDATA | LYS_USES;
-    // max_child_len = tree_get_max_name_len(data, NULL, mask, &opts);
+    /* mask = LYS_CHOICE | LYS_CONTAINER | LYS_LEAF | LYS_LEAFLIST | LYS_LIST | LYS_ANYDATA | LYS_USES; */
+    /* max_child_len = tree_get_max_name_len(data, NULL, mask, &opts); */
 
     /* LYS_RPC, LYS_NOTIF, LYS_GROUPING are skipped */
     LY_LIST_FOR(ctx->module->compiled->data, node) {
@@ -463,7 +469,7 @@ trb_print_module_name(struct ly_out *out, const struct lys_module *module)
 }
 
 
-LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct lys_module *module, uint32_t options)
+LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct lys_module *module, uint32_t options, size_t UNUSED(line_length))
 {
     struct tree_ctx ctx_ = {.out = out, .module = module, .base_indent = 0, .line_length = 0, .spec_config = 0, .options = options}, *ctx = &ctx_;
 
@@ -484,15 +490,15 @@ LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct ly
     return LY_SUCCESS;
 }
 
-//LY_ERR tree_print_parsed_submodule(struct ly_out *out, const struct lys_module *module, const struct lysp_submodule *submodp, uint32_t options)
-LY_ERR tree_print_parsed_submodule(struct ly_out *out, const struct lys_module *UNUSED(module), const struct lysp_submodule *UNUSED(submodp), uint32_t UNUSED(options))
+//LY_ERR tree_print_parsed_submodule(struct ly_out *out, const struct lys_module *module, const struct lysp_submodule *submodp, uint32_t options, size_t line_length)
+LY_ERR tree_print_submodule(struct ly_out *out, const struct lys_module *UNUSED(module), const struct lysp_submodule *UNUSED(submodp), uint32_t UNUSED(options), size_t UNUSED(line_length))
 {
-    ly_print_(out, "------Sorry, tree_print_parsed_submodule not implemented yet-----\n");
-    return LY_SUCCESS;
+  ly_print_(out, "------Sorry, tree_print_submodule not implemented yet-----\n");
+  return LY_SUCCESS;
 }
 
-//LY_ERR tree_print_compiled_node(struct ly_out *out, const struct lysc_node *node, uint32_t options)
-LY_ERR tree_print_compiled_node(struct ly_out *out, const struct lysc_node *UNUSED(node), uint32_t UNUSED(options))
+//LY_ERR tree_print_compiled_node(struct ly_out *out, const struct lysc_node *node, uint32_t options, size_t line_length)
+LY_ERR tree_print_compiled_node(struct ly_out *out, const struct lysc_node *UNUSED(node), uint32_t UNUSED(options), size_t UNUSED(line_length))
 {
     ly_print_(out, "-----Sorry, tree_print_compiled_node not implemented yet-----\n");
     return LY_SUCCESS;

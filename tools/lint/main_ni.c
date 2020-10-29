@@ -379,7 +379,7 @@ main_ni(int argc, char* argv[])
 #endif
             } else if (!strcasecmp(optarg, "tree-rfc")) {
                 outformat_s = LYS_OUT_TREE;
-                outoptions_s |= LYS_OUTOPT_TREE_RFC;
+                outoptions_s |= LYS_PRINT_TREE_RFC;
                 outformat_d = 0;
             } else if (!strcasecmp(optarg, "yin")) {
                 outformat_s = LYS_OUT_YIN;
