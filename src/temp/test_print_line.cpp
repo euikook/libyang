@@ -32,7 +32,6 @@ TEST(line, fully)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_container, "prefix", "node"},
-        trp_empty_opts_keys(),
         {trd_type_target, "target"},
         trp_set_iffeature()
     };
@@ -52,7 +51,6 @@ TEST(line, firstNode)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_container, "prefix", "node"},
-        trp_empty_opts_keys(),
         {trd_type_target, "target"},
         trp_set_iffeature()
     };

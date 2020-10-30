@@ -78,7 +78,6 @@ trt_node attributed_node(Attributes const& att)
         {
             trd_status_type_current, trd_flags_type_rw,
             {att.data.node_type, "", att.key.c_str()},
-            trp_empty_opts_keys(),
             type,
             att.data.feature
         };
@@ -90,7 +89,6 @@ trt_node default_node(string const& name)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_else, "", name.c_str()},
-        trp_empty_opts_keys(),
         {trd_type_empty, ""},
         trp_empty_iffeature()
     };

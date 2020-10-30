@@ -148,22 +148,10 @@ trp_node_name_is_empty(trt_node_name node_name)
     return node_name.str == NULL;
 }
 
-trt_opts_keys
-trp_set_opts_keys()
-{
-    return 1;
-}
-
-trt_opts_keys
-trp_empty_opts_keys()
-{
-    return 0;
-}
-
 ly_bool
-trp_opts_keys_is_empty(trt_opts_keys keys)
+trp_opts_keys_are_set(trt_node_name node_name)
 {
-    return keys == 0;
+    return node_name.type == trd_node_keys;
 }
 
 trt_type
@@ -204,8 +192,8 @@ trp_empty_node()
     trt_node ret = 
     {
         trd_status_type_empty, trd_flags_type_empty,
-        trp_empty_node_name(), trp_empty_opts_keys(),
-        trp_empty_type(), trp_empty_iffeature()
+        trp_empty_node_name(), trp_empty_type(),
+        trp_empty_iffeature()
     };
     return ret;
 }
@@ -215,11 +203,10 @@ trp_node_is_empty(trt_node node)
 {
     const ly_bool a = trp_iffeature_is_empty(node.iffeatures);
     const ly_bool b = trp_type_is_empty(node.type);
-    const ly_bool c = trp_opts_keys_is_empty(node.opts_keys);
-    const ly_bool d = trp_node_name_is_empty(node.name);
-    const ly_bool e = node.flags == trd_flags_type_empty;
-    const ly_bool f = node.status == trd_status_type_empty;
-    return a && b && c && d && e && f;
+    const ly_bool c = trp_node_name_is_empty(node.name);
+    const ly_bool d = node.flags == trd_flags_type_empty;
+    const ly_bool e = node.status == trd_status_type_empty;
+    return a && b && c && d && e;
 }
 
 ly_bool
@@ -227,7 +214,7 @@ trp_node_body_is_empty(trt_node node)
 {
     const ly_bool a = trp_iffeature_is_empty(node.iffeatures);
     const ly_bool b = trp_type_is_empty(node.type);
-    const ly_bool c = trp_opts_keys_is_empty(node.opts_keys);
+    const ly_bool c = !trp_opts_keys_are_set(node.name);
     return a && b && c;
 }
 
@@ -338,6 +325,9 @@ trp_print_node_name(trt_node_name a, trt_printing* p)
     case trd_node_top_level2:
         trp_print(p, 4, a.module_prefix, colon, a.str, trd_opts_at_sign);
         break;
+    case trd_node_triple_dot:
+        trp_print(p, 1, trd_node_name_triple_dot);
+        break;
     default:
         break;
     }
@@ -360,9 +350,9 @@ trp_mark_is_used(trt_node_name a)
 }
 
 void
-trp_print_opts_keys(trt_opts_keys a, trt_indent_btw btw_name_opts, trt_cf_print_keys cf, trt_printing* p)
+trp_print_opts_keys(trt_node_name a, trt_indent_btw btw_name_opts, trt_cf_print_keys cf, trt_printing* p)
 {
-    if(trp_opts_keys_is_empty(a))
+    if(!trp_opts_keys_are_set(a))
         return;
 
     /* <name><mark>___<keys>*/
@@ -406,6 +396,10 @@ trp_print_iffeatures(trt_iffeature a, trt_cf_print_iffeatures cf, trt_printing* 
 void
 trp_print_node_up_to_name(trt_node a, trt_printing* p)
 {
+    if(a.name.type == trd_node_triple_dot) {
+        trp_print_node_name(a.name, p);
+        return;
+    }
     /* <status>--<flags> */
     trp_print_status(a.status, p);
     trp_print(p, 1, trd_separator_dashes);
@@ -449,10 +443,14 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
 
     /* <status>--<flags> <name><opts> <type> <if-features> */
 
+    const ly_bool triple_dot = a.name.type == trd_node_triple_dot;
     const ly_bool divided = ind.type == trd_indent_in_node_divided;
     const char char_space = trd_separator_space[0];
 
-    if(!divided) {
+    if(triple_dot) { 
+        trp_print_node_name(a.name, p);
+        return;
+    } else if(!divided) {
         trp_print_node_up_to_name(a, p);
     } else {
         trp_print_divided_node_up_to_name(a, p);
@@ -461,7 +459,7 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
     /* <opts> */
     /* <name>___<opts>*/
     trt_cf_print_keys cf_print_keys = {pck.tree_ctx, pck.fps.print_keys};
-    trp_print_opts_keys(a.opts_keys, ind.btw_name_opts, cf_print_keys, p);
+    trp_print_opts_keys(a.name, ind.btw_name_opts, cf_print_keys, p);
 
     /* <opts>__<type> */
     trg_print_n_times(ind.btw_opts_type, char_space, p);
@@ -667,7 +665,7 @@ trp_default_indent_in_node(trt_node node)
     ret.type = trd_indent_in_node_normal;
 
     /* btw_name_opts */
-    ret.btw_name_opts = !trp_opts_keys_is_empty(node.opts_keys) ? 
+    ret.btw_name_opts = trp_opts_keys_are_set(node.name) ? 
         trd_indent_before_keys : 0;
 
     /* btw_opts_type */
@@ -761,7 +759,8 @@ trp_first_half_node(trt_node node, trt_indent_in_node ind)
     trt_pair_indent_node ret = {ind, node};
 
     if(ind.btw_name_opts == trd_linebreak) {
-        ret.node.opts_keys = trp_empty_opts_keys();
+        ret.node.name.type = trp_opts_keys_are_set(node.name) ?
+            trd_node_listLeaflist : node.name.type;
         ret.node.type = trp_empty_type();
         ret.node.iffeatures = trp_empty_iffeature();
     } else if(ind.btw_opts_type == trd_linebreak) {
@@ -790,13 +789,15 @@ trp_second_half_node(trt_node node, trt_indent_in_node ind)
         ret.indent.btw_type_iffeatures = trp_iffeature_is_empty(node.iffeatures) ?
             0 : trd_indent_before_iffeatures;
     } else if(ind.btw_opts_type == trd_linebreak) {
-        ret.node.opts_keys = trp_empty_opts_keys();
+        ret.node.name.type = trp_opts_keys_are_set(node.name) ?
+            trd_node_listLeaflist : node.name.type;
         ret.indent.btw_name_opts = 0;
         ret.indent.btw_opts_type = 0;
         ret.indent.btw_type_iffeatures = trp_iffeature_is_empty(node.iffeatures) ?
             0 : trd_indent_before_iffeatures;
     } else if(ind.btw_type_iffeatures == trd_linebreak) {
-        ret.node.opts_keys = trp_empty_opts_keys();
+        ret.node.name.type = trp_opts_keys_are_set(node.name) ?
+            trd_node_listLeaflist : node.name.type;
         ret.node.type = trp_empty_type();
         ret.indent.btw_name_opts = 0;
         ret.indent.btw_opts_type = 0;
@@ -1195,6 +1196,107 @@ trm_default_printer_ctx(uint32_t max_line_length)
 
 
 /* ----------- <Definition of tree functions> ----------- */
+
+#if 0
+
+trt_keyword_stmt
+tro_read_module_name(const struct trt_tree_ctx*);
+
+trt_node
+tro_read_node(const struct trt_tree_ctx* a)
+{
+    struct lysp_node *pn = a->pn;
+    trt_node ret = trp_empty_node();
+    if((pn == NULL) || (pn->nodetype == LYS_UNKNOWN))
+        return ret;
+
+    /* define <status> */
+    ret.status =
+        pn->flags & LYS_STATUS_CURR  ? trd_status_type_current :
+        pn->flags & LYS_STATUS_DEPRC ? trd_status_type_deprecated :
+        pn->flags & LYS_STATUS_OBSLT ? trd_status_type_obsolete :
+        /* TODO: inheritance */
+        trd_status_type_empty;
+
+    /* TODO: trd_flags_type_mount_point aka "mp" is not supported right now. */
+    /* define <flags> */
+    ret.flags = 
+        pn->nodetype & LYS_INPUT ?              trd_flags_type_rpc_input_params :
+        pn->nodetype & LYS_GROUPING ?           trd_flags_type_uses_of_grouping :
+        pn->nodetype & (LYS_RPC | LYS_ACTION) ? trd_flags_type_rpc :
+        pn->nodetype & LYS_NOTIF ?              trd_flags_type_notif :
+        pn->flags & LYS_CONFIG_W ?              trd_flags_type_rw :
+        pn->flags & LYS_CONFIG_R ?              trd_flags_type_ro :
+        trd_flags_type_empty;
+
+    /* TODO: trd_node_top_level1 aka '/' is not supported right now. */
+    /* TODO: trd_node_top_level2 aka '@' is not supported right now. */
+    ret.name.type =
+        pn->nodetype & LYS_CASE ?           trd_node_case :
+        pn->nodetype & LYS_CHOICE
+            && pn->flags & LYS_MAND_TRUE ?  trd_node_optional_choice :
+        pn->nodetype & LYS_CHOICE ?         trd_node_choice :
+        pn->nodetype & LYS_CONTAINER ?      trd_node_container :
+        /* TODO: trd_node_listLeaflist (without keys) */
+        /* TODO: trd_node_keys [keys] */
+        pn->flags & LYS_MAND_TRUE ?         trd_node_optional :
+        trd_node_else;
+
+    /* TODO: ret.name.module_prefix is not supported right now. */
+
+    ret.name.str = pn->name;
+
+    /* TODO: set trt_type */
+    if(pn->nodetype & (LYS_LEAFLIST | LYS_LEAF) ) {
+        /* ret.type.type = trd_type_target; */
+        /* ret.type.type = trd_type_name; */
+        /* ret.type.str = ; */
+        ;
+    } else {
+        ret.type.type = trd_type_empty;
+    }
+
+    ret.iffeatures = pn->iffeatures != NULL;
+
+    return ret;
+}
+
+trt_node
+tro_read_next_sibling(const struct trt_tree_ctx*);
+
+/* --------- <Modify getters> --------- */
+trt_node
+tro_modi_parent(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_sibling(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_child(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_augment(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_rpcs(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_notifications(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_grouping(struct trt_tree_ctx*);
+
+trt_node
+tro_modi_next_yang_data(struct trt_tree_ctx*);
+
+#endif
+
+/* --------- <Print getters> --------- */
+void
+tro_print_features_names(const struct trt_tree_ctx*, trt_printing*);
+
+void
+tro_print_keys(const struct trt_tree_ctx*, trt_printing*);
 
 
 /* ----------- <Definition of the other functions> ----------- */

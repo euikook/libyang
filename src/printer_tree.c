@@ -35,15 +35,15 @@
 
 /*
  *          +---------+    +---------+    +---------+
- *   output |         |    |         |    |         |
- *      <---+   trp   +<---+   trb   +<-->+   tro   |
+ *   output |   trp   |    |   trb   |    |   tro   |
+ *      <---+  Print  +<---+  Browse +<-->+  Obtain |
  *          |         |    |         |    |         |
  *          +---------+    +----+----+    +---------+
  *                              ^
  *                              |
  *                         +----+----+
- *                         |         |
  *                         |   trm   |
+ *                         | Manager |
  *                         |         |
  *                         +----+----+
  *                              ^
@@ -57,7 +57,7 @@
  * trp - functions for Printing
  * trb - functions for Browse the tree
  * tro - functions for Obtaining information from libyang 
- * trm - Main functions
+ * trm - Main functions, Manager
  * trg - General functions
  * TRC - constant that is not configurable
  */
@@ -390,19 +390,8 @@ static const char trd_opts_keys_prefix[] = "[";
 typedef const char* trt_opts_keys_suffix;
 static const char trd_opts_keys_suffix[] = "]";
 
-/** 
- * @brief Opts keys in node.
- *
- * Opts keys is just ly_bool because printing is not provided by the printer component (trp).
- */
-typedef ly_bool trt_opts_keys;
-
-/** Create trt_opts_keys and note the presence of keys. */
-trt_opts_keys trp_set_opts_keys();
-/** Create empty trt_opts_keys and note the absence of keys. */
-trt_opts_keys trp_empty_opts_keys();
-/** Check if trt_opts_keys is empty. */
-ly_bool trp_opts_keys_is_empty(trt_opts_keys);
+/** Check if [<keys>] are present in node. */
+ly_bool trp_opts_keys_are_set(trt_node_name);
 
 /** 
  * @brief Print opts keys.
@@ -412,7 +401,7 @@ ly_bool trp_opts_keys_is_empty(trt_opts_keys);
  * @param[in] pf basically a pointer to the function that prints the keys.
  * @param[in,out] p basically a pointer to a function that handles the printing itself.
  */
-void trp_print_opts_keys(trt_opts_keys k, trt_indent_btw ind, trt_cf_print_keys pf, trt_printing *p);
+void trp_print_opts_keys(trt_node_name name, trt_indent_btw ind, trt_cf_print_keys pf, trt_printing *p);
 
 /* ============================== */
 /* ----------- <type> ----------- */
@@ -491,15 +480,14 @@ void trp_print_iffeatures(trt_iffeature i, trt_cf_print_iffeatures pf, trt_print
  * @brief <node> data for printing.
  *
  * <status>--<flags> <name><opts> <type> <if-features>.
- * Item <opts> is divided and moved to part trt_node_name (mark) and part trt_opts_keys (keys).
- * For printing trt_opts_keys and trt_iffeature is required special functions which prints them.
+ * Item <opts> is moved to part trt_node_name.
+ * For printing [<keys>] and trt_iffeature is required special functions which prints them.
  */
 typedef struct
 {
     trt_status_type status;          /**< <status>. */
     trt_flags_type flags;            /**< <flags>. */
-    trt_node_name name;         /**< <node> with <opts> mark. */
-    trt_opts_keys opts_keys;    /**< <opts> list's keys. Printing function required. */
+    trt_node_name name;         /**< <node> with <opts> mark or [<keys>]. */
     trt_type type;              /**< <type> is the name of the type for leafs and leaf-lists. */
     trt_iffeature iffeatures;   /**< <if-features>. Printing function required. */
 } trt_node;
@@ -508,7 +496,7 @@ typedef struct
 trt_node trp_empty_node();
 /** Check if trt_node is empty. */
 ly_bool trp_node_is_empty(trt_node);
-/** Check if opts_keys, type and iffeatures are empty. */
+/** Check if [<keys>], <type> and <iffeatures> are empty/not_set. */
 ly_bool trp_node_body_is_empty(trt_node);
 /** Print just <status>--<flags> <name> with opts mark. */
 void trp_print_node_up_to_name(trt_node, trt_printing*);
@@ -519,7 +507,7 @@ void trp_print_divided_node_up_to_name(trt_node, trt_printing*);
  * @brief Print trt_node structure.
  *
  * @param[in] n node structure for printing.
- * @param[in] ppck package of functions for printing opts_keys and iffeatures.
+ * @param[in] ppck package of functions for printing [<keys>] and <iffeatures>.
  * @param[in] ind indent in node.
  * @param[in,out] p basically a pointer to a function that handles the printing itself.
  */
@@ -894,30 +882,28 @@ struct trt_tree_ctx trm_default_tree_ctx(struct trt_printer_ctx*);
 
 typedef enum
 {
-    module,
-    augment,
-    rpcs,
-    notifications,
-    grouping,
-    yang_data,
-} trt_tree_ctx_type;
+    trd_sect_module = 0,
+    trd_sect_augment,
+    trd_sect_rpcs,
+    trd_sect_notif,
+    trd_sect_grouping,
+    trd_sect_yang_data,
+} trt_actual_section;
 
 typedef uint32_t trt_opt;
 
+/* These flags are used in trt_options.code. */
 #define TRC_OPT_SECT_MODULE         (1u << 0)   /**< Don't print module section. */
 #define TRC_OPT_SECT_AUGMENT        (1u << 1)   /**< Don't print augment section. */
 #define TRC_OPT_SECT_RPCS           (1u << 2)   /**< Don't print rpcs section. */
 #define TRC_OPT_SECT_NOTIF          (1u << 3)   /**< Don't print notifications section. */
 #define TRC_OPT_SECT_GROUPING       (1u << 4)   /**< Don't print grouping section. */
 #define TRC_OPT_SECT_YANGDATA       (1u << 5)   /**< Don't print yang-data section. */
-#define TRC_OPT_U                   (1u << 6)   /**< Don't expand nodes within groupings. Instead write <flags> "-u". */
-#define TRC_OPT_MP                  (1u << 7)   /**< Don't print nodes with <flags> "mp". Instead write "...". */
-#define TRC_OPT_SLASH               (1u << 8)   /**< Don't print nodes with <opts> '/'. Instead write "...". */
-#define TRC_OPT_ATSIGN              (1u << 9)   /**< Don't print nodes with <opts> '@'. Instead write "...". */
-#define TRC_OPT_MAX_LB_PER_SECT     (1u << 10)  /**< The number of line breaks in one section must not exceed. */
+#define TRC_OPT_MAX_LB_PER_SECT     (1u << 10)  /**< The number of line breaks in one section must not exceed. Functionality is not implemented. */
 
-#define TRC_OPT_DEFAULT (TRC_OPT_MP | TRC_OPT_SLASH | TRC_OPT_ATSIGN)   /**< Default settings for trt_options.code variable. TODO: change to 0.*/
+#define TRC_OPT_DEFAULT 0   /**< Default settings for trt_options.code variable. */
 
+/** Setting the behavior of this entire printer_tree module. */
 typedef struct
 {
     trt_opt code;
@@ -926,15 +912,26 @@ typedef struct
 } trt_options;
 
 /**
+ * @brief Saved information when browsing the lysp tree.
+ *
+ * This structure helps prevent frequent retrieval of information from the tree.
+ */
+typedef struct 
+{
+    uint16_t lys_status;    /**< Inherited status CURR, DEPRC or OBSLT. */
+    uint16_t lys_config;    /**< Inherited config W or R.*/
+} trt_lysp_cache;
+
+/**
  * @brief Main structure for browsing the libyang tree
  */
 struct trt_tree_ctx
 {
-    trt_tree_ctx_type type;
+    trt_actual_section section;
     const struct lys_module *module;
-    //struct lysc_node *cn;
     struct lysp_node *pn;               /**< Actual pointer to parsed node. */
-    trt_options opt;
+    trt_lysp_cache pc;                  /**< Cache memory for browsing the lysp tree. */
+    trt_options opt;                    /**< Options for printing. */
 };
 
 /* --------- <Read getters> --------- */
@@ -1152,22 +1149,10 @@ trp_node_name_is_empty(trt_node_name node_name)
     return node_name.str == NULL;
 }
 
-trt_opts_keys
-trp_set_opts_keys()
-{
-    return 1;
-}
-
-trt_opts_keys
-trp_empty_opts_keys()
-{
-    return 0;
-}
-
 ly_bool
-trp_opts_keys_is_empty(trt_opts_keys keys)
+trp_opts_keys_are_set(trt_node_name node_name)
 {
-    return keys == 0;
+    return node_name.type == trd_node_keys;
 }
 
 trt_type
@@ -1208,8 +1193,8 @@ trp_empty_node()
     trt_node ret = 
     {
         trd_status_type_empty, trd_flags_type_empty,
-        trp_empty_node_name(), trp_empty_opts_keys(),
-        trp_empty_type(), trp_empty_iffeature()
+        trp_empty_node_name(), trp_empty_type(),
+        trp_empty_iffeature()
     };
     return ret;
 }
@@ -1219,11 +1204,10 @@ trp_node_is_empty(trt_node node)
 {
     const ly_bool a = trp_iffeature_is_empty(node.iffeatures);
     const ly_bool b = trp_type_is_empty(node.type);
-    const ly_bool c = trp_opts_keys_is_empty(node.opts_keys);
-    const ly_bool d = trp_node_name_is_empty(node.name);
-    const ly_bool e = node.flags == trd_flags_type_empty;
-    const ly_bool f = node.status == trd_status_type_empty;
-    return a && b && c && d && e && f;
+    const ly_bool c = trp_node_name_is_empty(node.name);
+    const ly_bool d = node.flags == trd_flags_type_empty;
+    const ly_bool e = node.status == trd_status_type_empty;
+    return a && b && c && d && e;
 }
 
 ly_bool
@@ -1231,7 +1215,7 @@ trp_node_body_is_empty(trt_node node)
 {
     const ly_bool a = trp_iffeature_is_empty(node.iffeatures);
     const ly_bool b = trp_type_is_empty(node.type);
-    const ly_bool c = trp_opts_keys_is_empty(node.opts_keys);
+    const ly_bool c = !trp_opts_keys_are_set(node.name);
     return a && b && c;
 }
 
@@ -1367,9 +1351,9 @@ trp_mark_is_used(trt_node_name a)
 }
 
 void
-trp_print_opts_keys(trt_opts_keys a, trt_indent_btw btw_name_opts, trt_cf_print_keys cf, trt_printing* p)
+trp_print_opts_keys(trt_node_name a, trt_indent_btw btw_name_opts, trt_cf_print_keys cf, trt_printing* p)
 {
-    if(trp_opts_keys_is_empty(a))
+    if(!trp_opts_keys_are_set(a))
         return;
 
     /* <name><mark>___<keys>*/
@@ -1476,7 +1460,7 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
     /* <opts> */
     /* <name>___<opts>*/
     trt_cf_print_keys cf_print_keys = {pck.tree_ctx, pck.fps.print_keys};
-    trp_print_opts_keys(a.opts_keys, ind.btw_name_opts, cf_print_keys, p);
+    trp_print_opts_keys(a.name, ind.btw_name_opts, cf_print_keys, p);
 
     /* <opts>__<type> */
     trg_print_n_times(ind.btw_opts_type, char_space, p);
@@ -1682,7 +1666,7 @@ trp_default_indent_in_node(trt_node node)
     ret.type = trd_indent_in_node_normal;
 
     /* btw_name_opts */
-    ret.btw_name_opts = !trp_opts_keys_is_empty(node.opts_keys) ? 
+    ret.btw_name_opts = trp_opts_keys_are_set(node.name) ? 
         trd_indent_before_keys : 0;
 
     /* btw_opts_type */
@@ -1776,7 +1760,8 @@ trp_first_half_node(trt_node node, trt_indent_in_node ind)
     trt_pair_indent_node ret = {ind, node};
 
     if(ind.btw_name_opts == trd_linebreak) {
-        ret.node.opts_keys = trp_empty_opts_keys();
+        ret.node.name.type = trp_opts_keys_are_set(node.name) ?
+            trd_node_listLeaflist : node.name.type;
         ret.node.type = trp_empty_type();
         ret.node.iffeatures = trp_empty_iffeature();
     } else if(ind.btw_opts_type == trd_linebreak) {
@@ -1805,13 +1790,15 @@ trp_second_half_node(trt_node node, trt_indent_in_node ind)
         ret.indent.btw_type_iffeatures = trp_iffeature_is_empty(node.iffeatures) ?
             0 : trd_indent_before_iffeatures;
     } else if(ind.btw_opts_type == trd_linebreak) {
-        ret.node.opts_keys = trp_empty_opts_keys();
+        ret.node.name.type = trp_opts_keys_are_set(node.name) ?
+            trd_node_listLeaflist : node.name.type;
         ret.indent.btw_name_opts = 0;
         ret.indent.btw_opts_type = 0;
         ret.indent.btw_type_iffeatures = trp_iffeature_is_empty(node.iffeatures) ?
             0 : trd_indent_before_iffeatures;
     } else if(ind.btw_type_iffeatures == trd_linebreak) {
-        ret.node.opts_keys = trp_empty_opts_keys();
+        ret.node.name.type = trp_opts_keys_are_set(node.name) ?
+            trd_node_listLeaflist : node.name.type;
         ret.node.type = trp_empty_type();
         ret.indent.btw_name_opts = 0;
         ret.indent.btw_opts_type = 0;
@@ -2227,19 +2214,22 @@ tro_read_node(const struct trt_tree_ctx* a)
         pn->flags & LYS_STATUS_CURR  ? trd_status_type_current :
         pn->flags & LYS_STATUS_DEPRC ? trd_status_type_deprecated :
         pn->flags & LYS_STATUS_OBSLT ? trd_status_type_obsolete :
+        /* TODO: inheritance */
         trd_status_type_empty;
 
+    /* TODO: trd_flags_type_mount_point aka "mp" is not supported right now. */
     /* define <flags> */
     ret.flags = 
         pn->nodetype & LYS_INPUT ?              trd_flags_type_rpc_input_params :
         pn->nodetype & LYS_GROUPING ?           trd_flags_type_uses_of_grouping :
         pn->nodetype & (LYS_RPC | LYS_ACTION) ? trd_flags_type_rpc :
         pn->nodetype & LYS_NOTIF ?              trd_flags_type_notif :
-        /* TODO: trd_flags_type_mount_point aka "mp" */
         pn->flags & LYS_CONFIG_W ?              trd_flags_type_rw :
         pn->flags & LYS_CONFIG_R ?              trd_flags_type_ro :
         trd_flags_type_empty;
 
+    /* TODO: trd_node_top_level1 aka '/' is not supported right now. */
+    /* TODO: trd_node_top_level2 aka '@' is not supported right now. */
     ret.name.type =
         pn->nodetype & LYS_CASE ?           trd_node_case :
         pn->nodetype & LYS_CHOICE
@@ -2248,18 +2238,12 @@ tro_read_node(const struct trt_tree_ctx* a)
         pn->nodetype & LYS_CONTAINER ?      trd_node_container :
         /* TODO: trd_node_listLeaflist (without keys) */
         /* TODO: trd_node_keys [keys] */
-        /* TODO: trd_node_top_level1 aka '/' */
-        /* TODO: trd_node_top_level2 aka '@' */
         pn->flags & LYS_MAND_TRUE ?         trd_node_optional :
         trd_node_else;
 
-    /* TODO: module_prefix */
-    /* ret.name.module_prefix =  ;*/
+    /* TODO: ret.name.module_prefix is not supported right now. */
 
     ret.name.str = pn->name;
-
-    /* TODO: opts_keys */
-    /* ret.opts_keys =  true/false;*/
 
     /* TODO: set trt_type */
     if(pn->nodetype & (LYS_LEAFLIST | LYS_LEAF) ) {
