@@ -153,8 +153,8 @@ void trp_injected_strlen(void *out, int arg_count, va_list ap);
  */
 struct trt_fp_print
 {
-    void (*print_features_names)(const struct trt_tree_ctx*, trt_printing*);   /**< Print list of features. */
-    void (*print_keys)(const struct trt_tree_ctx*, trt_printing*);            /**< Print list's keys. */
+    void (*print_features_names)(const struct trt_tree_ctx*, trt_printing*);   /**< Print list of features without {}? wrapper. */
+    void (*print_keys)(const struct trt_tree_ctx*, trt_printing*);            /**< Print list's keys without [] wrapper. */
 };
 
 /**
@@ -312,13 +312,13 @@ static const char trd_flags_mount_point[] = "mp";
 typedef enum
 {
     trd_flags_type_empty = 0,
-    trd_flags_type_rw,
-    trd_flags_type_ro,
-    trd_flags_type_rpc_input_params,
-    trd_flags_type_uses_of_grouping,
-    trd_flags_type_rpc,
-    trd_flags_type_notif,
-    trd_flags_type_mount_point,
+    trd_flags_type_rw,                  /**< rw */
+    trd_flags_type_ro,                  /**< ro */
+    trd_flags_type_rpc_input_params,    /**< -w */
+    trd_flags_type_uses_of_grouping,    /**< -u */
+    trd_flags_type_rpc,                 /**< -x */
+    trd_flags_type_notif,               /**< -n */
+    trd_flags_type_mount_point,         /**< mp */
 } trt_flags_type;
 
 /** Print <flags>. */
@@ -386,10 +386,9 @@ static const char trd_opts_slash[] = "/";           /**< For a top-level data no
 static const char trd_opts_at_sign[] = "@";         /**< For a top-level data node of a module identified in a mount point parent reference. */
 static const size_t trd_opts_mark_length = 1;       /**< Every opts mark has a length of one. */
 
-typedef const char* trt_opts_keys_prefix;
 static const char trd_opts_keys_prefix[] = "[";
-typedef const char* trt_opts_keys_suffix;
 static const char trd_opts_keys_suffix[] = "]";
+static const char trd_opts_keys_delim[] = " ";
 
 /** Check if [<keys>] are present in node. */
 ly_bool trp_opts_keys_are_set(trt_node_name);
@@ -408,9 +407,7 @@ void trp_print_opts_keys(trt_node_name name, trt_indent_btw ind, trt_cf_print_ke
 /* ----------- <type> ----------- */
 /* ============================== */
 
-typedef const char* trt_type_leafref;
 static const char trd_type_leafref_keyword[] = "leafref";
-typedef const char* trt_type_target_prefix;
 static const char trd_type_target_prefix[] = "-> ";
 
 /** 
@@ -445,10 +442,9 @@ void trp_print_type(trt_type, trt_printing*);
 /* ----------- <iffeatures> ----------- */
 /* ==================================== */
 
-typedef const char* trt_iffeatures_prefix;
 static const char trd_iffeatures_prefix[] = "{";
-typedef const char* trt_iffeatures_suffix;
 static const char trd_iffeatures_suffix[] = "}?";
+static const char trd_iffeatures_delimiter[] = ",";
 
 /** 
  * @brief List of features in node.
@@ -919,8 +915,9 @@ typedef struct
  */
 typedef struct 
 {
-    uint16_t lys_status;    /**< Inherited status CURR, DEPRC or OBSLT. */
-    uint16_t lys_config;    /**< Inherited config W or R.*/
+    uint16_t lys_status;                    /**< Inherited status CURR, DEPRC or OBSLT. */
+    uint16_t lys_config;                    /**< Inherited config W or R. */
+    const struct lysp_node_list* last_list; /**< The last LYS_LIST passed. */
 } trt_lysp_cache;
 
 /**
@@ -930,7 +927,7 @@ struct trt_tree_ctx
 {
     trt_actual_section section;
     const struct lys_module *module;
-    struct lysp_node *pn;               /**< Actual pointer to parsed node. */
+    const struct lysp_node *pn;               /**< Actual pointer to parsed node. */
     trt_lysp_cache pc;                  /**< Cache memory for browsing the lysp tree. */
     trt_options opt;                    /**< Options for printing. */
 };
@@ -987,6 +984,9 @@ const char* trg_print_substr(const char*, size_t len, trt_printing*);
 
 /** Pointer is not NULL and does not point to an empty string. */
 ly_bool trg_charptr_has_data(const char*);
+
+/** Check if 'word' in 'src' is present where words are delimited by 'delim'. */
+ly_bool trg_word_is_present(const char* src, const char* word, char delim);
 
 /* ================================ */
 /* ----------- <symbol> ----------- */
@@ -2210,7 +2210,7 @@ tro_lysp_list_has_keys(const struct lysp_node* pn)
 }
 
 ly_bool
-tro_lysp_node_has_iffeature(struct lysp_qname *iffs)
+tro_lysp_node_has_iffeature(const struct lysp_qname *iffs)
 {
     LY_ARRAY_COUNT_TYPE u;
     ly_bool ret = 0;
@@ -2220,6 +2220,23 @@ tro_lysp_node_has_iffeature(struct lysp_qname *iffs)
         break;
     }
     return ret;
+}
+
+ly_bool
+tro_lysp_leaf_is_key(const struct trt_tree_ctx* a)
+{
+    const struct lysp_node_leaf* leaf = (const struct lysp_node_leaf*) a->pn;
+    const struct lysp_node_list* list = a->pc.last_list;
+    if(list == NULL)
+        return 0;
+    return trg_charptr_has_data(list->key) ? 
+        trg_word_is_present(list->key, leaf->name, trd_opts_keys_delim[0]) : 0;
+}
+
+ly_bool
+tro_lysp_container_has_presence(const struct lysp_node* pn)
+{
+    return trg_charptr_has_data(((struct lysp_node_container*)pn)->presence);
 }
 
 const char*
@@ -2284,9 +2301,10 @@ tro_read_node(const struct trt_tree_ctx* a)
     /* TODO: trd_flags_type_mount_point aka "mp" is not supported right now. */
     ret.flags = 
         pn->nodetype & LYS_INPUT ?              trd_flags_type_rpc_input_params :
-        pn->nodetype & LYS_GROUPING ?           trd_flags_type_uses_of_grouping :
+        pn->nodetype & LYS_USES ?               trd_flags_type_uses_of_grouping :
         pn->nodetype & (LYS_RPC | LYS_ACTION) ? trd_flags_type_rpc :
         pn->nodetype & LYS_NOTIF ?              trd_flags_type_notif :
+        /* TODO: inheritance */
         pn->flags & LYS_CONFIG_W ?              trd_flags_type_rw :
         pn->flags & LYS_CONFIG_R ?              trd_flags_type_ro :
         trd_flags_type_empty;
@@ -2294,17 +2312,20 @@ tro_read_node(const struct trt_tree_ctx* a)
     /* TODO: trd_node_top_level1 aka '/' is not supported right now. */
     /* TODO: trd_node_top_level2 aka '@' is not supported right now. */
     ret.name.type =
-        pn->nodetype & LYS_CASE ?                   trd_node_case :
+        pn->nodetype & LYS_CASE ?                       trd_node_case :
         pn->nodetype & LYS_CHOICE
-            /* TODO: ingeritance */
-            && pn->flags & LYS_MAND_TRUE ?          trd_node_optional_choice :
-        pn->nodetype & LYS_CHOICE ?                 trd_node_choice :
-        pn->nodetype & LYS_CONTAINER ?              trd_node_container :
+            && !(pn->flags & LYS_MAND_TRUE) ?           trd_node_optional_choice :
+        pn->nodetype & LYS_CHOICE ?                     trd_node_choice :
+        pn->nodetype & LYS_CONTAINER
+            && tro_lysp_container_has_presence(pn) ?    trd_node_container :
         pn->nodetype & LYS_LIST
-            && tro_lysp_list_has_keys(pn) ?         trd_node_keys :
-        pn->nodetype & (LYS_LIST | LYS_LEAFLIST) ?  trd_node_listLeaflist :
-        /* TODO: inheritance */
-        pn->flags & LYS_MAND_TRUE ?                 trd_node_optional :
+            && tro_lysp_list_has_keys(pn) ?             trd_node_keys :
+        pn->nodetype & (LYS_LIST | LYS_LEAFLIST) ?      trd_node_listLeaflist :
+        pn->nodetype & (LYS_ANYDATA | LYS_ANYXML)
+            && !(pn->flags & LYS_MAND_TRUE) ?           trd_node_optional :
+        pn->nodetype & LYS_LEAF
+            && !(pn->flags & LYS_MAND_TRUE)
+            && !tro_lysp_leaf_is_key(a)?                trd_node_optional :
         trd_node_else;
 
     /* TODO: ret.name.module_prefix is not supported right now. */
@@ -2359,10 +2380,32 @@ tro_modi_next_yang_data(struct trt_tree_ctx*);
 
 /* --------- <Print getters> --------- */
 void
-tro_print_features_names(const struct trt_tree_ctx*, trt_printing*);
+tro_print_features_names(const struct trt_tree_ctx* a, trt_printing* p)
+{
+    const struct lysp_qname *iffs = a->pn->iffeatures;
+
+    LY_ARRAY_COUNT_TYPE i;
+    LY_ARRAY_FOR(iffs, i) {
+        if(i == 0) {
+            trp_print(p, 1, iffs[i]);
+        } else {
+            trp_print(p, 2, trd_iffeatures_delimiter, iffs[i]);
+        }
+    }
+
+}
 
 void
-tro_print_keys(const struct trt_tree_ctx*, trt_printing*);
+tro_print_keys(const struct trt_tree_ctx* a, trt_printing* p)
+{
+    const struct lysp_node *pn = a->pn;
+    if(pn->nodetype != LYS_LIST)
+        return;
+    struct lysp_node_list* list = (struct lysp_node_list*) pn;
+    if(trg_charptr_has_data(list->key)) {
+        trp_print(p, 1, list->key);
+    }
+}
 
 
 /* ----------- <Definition of the other functions> ----------- */
@@ -2421,6 +2464,37 @@ ly_bool
 trg_charptr_has_data(const char* ptr)
 {
     return ptr != NULL && ptr[0] != '\0';
+}
+
+ly_bool
+trg_word_is_present(const char* src, const char* word, char delim)
+{
+    if(src == NULL || src[0] == '\0' || word == NULL)
+        return 0;
+
+    const char* hit = strstr(src, word);
+    if(hit) {
+        /* word was founded at the begin of src
+         * OR it match somewhere after delim
+         */
+        if(hit == src || *(hit - 1) == delim) {
+            /* end of word was founded at the end of src
+             * OR end of word was match somewhere before delim
+             */
+            char delim_or_end = (hit + strlen(word))[0];
+            if(delim_or_end == '\0' || delim_or_end == delim)
+                return 1;
+        }
+        /* else -> hit is just substr and it's not the whole word */
+        /* jump to the next word */
+        for(; src[0] != '\0' && src[0] != delim; src++);
+        /* skip delim */
+        src = src[0] == '\0' ? src : src + 1;
+        /* continue with searching */
+        return trg_word_is_present(src, word, delim);
+    } else {
+        return 0;
+    }
 }
 
 /* ----------- <Definition of module interface> ----------- */
