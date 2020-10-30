@@ -78,6 +78,10 @@ trt_node attributed_node(Attributes const& att)
         {
             trd_status_type_current, trd_flags_type_rw,
             {att.data.node_type, "", att.key.c_str()},
+<<<<<<< HEAD
+=======
+            trp_empty_opts_keys(),
+>>>>>>> 8c14f3a3f76343ff01a866400148e348f01a95e9
             type,
             att.data.feature
         };
@@ -89,6 +93,10 @@ trt_node default_node(string const& name)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_else, "", name.c_str()},
+<<<<<<< HEAD
+=======
+        trp_empty_opts_keys(),
+>>>>>>> 8c14f3a3f76343ff01a866400148e348f01a95e9
         {trd_type_empty, ""},
         trp_empty_iffeature()
     };
