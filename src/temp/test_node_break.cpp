@@ -34,7 +34,6 @@ TEST(nodeBreak, fits)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "prefix", "node"},
-        trp_set_opts_keys(),
         {trd_type_name, "type"},
         trp_set_iffeature()
     };
@@ -55,7 +54,6 @@ TEST(nodeBreak, fitsTight)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "prefix", "node"},
-        trp_set_opts_keys(),
         {trd_type_name, "type"},
         trp_set_iffeature()
     };
@@ -80,7 +78,6 @@ TEST(nodeBreak, btwNameOpts)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "xxxprefix", "node"},
-        trp_set_opts_keys(),
         {trd_type_empty, ""},
         trp_empty_iffeature()
     };
@@ -104,7 +101,6 @@ TEST(nodeBreak, btwOptsType)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_listLeaflist, "xxxprefix", "node"},
-        trp_empty_opts_keys(),
         {trd_type_name, "string"},
         trp_empty_iffeature()
     };
@@ -127,8 +123,7 @@ TEST(nodeBreak, btwOptsTypeWithIffeatures)
     trt_node node =
     {
         trd_status_type_current, trd_flags_type_rw,
-        {trd_node_keys, "xxxprefix", "node"},
-        trp_empty_opts_keys(),
+        {trd_node_listLeaflist, "xxxprefix", "node"},
         {trd_type_name, "st"},
         trp_set_iffeature()
     };
@@ -153,7 +148,6 @@ TEST(nodeBreak, btwTypeIffeatures)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_listLeaflist, "xxxprefix", "node"},
-        trp_empty_opts_keys(),
         {trd_type_empty, ""},
         trp_set_iffeature()
     };
@@ -177,7 +171,6 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeys)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "xxxprefix", "node"},
-        trp_set_opts_keys(),
         {trd_type_empty, ""},
         trp_set_iffeature()
     };
@@ -201,7 +194,6 @@ TEST(nodeBreak, btwTypeIffeaturesWithKeysType)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "xxxprefix", "node"},
-        trp_set_opts_keys(),
         {trd_type_name, "string"},
         trp_set_iffeature()
     };
@@ -227,7 +219,6 @@ TEST(nodeBreak, allInNewLines)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "xxxprefix", "node"},
-        trp_set_opts_keys(),
         {trd_type_name, "string"},
         trp_set_iffeature()
     };
@@ -251,7 +242,6 @@ TEST(nodeBreak, typeIsToolong)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_listLeaflist, "", "node"},
-        trp_empty_opts_keys(),
         {trd_type_name, "longString"},
         trp_empty_iffeature()
     };
@@ -274,7 +264,6 @@ TEST(nodeBreak, nodeNameIsTooLong)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_else, "", "longNodeName"},
-        trp_empty_opts_keys(),
         {trd_type_empty, ""},
         trp_empty_iffeature()
     };
@@ -298,7 +287,6 @@ TEST(nodeBreak, breakLeafrefTarget)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_else, "", "longNodeName"},
-        trp_empty_opts_keys(),
         {trd_type_target, "/y:longStr/short"},
         trp_empty_iffeature()
     };
@@ -321,7 +309,6 @@ TEST(nodeBreak, changeLeafrefTargetToLeafrefKeyword)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_else, "", "node"},
-        trp_empty_opts_keys(),
         {trd_type_target, "/y:longStr/short/eventuallyIsReallyLong"},
         trp_empty_iffeature()
     };
@@ -345,7 +332,6 @@ TEST(nodeBreak, changeLeafrefTargetToLeafrefKeywordWithIffeature)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_else, "", "node"},
-        trp_empty_opts_keys(),
         {trd_type_target, "/y:longStr/short/eventuallyIsReallyLong"},
         trp_set_iffeature()
     };

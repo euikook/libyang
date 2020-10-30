@@ -34,15 +34,15 @@ struct lysc_node;
 
 /*
  *          +---------+    +---------+    +---------+
- *   output |         |    |         |    |         |
- *      <---+   trp   +<---+   trb   +<-->+   tro   |
+ *   output |   trp   |    |   trb   |    |   tro   |
+ *      <---+  Print  +<---+  Browse +<-->+  Obtain |
  *          |         |    |         |    |         |
  *          +---------+    +----+----+    +---------+
  *                              ^
  *                              |
  *                         +----+----+
- *                         |         |
  *                         |   trm   |
+ *                         | Manager |
  *                         |         |
  *                         +----+----+
  *                              ^
@@ -56,8 +56,9 @@ struct lysc_node;
  * trp - functions for Printing
  * trb - functions for Browse the tree
  * tro - functions for Obtaining information from libyang 
- * trm - Main functions
+ * trm - Main functions, Manager
  * trg - General functions
+ * TRC - constant that is not configurable
  */
 
 
@@ -327,13 +328,11 @@ size_t trp_print_flags_strlen(trt_flags_type);
 /* ----------- <node_name> ----------- */
 /* ================================== */
 
-typedef const char* trt_node_name_prefix;
 static const char trd_node_name_prefix_choice[] = "(";
 static const char trd_node_name_prefix_case[] = ":(";
-
-typedef const char* trt_node_name_suffix;
 static const char trd_node_name_suffix_choice[] = ")";
 static const char trd_node_name_suffix_case[] = ")";
+static const char trd_node_name_triple_dot[] = "...";
 
 /**
  * @brief Type of the node.
@@ -349,7 +348,8 @@ typedef enum
     trd_node_listLeaflist,          /**< For a leaf-list or list (without keys). */
     trd_node_keys,                  /**< For a list's keys. */
     trd_node_top_level1,            /**< For a top-level data node in a mounted module. */
-    trd_node_top_level2             /**< For a top-level data node of a module identified in a mount point parent reference. */
+    trd_node_top_level2,            /**< For a top-level data node of a module identified in a mount point parent reference. */
+    trd_node_triple_dot             /**< For collapsed sibling nodes and their children. */
 } trt_node_type;
 
 
@@ -389,19 +389,8 @@ static const char trd_opts_keys_prefix[] = "[";
 typedef const char* trt_opts_keys_suffix;
 static const char trd_opts_keys_suffix[] = "]";
 
-/** 
- * @brief Opts keys in node.
- *
- * Opts keys is just ly_bool because printing is not provided by the printer component (trp).
- */
-typedef ly_bool trt_opts_keys;
-
-/** Create trt_opts_keys and note the presence of keys. */
-trt_opts_keys trp_set_opts_keys();
-/** Create empty trt_opts_keys and note the absence of keys. */
-trt_opts_keys trp_empty_opts_keys();
-/** Check if trt_opts_keys is empty. */
-ly_bool trp_opts_keys_is_empty(trt_opts_keys);
+/** Check if [<keys>] are present in node. */
+ly_bool trp_opts_keys_are_set(trt_node_name);
 
 /** 
  * @brief Print opts keys.
@@ -411,7 +400,7 @@ ly_bool trp_opts_keys_is_empty(trt_opts_keys);
  * @param[in] pf basically a pointer to the function that prints the keys.
  * @param[in,out] p basically a pointer to a function that handles the printing itself.
  */
-void trp_print_opts_keys(trt_opts_keys k, trt_indent_btw ind, trt_cf_print_keys pf, trt_printing *p);
+void trp_print_opts_keys(trt_node_name name, trt_indent_btw ind, trt_cf_print_keys pf, trt_printing *p);
 
 /* ============================== */
 /* ----------- <type> ----------- */
@@ -490,15 +479,14 @@ void trp_print_iffeatures(trt_iffeature i, trt_cf_print_iffeatures pf, trt_print
  * @brief <node> data for printing.
  *
  * <status>--<flags> <name><opts> <type> <if-features>.
- * Item <opts> is divided and moved to part trt_node_name (mark) and part trt_opts_keys (keys).
- * For printing trt_opts_keys and trt_iffeature is required special functions which prints them.
+ * Item <opts> is moved to part trt_node_name.
+ * For printing [<keys>] and trt_iffeature is required special functions which prints them.
  */
 typedef struct
 {
     trt_status_type status;          /**< <status>. */
     trt_flags_type flags;            /**< <flags>. */
-    trt_node_name name;         /**< <node> with <opts> mark. */
-    trt_opts_keys opts_keys;    /**< <opts> list's keys. Printing function required. */
+    trt_node_name name;         /**< <node> with <opts> mark or [<keys>]. */
     trt_type type;              /**< <type> is the name of the type for leafs and leaf-lists. */
     trt_iffeature iffeatures;   /**< <if-features>. Printing function required. */
 } trt_node;
@@ -507,7 +495,7 @@ typedef struct
 trt_node trp_empty_node();
 /** Check if trt_node is empty. */
 ly_bool trp_node_is_empty(trt_node);
-/** Check if opts_keys, type and iffeatures are empty. */
+/** Check if [<keys>], <type> and <iffeatures> are empty/not_set. */
 ly_bool trp_node_body_is_empty(trt_node);
 /** Print just <status>--<flags> <name> with opts mark. */
 void trp_print_node_up_to_name(trt_node, trt_printing*);
@@ -518,7 +506,7 @@ void trp_print_divided_node_up_to_name(trt_node, trt_printing*);
  * @brief Print trt_node structure.
  *
  * @param[in] n node structure for printing.
- * @param[in] ppck package of functions for printing opts_keys and iffeatures.
+ * @param[in] ppck package of functions for printing [<keys>] and <iffeatures>.
  * @param[in] ind indent in node.
  * @param[in,out] p basically a pointer to a function that handles the printing itself.
  */
@@ -876,7 +864,7 @@ void trm_print_body_section(trt_keyword_stmt, struct trt_printer_ctx*, struct tr
  *
  * Get trt_printer_ctx containing all structure items correctly defined except for trt_printer_opts and max_line_length,
  * which are parameters of the printer tree module.
- * TODO: add correct definition.
+ * TODO: add correct definition, add ly_out pointer.
  */
 struct trt_printer_ctx trm_default_printer_ctx(uint32_t max_line_length);
 
@@ -891,34 +879,82 @@ struct trt_tree_ctx trm_default_tree_ctx(struct trt_printer_ctx*);
 /* ----------- <Tree context> ----------- */
 /* ====================================== */
 
-#if 0
-
-struct lys_module;
-struct lysc_node;
-struct lysp_node;
-
 typedef enum
 {
-    data,
-    augment,
-    grouping,
-    yang_data,
-} trt_subtree_type;
+    trd_sect_module = 0,
+    trd_sect_augment,
+    trd_sect_rpcs,
+    trd_sect_notif,
+    trd_sect_grouping,
+    trd_sect_yang_data,
+} trt_actual_section;
+
+typedef uint32_t trt_opt;
+
+/* These flags are used in trt_options.code. */
+#define TRC_OPT_SECT_MODULE         (1u << 0)   /**< Don't print module section. */
+#define TRC_OPT_SECT_AUGMENT        (1u << 1)   /**< Don't print augment section. */
+#define TRC_OPT_SECT_RPCS           (1u << 2)   /**< Don't print rpcs section. */
+#define TRC_OPT_SECT_NOTIF          (1u << 3)   /**< Don't print notifications section. */
+#define TRC_OPT_SECT_GROUPING       (1u << 4)   /**< Don't print grouping section. */
+#define TRC_OPT_SECT_YANGDATA       (1u << 5)   /**< Don't print yang-data section. */
+#define TRC_OPT_MAX_LB_PER_SECT     (1u << 10)  /**< The number of line breaks in one section must not exceed. Functionality is not implemented. */
+
+#define TRC_OPT_DEFAULT 0   /**< Default settings for trt_options.code variable. */
+
+/** Setting the behavior of this entire printer_tree module. */
+typedef struct
+{
+    trt_opt code;
+    uint32_t max_linebreaks;    /**< Max linebreaks per section. Variable is used if TRC_OPT_MAX_LB_PER_SECT in code is set. */
+    uint32_t* cnt_linebreak;    /**< Pointer to trt_printing.cnt_linebreak counter. Value is used if TRC_OPT_MAX_LB_PER_SECT in code is set. */
+} trt_options;
+
+/**
+ * @brief Saved information when browsing the lysp tree.
+ *
+ * This structure helps prevent frequent retrieval of information from the tree.
+ */
+typedef struct 
+{
+    uint16_t lys_status;    /**< Inherited status CURR, DEPRC or OBSLT. */
+    uint16_t lys_config;    /**< Inherited config W or R.*/
+} trt_lysp_cache;
+
+#if 0
 
 /**
  * @brief Main structure for browsing the libyang tree
  */
 struct trt_tree_ctx
 {
-    struct ly_out *out;
+    trt_actual_section section;
     const struct lys_module *module;
-    trt_subtree_type node_ctx;
-    struct lysc_node *act_cnode;
-    struct lysp_node *act_pnode;
+    struct lysp_node *pn;               /**< Actual pointer to parsed node. */
+    trt_lysp_cache pc;                  /**< Cache memory for browsing the lysp tree. */
+    trt_options opt;                    /**< Options for printing. */
 };
 
-#endif
+/* --------- <Read getters> --------- */
+trt_keyword_stmt tro_read_module_name(const struct trt_tree_ctx*);
+trt_node tro_read_node(const struct trt_tree_ctx*);
+trt_node tro_read_next_sibling(const struct trt_tree_ctx*);
 
+/* --------- <Modify getters> --------- */
+trt_node tro_modi_parent(struct trt_tree_ctx*);
+trt_node tro_modi_next_sibling(struct trt_tree_ctx*);
+trt_node tro_modi_next_child(struct trt_tree_ctx*);
+trt_node tro_modi_next_augment(struct trt_tree_ctx*);
+trt_node tro_modi_next_rpcs(struct trt_tree_ctx*);
+trt_node tro_modi_next_notifications(struct trt_tree_ctx*);
+trt_node tro_modi_next_grouping(struct trt_tree_ctx*);
+trt_node tro_modi_next_yang_data(struct trt_tree_ctx*);
+
+/* --------- <Print getters> --------- */
+void tro_print_features_names(const struct trt_tree_ctx*, trt_printing*);
+void tro_print_keys(const struct trt_tree_ctx*, trt_printing*);
+
+#endif
 
 /* =================================== */
 /* ----------- <separator> ----------- */
