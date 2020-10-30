@@ -29,6 +29,7 @@
 #include "tree.h"
 #include "tree_schema.h"
 #include "tree_schema_internal.h"
+#include "xpath.h"
 
 
 /* -######-- Declarations start -#######- */
@@ -983,6 +984,9 @@ void trg_print_linebreak(trt_printing*);
 
 /** Print a substring but limited to the maximum length. */
 const char* trg_print_substr(const char*, size_t len, trt_printing*);
+
+/** Pointer is not NULL and does not point to an empty string. */
+ly_bool trg_charptr_has_data(const char*);
 
 /* ================================ */
 /* ----------- <symbol> ----------- */
@@ -2198,15 +2202,75 @@ trm_default_printer_ctx(uint32_t max_line_length)
 
 /* ----------- <Definition of tree functions> ----------- */
 
+ly_bool
+tro_lysp_list_has_keys(const struct lysp_node* pn)
+{
+    const struct lysp_node_list* list = (const struct lysp_node_list*) pn;
+    return trg_charptr_has_data(list->key);
+}
+
+ly_bool
+tro_lysp_node_has_iffeature(struct lysp_qname *iffs)
+{
+    LY_ARRAY_COUNT_TYPE u;
+    ly_bool ret = 0;
+
+    LY_ARRAY_FOR(iffs, u) {
+        ret = 1;
+        break;
+    }
+    return ret;
+}
+
+const char*
+tro_lysp_leaflist_refpath(const struct lysp_node* pn)
+{
+    const struct lysp_node_leaflist* list = (const struct lysp_node_leaflist*) pn;
+    return list->type.path != NULL ? list->type.path->expr : NULL;
+}
+
+const char*
+tro_lysp_leaflist_type_name(const struct lysp_node* pn)
+{
+    const struct lysp_node_leaflist* list = (const struct lysp_node_leaflist*) pn;
+    return list->type.name;
+}
+
+const char*
+tro_lysp_leaf_refpath(const struct lysp_node* pn)
+{
+    const struct lysp_node_leaf* leaf = (const struct lysp_node_leaf*) pn;
+    return leaf->type.path != NULL ? leaf->type.path->expr : NULL;
+}
+
+const char*
+tro_lysp_leaf_type_name(const struct lysp_node* pn)
+{
+    const struct lysp_node_leaf* leaf = (const struct lysp_node_leaf*) pn;
+    return leaf->type.name;
+}
+
+typedef const char* (*trt_get_charptr_func)(const struct lysp_node* pn);
+
+const char* 
+tro_lysp_node_charptr(uint16_t flags, trt_get_charptr_func f, const struct lysp_node* pn)
+{
+    if(pn->nodetype & flags) {
+        const char* ret = f(pn);
+        return trg_charptr_has_data(ret) ? ret : NULL;
+    } else 
+        return NULL;
+}
+
 trt_keyword_stmt
 tro_read_module_name(const struct trt_tree_ctx*);
 
 trt_node
 tro_read_node(const struct trt_tree_ctx* a)
 {
-    struct lysp_node *pn = a->pn;
+    const struct lysp_node *pn = a->pn;
     trt_node ret = trp_empty_node();
-    if((pn == NULL) || (pn->nodetype == LYS_UNKNOWN))
+    if((pn == NULL) || (pn->nodetype == LYS_UNKNOWN) || pn->name == NULL)
         return ret;
 
     /* define <status> */
@@ -2218,7 +2282,6 @@ tro_read_node(const struct trt_tree_ctx* a)
         trd_status_type_empty;
 
     /* TODO: trd_flags_type_mount_point aka "mp" is not supported right now. */
-    /* define <flags> */
     ret.flags = 
         pn->nodetype & LYS_INPUT ?              trd_flags_type_rpc_input_params :
         pn->nodetype & LYS_GROUPING ?           trd_flags_type_uses_of_grouping :
@@ -2231,31 +2294,37 @@ tro_read_node(const struct trt_tree_ctx* a)
     /* TODO: trd_node_top_level1 aka '/' is not supported right now. */
     /* TODO: trd_node_top_level2 aka '@' is not supported right now. */
     ret.name.type =
-        pn->nodetype & LYS_CASE ?           trd_node_case :
+        pn->nodetype & LYS_CASE ?                   trd_node_case :
         pn->nodetype & LYS_CHOICE
-            && pn->flags & LYS_MAND_TRUE ?  trd_node_optional_choice :
-        pn->nodetype & LYS_CHOICE ?         trd_node_choice :
-        pn->nodetype & LYS_CONTAINER ?      trd_node_container :
-        /* TODO: trd_node_listLeaflist (without keys) */
-        /* TODO: trd_node_keys [keys] */
-        pn->flags & LYS_MAND_TRUE ?         trd_node_optional :
+            /* TODO: ingeritance */
+            && pn->flags & LYS_MAND_TRUE ?          trd_node_optional_choice :
+        pn->nodetype & LYS_CHOICE ?                 trd_node_choice :
+        pn->nodetype & LYS_CONTAINER ?              trd_node_container :
+        pn->nodetype & LYS_LIST
+            && tro_lysp_list_has_keys(pn) ?         trd_node_keys :
+        pn->nodetype & (LYS_LIST | LYS_LEAFLIST) ?  trd_node_listLeaflist :
+        /* TODO: inheritance */
+        pn->flags & LYS_MAND_TRUE ?                 trd_node_optional :
         trd_node_else;
 
     /* TODO: ret.name.module_prefix is not supported right now. */
 
     ret.name.str = pn->name;
 
-    /* TODO: set trt_type */
-    if(pn->nodetype & (LYS_LEAFLIST | LYS_LEAF) ) {
-        /* ret.type.type = trd_type_target; */
-        /* ret.type.type = trd_type_name; */
-        /* ret.type.str = ; */
-        ;
+    const char* tmp = NULL;
+    if((tmp = tro_lysp_node_charptr(LYS_LEAFLIST, tro_lysp_leaflist_refpath, pn))) {
+        ret.type = (trt_type){trd_type_target, tmp};
+    } else if((tmp = tro_lysp_node_charptr(LYS_LEAFLIST, tro_lysp_leaflist_type_name, pn))) {
+        ret.type = (trt_type){trd_type_name, tmp};
+    } else if((tmp = tro_lysp_node_charptr(LYS_LEAF, tro_lysp_leaf_refpath, pn))) {
+        ret.type = (trt_type){trd_type_target, tmp};
+    } else if((tmp = tro_lysp_node_charptr(LYS_LEAF, tro_lysp_leaf_type_name, pn))) {
+        ret.type = (trt_type){trd_type_name, tmp};
     } else {
-        ret.type.type = trd_type_empty;
+        ret.type = trp_empty_type();
     }
 
-    ret.iffeatures = pn->iffeatures != NULL;
+    ret.iffeatures = tro_lysp_node_has_iffeature(pn->iffeatures);
 
     return ret;
 }
@@ -2346,6 +2415,12 @@ trg_print_substr(const char* str, size_t len, trt_printing* p)
         str++;
     }
     return str;
+}
+
+ly_bool
+trg_charptr_has_data(const char* ptr)
+{
+    return ptr != NULL && ptr[0] != '\0';
 }
 
 /* ----------- <Definition of module interface> ----------- */
