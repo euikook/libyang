@@ -15,7 +15,24 @@ trp_cnt_linebreak_reset(trt_printing* p)
 void
 trp_cnt_linebreak_increment(trt_printing* p)
 {
+<<<<<<< HEAD
     p->cnt_linebreak++;
+=======
+    trt_counter* cnt = (trt_counter*)out;
+
+    for(int i = 0; i < arg_count; i++)
+        cnt->bytes += strlen(va_arg(ap, char*));
+}
+
+trt_breakable_str
+trp_set_breakable_str(const char* src)
+{
+    trt_breakable_str ret;
+    ret.src = src;
+    ret.substr_start = src;
+    ret.substr_size = 0;
+    return ret;
+>>>>>>> 33ff042d... tree printer BUGFIX divided node indentation
 }
 
 void
@@ -443,8 +460,12 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
 
     /* <status>--<flags> <name><opts> <type> <if-features> */
 
+<<<<<<< HEAD
     const ly_bool triple_dot = a.name.type == trd_node_triple_dot;
     const ly_bool divided = ind.type == trd_indent_in_node_divided;
+=======
+    const bool divided = ind.type == trd_indent_in_node_divided;
+>>>>>>> 33ff042d... tree printer BUGFIX divided node indentation
     const char char_space = trd_separator_space[0];
 
     if(triple_dot) { 

@@ -54,7 +54,12 @@ TEST(nodeBreak, fitsTight)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_keys, "prefix", "node"},
+<<<<<<< HEAD
         {trd_type_name, "type"},
+=======
+        trp_set_opts_keys(),
+        {trd_type_name, trp_set_breakable_str("type")},
+>>>>>>> 33ff042d... tree printer BUGFIX divided node indentation
         trp_set_iffeature()
     };
     trt_printing p = {&out, Out::print_vecLines, 0};
@@ -341,6 +346,62 @@ TEST(nodeBreak, changeLeafrefTargetToLeafrefKeywordWithIffeature)
         mll, &p);
 
     EXPECT_EQ(out, check);
+    out.clear();
+}
+
+TEST(nodeBreak, btwOptsType)
+{
+    out_t base   =       {"  +--rw xxxprefix:node* string"};
+    uint32_t mll = strlen("                       ^");
+    string check1 =       "  +--rw xxxprefix:node*";
+    string check2 =       "  |       string";
+    out_t check = {check1, check2};
+
+    trt_printing p = {&out, Out::print_vecLines};
+    trt_node node =
+    {
+        trd_status_current, trd_flags_rw,
+        {trd_node_listLeaflist, "xxxprefix", "node"},
+        trp_empty_opts_keys(),
+        {trd_type_name, trp_set_breakable_str("string")},
+        trp_empty_iffeature()
+    };
+    trt_pck_print ppck = {NULL, {p_iff, p_key}};
+    trt_indent_in_node ind = trp_default_indent_in_node(node);
+    trt_wrapper wr = trp_init_wrapper_top();
+    trt_pck_indent ipck = {wr, ind};
+    trp_print_entire_node(node, ppck, ipck, mll, p);
+
+    EXPECT_EQ(out, check);
+
+    out.clear();
+}
+
+TEST(nodeBreak, btwTypeIffeatures)
+{
+    out_t base   =       {"  +--rw xxxprefix:node* {iffeature}?"};
+    uint32_t mll = strlen("                       ^");
+    string check1 =       "  +--rw xxxprefix:node*";
+    string check2 =       "  |       {iffeature}?";
+    out_t check = {check1, check2};
+
+    trt_printing p = {&out, Out::print_vecLines};
+    trt_node node =
+    {
+        trd_status_current, trd_flags_rw,
+        {trd_node_listLeaflist, "xxxprefix", "node"},
+        trp_empty_opts_keys(),
+        {trd_type_empty, trp_empty_breakable_str()},
+        trp_set_iffeature()
+    };
+    trt_pck_print ppck = {NULL, {p_iff, p_key}};
+    trt_indent_in_node ind = trp_default_indent_in_node(node);
+    trt_wrapper wr = trp_init_wrapper_top();
+    trt_pck_indent ipck = {wr, ind};
+    trp_print_entire_node(node, ppck, ipck, mll, p);
+
+    EXPECT_EQ(out, check);
+
     out.clear();
 }
 
