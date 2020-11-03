@@ -30,6 +30,7 @@
 #include "tree_schema.h"
 #include "tree_schema_internal.h"
 #include "xpath.h"
+#include "out_internal.h"
 
 
 /* -######-- Declarations start -#######- */
@@ -61,6 +62,7 @@
  * trm - Main functions, Manager
  * trg - General functions
  * TRC - constant that is not configurable
+ * tmp - functions that will be removed
  */
 
 
@@ -915,8 +917,8 @@ typedef struct
  */
 typedef struct 
 {
-    uint16_t lys_status;                    /**< Inherited status CURR, DEPRC or OBSLT. */
-    uint16_t lys_config;                    /**< Inherited config W or R. */
+    uint16_t lys_status;                    /**< Inherited status CURR, DEPRC, OBSLT or nothing. */
+    uint16_t lys_config;                    /**< Inherited config W, R or nothing. */
     const struct lysp_node_list* last_list; /**< The last LYS_LIST passed. */
 } trt_lysp_cache;
 
@@ -927,7 +929,7 @@ struct trt_tree_ctx
 {
     trt_actual_section section;
     const struct lys_module *module;
-    const struct lysp_node *pn;               /**< Actual pointer to parsed node. */
+    const struct lysp_node *pn;         /**< Actual pointer to parsed node. */
     trt_lysp_cache pc;                  /**< Cache memory for browsing the lysp tree. */
     trt_options opt;                    /**< Options for printing. */
 };
@@ -2279,6 +2281,28 @@ tro_lysp_node_charptr(uint16_t flags, trt_get_charptr_func f, const struct lysp_
         return NULL;
 }
 
+trt_status_type
+tro_lysp_flags2status(uint16_t flags)
+{
+    return flags & LYS_STATUS_CURR ?    trd_status_type_current :
+        flags & LYS_STATUS_DEPRC ?      trd_status_type_deprecated :
+        flags & LYS_STATUS_OBSLT ?      trd_status_type_obsolete :
+        trd_status_type_empty;
+}
+
+trt_status_type
+tro_lysp_node_status(uint16_t ancestor_status, uint16_t node_flag)
+{
+    if(node_flag & (LYS_STATUS_CURR | LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)) {
+        /* node status was set */
+        if(ancestor_status & LYS_STATUS_CURR) {
+            return tro_lysp_flags2status(node_flag);
+        }
+    }
+    /* get status of my ancestor */
+    return tro_lysp_flags2status(ancestor_status);
+}
+
 trt_keyword_stmt
 tro_read_module_name(const struct trt_tree_ctx*);
 
@@ -2291,12 +2315,7 @@ tro_read_node(const struct trt_tree_ctx* a)
         return ret;
 
     /* define <status> */
-    ret.status =
-        pn->flags & LYS_STATUS_CURR  ? trd_status_type_current :
-        pn->flags & LYS_STATUS_DEPRC ? trd_status_type_deprecated :
-        pn->flags & LYS_STATUS_OBSLT ? trd_status_type_obsolete :
-        /* TODO: inheritance */
-        trd_status_type_empty;
+    ret.status = tro_lysp_node_status(a->pc.lys_status, pn->flags);
 
     /* TODO: trd_flags_type_mount_point aka "mp" is not supported right now. */
     ret.flags = 
@@ -2499,9 +2518,118 @@ trg_word_is_present(const char* src, const char* word, char delim)
 
 /* ----------- <Definition of module interface> ----------- */
 
-//LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct lys_module *module, uint32_t options, size_t line_length)
-LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *UNUSED(out), const struct lys_module *UNUSED(module), uint32_t UNUSED(options), size_t UNUSED(line_length))
+// it is 'tmp_' -> will be deleted
+typedef void (*lysp_print_item_clb)(const struct lysp_node *node, struct ly_out *out);
+
+// it is 'tmp_' -> will be deleted
+typedef void (*lysp_print_tuple_clb)(const struct lysp_node *node, struct ly_out *out, lysp_print_item_clb fi);
+
+void
+tmp_print_status(const struct lysp_node *node, struct ly_out *out)
 {
+    ly_print_(out, "status: ");
+    if(node->nodetype & (LYS_INPUT | LYS_OUTPUT))
+        ly_print_(out, "no_status");
+    else if(node->flags & LYS_STATUS_CURR)
+        ly_print_(out, "CURR");
+    else if(node->flags & LYS_STATUS_DEPRC)
+        ly_print_(out, "DEPRC");
+    else if(node->flags & LYS_STATUS_OBSLT)
+        ly_print_(out, "OBSLT");
+    else
+        ly_print_(out, "empty");
+}
+
+void
+tmp_print_typeNameSomething(const struct lysp_node *node, struct ly_out *out, lysp_print_item_clb fi)
+{
+    char type[10] = {};
+    switch(node->nodetype) {
+        case LYS_CONTAINER:
+            strcpy(type, "CONTAINER");
+            break;
+        case LYS_CHOICE:
+            strcpy(type, "CHOICE");
+            break;
+        case LYS_LEAF:
+            strcpy(type, "LEAF");
+            break;
+        case LYS_LEAFLIST:
+            strcpy(type, "LEAFLIST");
+            break;
+        case LYS_LIST:
+            strcpy(type, "LIST");
+            break;
+        case LYS_ANYXML:
+            strcpy(type, "ANYXML");
+            break;
+        case LYS_ANYDATA:
+            strcpy(type, "ANYDATA");
+            break;
+        case LYS_CASE:
+            strcpy(type, "CASE");
+            break;
+        case LYS_RPC:
+            strcpy(type, "RPC");
+            break;
+        case LYS_ACTION:
+            strcpy(type, "ACTION");
+            break;
+        case LYS_NOTIF:
+            strcpy(type, "NOTIF");
+            break;
+        case LYS_USES:
+            strcpy(type, "USES");
+            break;
+        case LYS_INPUT:
+            strcpy(type, "INPUT");
+            break;
+        case LYS_OUTPUT:
+            strcpy(type, "OUTPUT");
+            break;
+        case LYS_GROUPING:
+            strcpy(type, "GROUPING");
+            break;
+        case LYS_AUGMENT:
+            strcpy(type, "AUGMENT");
+            break;
+        default:
+            ly_print_(out, "ERROR: UNKNOWN type");
+            break;
+    }
+    ly_print_(out, "type: %s, name: %s, ", type, node->name);
+    fi(node, out);
+    ly_print_(out, "\n");
+}
+
+void
+tmp_browse_all(struct ly_out *out, const struct lysp_node *node, lysp_print_tuple_clb ft, lysp_print_item_clb fi)
+{
+    const struct lysp_node *iter;
+
+    LY_LIST_FOR(node, iter) {
+        const struct lysp_node *next = NULL;
+        ft(iter, out, fi);
+        if((next = lysp_node_children(iter)))
+            tmp_browse_all(out, next, ft, fi);
+    }
+}
+
+//LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct lys_module *module, uint32_t options, size_t line_length)
+LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct lys_module *module, uint32_t UNUSED(options), size_t UNUSED(line_length))
+{
+    ly_print_(out, "----module_data start>>>>\n");
+    tmp_browse_all(out, module->parsed->data, tmp_print_typeNameSomething, tmp_print_status);
+    ly_print_(out, "<<<<module_data end----\n");
+
+    ly_print_(out, "----groupings start>>>>\n");
+    const struct lysp_grp *grp = module->parsed->groupings;
+    LY_ARRAY_COUNT_TYPE i;
+    LY_ARRAY_FOR(grp, i) {
+        tmp_browse_all(out, grp[i].data, tmp_print_typeNameSomething, tmp_print_status);
+    }
+    ly_print_(out, "<<<<groupings end----\n");
+
     return 0;
 }
 

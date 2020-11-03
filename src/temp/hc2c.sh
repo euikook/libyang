@@ -32,6 +32,7 @@ echo "
 #include \"tree_schema.h\"
 #include \"tree_schema_internal.h\"
 #include \"xpath.h\"
+#include \"out_internal.h\"
 
 " > printer_tree.c
 
