@@ -2291,16 +2291,37 @@ tro_lysp_flags2status(uint16_t flags)
 }
 
 trt_status_type
-tro_lysp_node_status(uint16_t ancestor_status, uint16_t node_flag)
+tro_lysp_node_name(uint16_t ancestor_flags, uint16_t node_flags)
 {
-    if(node_flag & (LYS_STATUS_CURR | LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)) {
+    if(node_flags & (LYS_STATUS_CURR | LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)) {
         /* node status was set */
-        if(ancestor_status & LYS_STATUS_CURR) {
-            return tro_lysp_flags2status(node_flag);
+        if(ancestor_flags & LYS_STATUS_CURR) {
+            return tro_lysp_flags2status(node_flags);
         }
     }
     /* get status of my ancestor */
-    return tro_lysp_flags2status(ancestor_status);
+    return tro_lysp_flags2status(ancestor_flags);
+}
+
+trt_flags_type
+tro_lysp_flags2config(uint16_t flags)
+{
+    return flags & LYS_CONFIG_R ?   trd_flags_type_ro :
+        flags & LYS_CONFIG_W ?      trd_flags_type_rw :
+        trd_flags_type_empty;
+}
+
+trt_flags_type
+tro_lysp_node_config(uint16_t ancestor_flags, const struct lysp_node *pn)
+{
+    /* precondition: assumed that node is not LYS_INPUT, LYS_USES, LYS_RPC, LYS_ACTION, LYS_NOTIF type. */
+    if(pn->nodetype & (LYS_CONTAINER | LYS_CHOICE | LYS_LEAF | LYS_LEAFLIST | LYS_LIST | LYS_ANYDATA | LYS_ANYXML)) {
+        trt_flags_type my_ft = tro_lysp_flags2config(pn->flags);
+        return my_ft == trd_flags_type_empty ? tro_lysp_flags2config(ancestor_flags) : my_ft;
+    } else {
+        /* return some default value */
+        return trd_flags_type_empty;
+    }
 }
 
 trt_keyword_stmt
@@ -2323,10 +2344,7 @@ tro_read_node(const struct trt_tree_ctx* a)
         pn->nodetype & LYS_USES ?               trd_flags_type_uses_of_grouping :
         pn->nodetype & (LYS_RPC | LYS_ACTION) ? trd_flags_type_rpc :
         pn->nodetype & LYS_NOTIF ?              trd_flags_type_notif :
-        /* TODO: inheritance */
-        pn->flags & LYS_CONFIG_W ?              trd_flags_type_rw :
-        pn->flags & LYS_CONFIG_R ?              trd_flags_type_ro :
-        trd_flags_type_empty;
+        tro_lysp_node_config(a->pc.lys_config, pn); /* return trd_flags_type_ro || trd_flags_type_rw || empty  */
 
     /* TODO: trd_node_top_level1 aka '/' is not supported right now. */
     /* TODO: trd_node_top_level2 aka '@' is not supported right now. */
@@ -2406,9 +2424,9 @@ tro_print_features_names(const struct trt_tree_ctx* a, trt_printing* p)
     LY_ARRAY_COUNT_TYPE i;
     LY_ARRAY_FOR(iffs, i) {
         if(i == 0) {
-            trp_print(p, 1, iffs[i]);
+            trp_print(p, 1, iffs[i].str);
         } else {
-            trp_print(p, 2, trd_iffeatures_delimiter, iffs[i]);
+            trp_print(p, 2, trd_iffeatures_delimiter, iffs[i].str);
         }
     }
 
