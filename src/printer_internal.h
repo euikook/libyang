@@ -131,7 +131,7 @@ LY_ERR tree_print_compiled_node(struct ly_out *out, const struct lysc_node *node
 
 /* TODO: add commnets */
 
-LY_ERR tree_print_parsed_module(struct ly_out *out, const struct lys_module *module, const struct lysp_module *modp, uint32_t options);
+LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct lys_module *module, uint32_t options);
 
 LY_ERR tree_print_parsed_submodule(struct ly_out *out, const struct lys_module *module, const struct lysp_submodule *submodp, uint32_t options);
 
