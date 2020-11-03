@@ -986,6 +986,8 @@ void trg_print_linebreak(trt_printing*);
 /** Print a substring but limited to the maximum length. */
 const char* trg_print_substr(const char*, size_t len, trt_printing*);
 
+void trg_print_linebreak(trt_printing);
+
 /* ================================ */
 /* ----------- <symbol> ----------- */
 /* ================================ */
