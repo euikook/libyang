@@ -25,35 +25,11 @@
 #include "tests/config.h"
 #include "tree_schema.h"
 
-#define BUFSIZE 1024
-char logbuf[BUFSIZE] = {0};
-int store = -1; /* negative for infinite logging, positive for limited logging */
 
 struct state_s {
     void *func;
     struct ly_ctx *ctx;
 };
-
-/* set to 0 to printing error messages to stderr instead of checking them in code */
-#define ENABLE_LOGGER_CHECKING 1
-
-#if ENABLE_LOGGER_CHECKING
-static void
-logger(LY_LOG_LEVEL level, const char *msg, const char *path)
-{
-    (void) level; /* unused */
-    if (store) {
-        if (path && path[0]) {
-            snprintf(logbuf, BUFSIZE - 1, "%s %s", msg, path);
-        } else {
-            strncpy(logbuf, msg, BUFSIZE - 1);
-        }
-        if (store > 0) {
-            --store;
-        }
-    }
-}
-#endif
 
 
 const char *schema_a = "module defs {namespace urn:tests:defs;prefix d;yang-version 1.1;"
@@ -121,16 +97,16 @@ const char *schema_c =
 
 
 #define CONTEXT_CREATE \
+                ly_set_log_clb(logger_null, 1);\
                 CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG);\
                 assert_non_null(ly_ctx_load_module(CONTEXT_GET, "ietf-netconf-with-defaults", "2011-06-01", NULL));\
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, NULL));\
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_b, LYS_IN_YANG, NULL));\
-                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_c, LYS_IN_YANG, NULL));\
-                ly_set_log_clb(logger, 1)
+                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_c, LYS_IN_YANG, NULL))\
 
 
 #define LYD_NODE_CREATE(INPUT, MODEL) \
-                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, MODEL)
 
 #define PARSER_CHECK_ERROR(INPUT, PARSE_OPTION, MODEL, RET_VAL, ERR_MESSAGE) \
                 assert_int_equal(RET_VAL, lyd_parse_data_mem(CONTEXT_GET, data, LYD_XML, PARSE_OPTION, LYD_VALIDATE_PRESENT, &MODEL));\
@@ -142,17 +118,13 @@ const char *schema_c =
                 LYD_NODE_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_XML, PARAM | LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
 
 
-void
-logbuf_clean(void)
-{
-    logbuf[0] = '\0';
-}
+#define logbuf_assert(str)\
+    {\
+        const char * err_msg[]  = {str};\
+        const char * err_path[] = {NULL};\
+        LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);\
+    }
 
-#if ENABLE_LOGGER_CHECKING
-#   define logbuf_assert(str) assert_string_equal(logbuf, str)
-#else
-#   define logbuf_assert(str)
-#endif
 
 static void
 test_leaf(void **state)

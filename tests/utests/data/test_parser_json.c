@@ -27,9 +27,9 @@
 
 #include "../macros.h"
 
-#define BUFSIZE 1024
 
 #define CONTEXT_CREATE \
+                ly_set_log_clb(logger_null, 1);\
                 CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG);\
                 assert_non_null(ly_ctx_load_module(CONTEXT_GET, "ietf-netconf-with-defaults", "2011-06-01", NULL));\
                 {\
@@ -37,17 +37,16 @@
                     assert_non_null((mod = ly_ctx_load_module(CONTEXT_GET, "ietf-netconf", "2011-06-01", feats)));\
                     assert_int_equal(LY_SUCCESS, lys_feature_enable(mod, "writable-running"));\
                 }\
-                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, NULL));\
-                ly_set_log_clb(logger, 1)
+                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, NULL))\
 
 
 
 #define LYD_NODE_CREATE(INPUT, PARSE_OPTION, MODEL) \
-                LYD_NODE_CREATE_PARAM(INPUT, LYD_JSON, PARSE_OPTION, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_JSON, PARSE_OPTION, LYD_VALIDATE_PRESENT, LY_SUCCESS, MODEL)
 
-#define PARSER_CHECK_ERROR(INPUT, PARSE_OPTION, MODEL, RET_VAL, ERR_MESSAGE) \
+#define PARSER_CHECK_ERROR(INPUT, PARSE_OPTION, MODEL, RET_VAL, ERR_MESSAGE, ERR_PATH) \
                 assert_int_equal(RET_VAL, lyd_parse_data_mem(CONTEXT_GET, data, LYD_JSON, PARSE_OPTION, LYD_VALIDATE_PRESENT, &MODEL));\
-                logbuf_assert(ERR_MESSAGE);\
+                LY_ERROR_CHECK(CONTEXT_GET, ERR_MESSAGE, ERR_PATH);\
                 assert_null(MODEL)
 
 
@@ -71,53 +70,15 @@ const char *schema_a = "module a {namespace urn:tests:a;prefix a;yang-version 1.
             "leaf foo2 { type string; default \"default-val\"; }"
             "leaf foo3 { type uint32; }"
             "notification n2;}";
-    const char *feats[] = {"writable-running", NULL};
+const char *feats[] = {"writable-running", NULL};
 
-
-char logbuf[BUFSIZE] = {0};
-int store = -1; /* negative for infinite logging, positive for limited logging */
-
-struct ly_ctx *ctx; /* context for tests */
-
-/* set to 0 to printing error messages to stderr instead of checking them in code */
-#define ENABLE_LOGGER_CHECKING 1
-
-#if ENABLE_LOGGER_CHECKING
-static void
-logger(LY_LOG_LEVEL level, const char *msg, const char *path)
-{
-    (void) level; /* unused */
-    if (store) {
-        if (path && path[0]) {
-            snprintf(logbuf, BUFSIZE - 1, "%s %s", msg, path);
-        } else {
-            strncpy(logbuf, msg, BUFSIZE - 1);
-        }
-        if (store > 0) {
-            --store;
-        }
-    }
-}
-#endif
-
-
-void
-logbuf_clean(void)
-{
-    logbuf[0] = '\0';
-}
-
-#if ENABLE_LOGGER_CHECKING
-#   define logbuf_assert(str) assert_string_equal(logbuf, str)
-#else
-#   define logbuf_assert(str)
-#endif
 
 static void
 test_leaf(void **state)
 {
     (void) state;
-
+    char *err_path[1];
+    char *err_msg[1];
     const char *data = "{\"a:foo\":\"foo value\"}";
     struct lyd_node *tree;
     struct lyd_node_term *leaf;
@@ -177,15 +138,21 @@ test_leaf(void **state)
     LYD_NODE_CHECK_CHAR(tree, "{\"a:foo\":\"xxx\",\"@a:foo\":{\"a:hint\":1,\"a:hint\":2}}");
     LYD_NODE_DESTROY(tree);
 
-    PARSER_CHECK_ERROR(data, LYD_PARSE_STRICT, tree, LY_EVALID, "Unknown (or not implemented) YANG module \"x\" for metadata \"x:xxx\". /a:foo");
+    err_msg[0] =  "Unknown (or not implemented) YANG module \"x\" for metadata \"x:xxx\".";
+    err_path[0]= "/a:foo";
+    PARSER_CHECK_ERROR(data, LYD_PARSE_STRICT, tree, LY_EVALID, err_msg, err_path);
 
     /* missing referenced metadata node */
     data = "{\"@a:foo\" : { \"a:hint\" : 1 }}";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "Missing JSON data instance to be coupled with @a:foo metadata. /");
+    err_msg[0] =  "Missing JSON data instance to be coupled with @a:foo metadata.";
+    err_path[0]= "/";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     /* missing namespace for meatadata*/
     data = "{\"a:foo\" : \"value\", \"@a:foo\" : { \"hint\" : 1 }}";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "Metadata in JSON must be namespace-qualified, missing prefix for \"hint\". /a:foo");
+    err_msg[0] =  "Metadata in JSON must be namespace-qualified, missing prefix for \"hint\".";
+    err_path[0]= "/a:foo";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -262,14 +229,22 @@ test_leaflist(void **state)
     LYD_NODE_DESTROY(tree);
 
     /* missing referenced metadata node */
+    char *err_path[1];
+    char *err_msg[1];
     data = "{\"@a:ll1\":[{\"a:hint\":1}]}";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "Missing JSON data instance to be coupled with @a:ll1 metadata. /");
+    err_msg[0] =  "Missing JSON data instance to be coupled with @a:ll1 metadata.";
+    err_path[0]= "/";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     data = "{\"a:ll1\":[1],\"@a:ll1\":[{\"a:hint\":1},{\"a:hint\":2}]}";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "Missing JSON data instance no. 2 of a:ll1 to be coupled with metadata. /");
+    err_msg[0] =  "Missing JSON data instance no. 2 of a:ll1 to be coupled with metadata.";
+    err_path[0]= "/";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     data = "{\"@a:ll1\":[{\"a:hint\":1},{\"a:hint\":2},{\"a:hint\":3}],\"a:ll1\" : [1, 2]}";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "Missing 3rd JSON data instance to be coupled with @a:ll1 metadata. /");
+    err_msg[0] =  "Missing 3rd JSON data instance to be coupled with @a:ll1 metadata.";
+    err_path[0]= "/";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -296,7 +271,7 @@ test_anydata(void **state)
 static void
 test_list(void **state)
 {
-    *state = test_list;
+    (void) state;
 
     const char *data = "{\"a:l1\":[{\"a\":\"one\",\"b\":\"one\",\"c\":1}]}";
     struct lyd_node *tree, *iter;
@@ -317,21 +292,30 @@ test_list(void **state)
     LYD_NODE_DESTROY(tree);
 
     /* missing keys */
+    char *err_path[1];
+    char *err_msg[1];
     data = "{ \"a:l1\": [ {\"c\" : 1, \"b\" : \"b\"}]}";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "List instance is missing its key \"a\". /a:l1[b='b'][c='1']");
+    err_msg[0] =  "List instance is missing its key \"a\".";
+    err_path[0]= "/a:l1[b='b'][c='1']";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     data = "{ \"a:l1\": [ {\"a\" : \"a\"}]}";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "List instance is missing its key \"b\". /a:l1[a='a']");
+    err_msg[0] =  "List instance is missing its key \"b\".";
+    err_path[0]= "/a:l1[a='a']";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     data = "{ \"a:l1\": [ {\"b\" : \"b\", \"a\" : \"a\"}]}";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "List instance is missing its key \"c\". /a:l1[a='a'][b='b']");
+    err_msg[0] =  "List instance is missing its key \"c\".";
+    err_path[0]= "/a:l1[a='a'][b='b']";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     /* key duplicate */
     data = "{ \"a:l1\": [ {\"c\" : 1, \"b\" : \"b\", \"a\" : \"a\", \"c\" : 1}]}";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "Duplicate instance of \"c\". /a:l1[a='a'][b='b'][c='1'][c='1']/c");
+    err_msg[0] =  "Duplicate instance of \"c\".";
+    err_path[0]= "/a:l1[a='a'][b='b'][c='1'][c='1']/c";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     /* keys order, in contrast to XML, JSON accepts keys in any order even in strict mode */
-    logbuf_clean();
     data = "{ \"a:l1\": [ {\"d\" : \"d\", \"a\" : \"a\", \"c\" : 1, \"b\" : \"b\"}]}";
     LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LIST, "l1");
@@ -344,7 +328,7 @@ test_list(void **state)
     LYSC_NODE_CHECK(leaf->schema, LYS_LEAF, "c");
     assert_non_null(leaf = (struct lyd_node_term*)leaf->next);
     LYSC_NODE_CHECK(leaf->schema, LYS_LEAF, "d");
-    logbuf_assert("");
+    LY_NO_ERROR_CHECK(CONTEXT_GET);
 
     LYD_NODE_CHECK_CHAR(tree, "{\"a:l1\":[{\"a\":\"a\",\"b\":\"b\",\"c\":1,\"d\":\"d\"}]}");
     LYD_NODE_DESTROY(tree);
@@ -360,7 +344,7 @@ test_list(void **state)
     LYSC_NODE_CHECK(leaf->schema, LYS_LEAF, "b");
     assert_non_null(leaf = (struct lyd_node_term*)leaf->next);
     LYSC_NODE_CHECK(leaf->schema, LYS_LEAF, "c");
-    logbuf_assert("");
+    LY_NO_ERROR_CHECK(CONTEXT_GET);
 
 
     LYD_NODE_CHECK_CHAR(tree, "{\"a:l1\":[{\"a\":\"a\",\"b\":\"b\",\"c\":1}]}");
@@ -415,15 +399,18 @@ test_opaq(void **state)
 {
     (void) state;
 
-    const char *data, *err_msg;
+    const char *data;
     struct lyd_node *tree;
+    char *err_msg[1];
+    char *err_path[1];
 
     CONTEXT_CREATE;
 
     /* invalid value, no flags */
     data = "{\"a:foo3\":[null]}";
-    err_msg = "Invalid non-number-encoded uint32 value \"\". /a:foo3";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg);
+    err_msg[0]  = "Invalid non-number-encoded uint32 value \"\".";
+    err_path[0] = "/a:foo3";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     /* opaq flag */
     LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
@@ -433,7 +420,9 @@ test_opaq(void **state)
 
     /* missing key, no flags */
     data = "{\"a:l1\":[{\"a\":\"val_a\",\"b\":\"val_b\",\"d\":\"val_d\"}]}";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "List instance is missing its key \"c\". /a:l1[a='val_a'][b='val_b']");
+    err_msg[0] =  "List instance is missing its key \"c\".";
+    err_path[0]= "/a:l1[a='val_a'][b='val_b']";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     /* opaq flag */
     LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
@@ -443,8 +432,9 @@ test_opaq(void **state)
 
     /* invalid key, no flags */
     data = "{\"a:l1\":[{\"a\":\"val_a\",\"b\":\"val_b\",\"c\":\"val_c\"}]}";
-    err_msg = "Invalid non-number-encoded int16 value \"val_c\". /a:l1/c";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg);
+    err_msg[0]  = "Invalid non-number-encoded int16 value \"val_c\".";
+    err_path[0] = "/a:l1/c";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     /* opaq flag */
     LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);

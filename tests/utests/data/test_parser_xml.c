@@ -44,23 +44,23 @@ const char *schema_a = "module a {namespace urn:tests:a;prefix a;yang-version 1.
 
 
 #define CONTEXT_CREATE \
+                ly_set_log_clb(logger_null, 1);\
                 CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG);\
                 assert_non_null(ly_ctx_load_module(CONTEXT_GET, "ietf-netconf-with-defaults", "2011-06-01", NULL));\
                 {\
                     const struct lys_module *mod;\
                     assert_non_null((mod = ly_ctx_load_module(CONTEXT_GET, "ietf-netconf", "2011-06-01", feats)));\
                 }\
-                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, NULL));\
-                ly_set_log_clb(logger, 1)
+                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, NULL))\
 
 
 
 #define LYD_NODE_CREATE(INPUT, PARSE_OPTION, MODEL) \
-                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, PARSE_OPTION, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, PARSE_OPTION, LYD_VALIDATE_PRESENT, LY_SUCCESS, MODEL)
 
-#define PARSER_CHECK_ERROR(INPUT, PARSE_OPTION, MODEL, RET_VAL, ERR_MESSAGE) \
+#define PARSER_CHECK_ERROR(INPUT, PARSE_OPTION, MODEL, RET_VAL, ERR_MESSAGE, ERR_PATH) \
                 assert_int_equal(RET_VAL, lyd_parse_data_mem(CONTEXT_GET, data, LYD_XML, PARSE_OPTION, LYD_VALIDATE_PRESENT, &MODEL));\
-                logbuf_assert(ERR_MESSAGE);\
+                LY_ERROR_CHECK(CONTEXT_GET, ERR_MESSAGE, ERR_PATH);\
                 assert_null(MODEL)
 
 
@@ -72,46 +72,14 @@ const char *schema_a = "module a {namespace urn:tests:a;prefix a;yang-version 1.
 
 
 
-#define BUFSIZE 1024
-char logbuf[BUFSIZE] = {0};
-int store = -1; /* negative for infinite logging, positive for limited logging */
-
-struct ly_ctx *ctx; /* context for tests */
-
-/* set to 0 to printing error messages to stderr instead of checking them in code */
-#define ENABLE_LOGGER_CHECKING 1
-
-#if ENABLE_LOGGER_CHECKING
-static void
-logger(LY_LOG_LEVEL level, const char *msg, const char *path)
-{
-    (void) level; /* unused */
-    if (store) {
-        if (path && path[0]) {
-            snprintf(logbuf, BUFSIZE - 1, "%s %s", msg, path);
-        } else {
-            strncpy(logbuf, msg, BUFSIZE - 1);
-        }
-        if (store > 0) {
-            --store;
-        }
+#define logbuf_assert(str)\
+    {\
+        const char * err_msg[]  = {str};\
+        const char * err_path[] = {NULL};\
+        LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);\
     }
-}
-#endif
 
 const char *feats[] = {"writable-running", NULL};
-
-void
-logbuf_clean(void)
-{
-    logbuf[0] = '\0';
-}
-
-#if ENABLE_LOGGER_CHECKING
-#   define logbuf_assert(str) assert_string_equal(logbuf, str)
-#else
-#   define logbuf_assert(str)
-#endif
 
 static void
 test_leaf(void **state)
@@ -196,6 +164,8 @@ test_list(void **state)
 {
     (void) state;
 
+    const char *err_msg[1];
+    const char *err_path[1];
     const char *data = "<l1 xmlns=\"urn:tests:a\"><a>one</a><b>one</b><c>1</c></l1>";
     struct lyd_node *tree, *iter;
     struct lyd_node_inner *list;
@@ -214,17 +184,25 @@ test_list(void **state)
 
     /* missing keys */
     data = "<l1 xmlns=\"urn:tests:a\"><c>1</c><b>b</b></l1>";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "List instance is missing its key \"a\". /a:l1[b='b'][c='1']");
+    err_msg[0] =  "List instance is missing its key \"a\".";
+    err_path[0]= "/a:l1[b='b'][c='1']";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     data = "<l1 xmlns=\"urn:tests:a\"><a>a</a></l1>";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "List instance is missing its key \"b\". /a:l1[a='a']");
+    err_msg[0] =  "List instance is missing its key \"b\".";
+    err_path[0]= "/a:l1[a='a']";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     data = "<l1 xmlns=\"urn:tests:a\"><b>b</b><a>a</a></l1>";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "List instance is missing its key \"c\". /a:l1[a='a'][b='b']");
+    err_msg[0] =  "List instance is missing its key \"c\".";
+    err_path[0]= "/a:l1[a='a'][b='b']";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     /* key duplicate */
     data = "<l1 xmlns=\"urn:tests:a\"><c>1</c><b>b</b><a>a</a><c>1</c></l1>";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "Duplicate instance of \"c\". /a:l1[a='a'][b='b'][c='1'][c='1']/c");
+    err_msg[0] =  "Duplicate instance of \"c\".";
+    err_path[0]= "/a:l1[a='a'][b='b'][c='1'][c='1']/c";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     /* keys order */
     data = "<l1 xmlns=\"urn:tests:a\"><d>d</d><a>a</a><c>1</c><b>b</b></l1>";
@@ -239,8 +217,9 @@ test_list(void **state)
     LYSC_NODE_CHECK(leaf->schema, LYS_LEAF, "c");
     assert_non_null(leaf = (struct lyd_node_term*)leaf->next);
     LYSC_NODE_CHECK(leaf->schema, LYS_LEAF, "d");
-    logbuf_assert("Invalid position of the key \"b\" in a list.");
-    logbuf_clean();
+    err_msg[0]  = "Invalid position of the key \"b\" in a list.";
+    err_path[0] = NULL;
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path); 
     LYD_NODE_DESTROY(tree); 
 
     data = "<l1 xmlns=\"urn:tests:a\"><c>1</c><b>b</b><a>a</a></l1>";
@@ -254,11 +233,11 @@ test_list(void **state)
     assert_non_null(leaf = (struct lyd_node_term*)leaf->next);
     LYSC_NODE_CHECK(leaf->schema, LYS_LEAF, "c");
     logbuf_assert("Invalid position of the key \"a\" in a list.");
-    logbuf_clean();
     LYD_NODE_DESTROY(tree);
 
-
-    PARSER_CHECK_ERROR(data, LYD_PARSE_STRICT, tree, LY_EVALID, "Invalid position of the key \"b\" in a list. Line number 1.");
+    err_msg[0]  = "Invalid position of the key \"b\" in a list.";
+    err_path[0] = "Line number 1.";
+    PARSER_CHECK_ERROR(data, LYD_PARSE_STRICT, tree, LY_EVALID, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -295,12 +274,16 @@ test_opaq(void **state)
     (void) state;
     const char *data;
     struct lyd_node *tree;
+    const char *err_msg[1];
+    const char *err_path[1];
 
     CONTEXT_CREATE;
 
     /* invalid value, no flags */
     data = "<foo3 xmlns=\"urn:tests:a\"/>";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "Invalid empty uint32 value. /a:foo3");
+    err_msg[0] =  "Invalid empty uint32 value.";
+    err_path[0]= "/a:foo3";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     /* opaq flag */
     LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
@@ -311,7 +294,9 @@ test_opaq(void **state)
 
     /* missing key, no flags */
     data = "<l1 xmlns=\"urn:tests:a\"><a>val_a</a><b>val_b</b><d>val_d</d></l1>";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "List instance is missing its key \"c\". /a:l1[a='val_a'][b='val_b']");
+    err_msg[0] =  "List instance is missing its key \"c\".";
+    err_path[0]= "/a:l1[a='val_a'][b='val_b']";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     /* opaq flag */
     LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
@@ -322,7 +307,9 @@ test_opaq(void **state)
 
     /* invalid key, no flags */
     data = "<l1 xmlns=\"urn:tests:a\"><a>val_a</a><b>val_b</b><c>val_c</c></l1>";
-    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, "Invalid int16 value \"val_c\". /a:l1/c");
+    err_msg[0] =  "Invalid int16 value \"val_c\".";
+    err_path[0]= "/a:l1/c";
+    PARSER_CHECK_ERROR(data, 0, tree, LY_EVALID, err_msg, err_path);
 
     /* opaq flag */
     LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
@@ -332,9 +319,12 @@ test_opaq(void **state)
     LYD_NODE_DESTROY(tree);
 
     /* opaq flag and fail */
-    assert_int_equal(LY_EVALID, lyd_parse_data_mem(CONTEXT_GET, "<a xmlns=\"ns\"><b>x</b><c xml:id=\"D\">1</c></a>", LYD_XML,
-                                                   LYD_PARSE_OPAQ, LYD_VALIDATE_PRESENT, &tree));
-    logbuf_assert("Unknown XML prefix \"xml\". Line number 1.");
+    assert_int_equal(LY_EVALID, lyd_parse_data_mem(CONTEXT_GET, 
+                "<a xmlns=\"ns\"><b>x</b><c xml:id=\"D\">1</c></a>",
+                LYD_XML, LYD_PARSE_OPAQ, LYD_VALIDATE_PRESENT, &tree));
+    err_msg[0]  = "Unknown XML prefix \"xml\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }

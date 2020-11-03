@@ -20,7 +20,7 @@
 
 
 #define LYD_NODE_CREATE(INPUT, MODEL) \
-                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, MODEL)
 
 #define CONTEXT_CREATE \
                 CONTEXT_CREATE_PATH(NULL)
@@ -190,11 +190,11 @@ test_batch(void **state)
 
     CONTEXT_CREATE;
     struct lyd_node *target;
-    LYD_NODE_CREATE_PARAM(start, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, "", target);
+    LYD_NODE_CREATE_PARAM(start, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, target);
 
     for (int32_t i = 0; i < 11; ++i) {
         struct lyd_node *source;
-        LYD_NODE_CREATE_PARAM(data[i], LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, "", source);
+        LYD_NODE_CREATE_PARAM(data[i], LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, source);
         assert_int_equal(LY_SUCCESS, lyd_merge_siblings(&target, source, LYD_MERGE_DESTRUCT));
     }
 

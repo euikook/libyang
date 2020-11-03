@@ -129,30 +129,6 @@ struct test_parser_yin_state {
     bool finished_correctly;
 };
 
-#define BUFSIZE 1024
-char logbuf[BUFSIZE] = {0};
-int store = -1; /* negative for infinite logging, positive for limited logging */
-
-/* set to 0 to printing error messages to stderr instead of checking them in code */
-#define ENABLE_LOGGER_CHECKING 1
-
-#if ENABLE_LOGGER_CHECKING
-static void
-logger(LY_LOG_LEVEL level, const char *msg, const char *path)
-{
-    (void) level; /* unused */
-    if (store) {
-        if (path && path[0]) {
-            snprintf(logbuf, BUFSIZE - 1, "%s %s", msg, path);
-        } else {
-            strncpy(logbuf, msg, BUFSIZE - 1);
-        }
-        if (store > 0) {
-            --store;
-        }
-    }
-}
-#endif
 
 #define PARSER_CREATE(PARSER_CTX)\
             PARSER_CTX = calloc(1, sizeof *PARSER_CTX);\
@@ -161,7 +137,7 @@ logger(LY_LOG_LEVEL level, const char *msg, const char *path)
             PARSER_CTX->parsed_mod->mod = calloc(1, sizeof *PARSER_CTX->parsed_mod->mod);\
             PARSER_CTX->parsed_mod->mod->parsed = PARSER_CTX->parsed_mod;\
             CONTEXT_CREATE_PATH(NULL);\
-            PARSER_CTX->parsed_mod->mod->ctx = CONTEXT_GET;
+            PARSER_CTX->parsed_mod->mod->ctx = st->ctx;
 
 #define PARSER_DESTROY(PARSER_CTX)\
             lys_module_free(PARSER_CTX->parsed_mod->mod, NULL);\
@@ -172,17 +148,22 @@ logger(LY_LOG_LEVEL level, const char *msg, const char *path)
     LYSP_EXT_INSTANCE_CHECK((NODE), NULL, 0, NULL, INSUBSTMT, 0, "urn:example:extensions:c-define", 0, 0x2, 0x1)
 
 
+#define logbuf_assert(str)\
+    {\
+        const char * err_msg[]  = {str};\
+        const char * err_path[] = {NULL};\
+        LY_ERROR_CHECK(st->ctx, err_msg, err_path);\
+    }
 
-#if ENABLE_LOGGER_CHECKING
-#   define logbuf_assert(str) assert_string_equal(logbuf, str)
-#else
-#   define logbuf_assert(str)
-#endif
 
 #define TEST_DUP_GENERIC(PREFIX, MEMBER, VALUE1, VALUE2, FUNC, RESULT, LINE, CLEANUP) \
     str = PREFIX MEMBER" "VALUE1";"MEMBER" "VALUE2";} ..."; \
     assert_int_equal(LY_EVALID, FUNC(&ctx, &str, RESULT)); \
-    logbuf_assert("Duplicate keyword \""MEMBER"\". Line number "LINE"."); \
+    {\
+        const char * err_msg[] = {"Duplicate keyword \""MEMBER"\"."};\
+        const char * err_path[] = {"Line number "LINE"."};\
+        LY_ERROR_CHECK(st->ctx, err_msg, err_path); \
+    }\
     CLEANUP
 
 int
@@ -218,10 +199,8 @@ setup_f(void **state)
 {
     struct test_parser_yin_state *st = *state;
 
-#if ENABLE_LOGGER_CHECKING
-    /* setup logger */
-    ly_set_log_clb(logger, 1);
-#endif
+
+    ly_set_log_clb(logger_null, 1);
 
     /* allocate parser context */
     st->yin_ctx = calloc(1, sizeof(*st->yin_ctx));
@@ -245,13 +224,6 @@ teardown_f(void **state)
 {
     struct test_parser_yin_state *st = *(struct test_parser_yin_state **)state;
 
-#if ENABLE_LOGGER_CHECKING
-    /* teardown logger */
-    if (!st->finished_correctly && logbuf[0] != '\0') {
-        fprintf(stderr, "%s\n", logbuf);
-    }
-#endif
-
     lyxml_ctx_free(st->yin_ctx->xmlctx);
     lys_module_free(st->yin_ctx->parsed_mod->mod, NULL);
     free(st->yin_ctx);
@@ -264,17 +236,10 @@ static struct test_parser_yin_state*
 reset_state(void **state)
 {
     ((struct test_parser_yin_state *)*state)->finished_correctly = true;
-    logbuf[0] = '\0';
     teardown_f(state);
     setup_f(state);
 
     return *state;
-}
-
-void
-logbuf_clean(void)
-{
-    logbuf[0] = '\0';
 }
 
 static int
@@ -299,6 +264,7 @@ test_yin_match_keyword(void **state)
     size_t prefix_len;
     /* create mock yin namespace in xml context */
     const char *data = "<module xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\" />";
+
     ly_in_new_memory(data, &st->in);
     lyxml_ctx_new(st->ctx, st->in, &st->yin_ctx->xmlctx);
     prefix = st->yin_ctx->xmlctx->prefix;
@@ -416,10 +382,10 @@ test_yin_parse_element_generic(void **state)
     assert_int_equal(ret, LY_SUCCESS);
     assert_int_equal(st->yin_ctx->xmlctx->status, LYXML_ELEM_CLOSE);
     stmt = "urn:example:extensions:elem";
-    arg  = "text_value"; 
+    arg  = "text_value";
     LYSP_STMT_CHECK(exts.child, arg, 1, 0, 0x45, 0, stmt);
     stmt = "attr";
-    arg  = "value"; 
+    arg  = "value";
     LYSP_STMT_CHECK(exts.child->child, arg, 0, 0x400, 0, 0, stmt);
     lysp_ext_instance_free(st->ctx, &exts);
     st = reset_state(state);
@@ -463,7 +429,6 @@ test_yin_parse_extension_instance(void **state)
     LYSP_STMT_CHECK(exts->child->next, arg, 0, LYS_YIN_ATTR, 0, 1, stmt);
     stmt = "urn:example:extensions:subelem";
     arg  = "text";
-    //LYSP_STMT_CHECK(NODE, ARG, CHILD, FLAGS, KW, NEXT, STMT)
     LYSP_STMT_CHECK(exts->child->next->next, arg, 0, 0, 0x45, 0, stmt);
     lysp_ext_instance_free(st->ctx, exts);
     LY_ARRAY_FREE(exts);
@@ -545,7 +510,6 @@ test_yin_parse_extension_instance(void **state)
     LYSP_STMT_CHECK(act_child, arg, 1, 0, 0x45, 0, stmt);
     stmt = "attr3";
     arg  = "text3";
-    //LYSP_STMT_CHECK(NODE, ARG, CHILD, FLAGS, KW, NEXT, STMT)
     act_child = act_child->child;
     LYSP_STMT_CHECK(act_child, arg, 0, LYS_YIN_ATTR, 0, 0, stmt);
 
@@ -631,13 +595,15 @@ test_yin_parse_content(void **state)
                         "</prefix>";
     struct lysp_ext_instance *exts = NULL;
     const char **if_features = NULL;
-    const char *value, *err_msg, *app_tag, *units;
+    const char *value, *error_message, *app_tag, *units;
     struct lysp_qname def = {0};
     struct lysp_ext *ext_def = NULL;
     struct lysp_when *when_p = NULL;
     struct lysp_type_enum pos_enum = {}, val_enum = {};
     struct lysp_type req_type = {}, range_type = {}, len_type = {}, patter_type = {}, enum_type = {};
     uint16_t config = 0;
+    char *err_msg[1];
+    char *err_path[1];
 
     ly_in_new_memory(data, &st->in);
     lyxml_ctx_new(st->ctx, st->in, &st->yin_ctx->xmlctx);
@@ -650,7 +616,7 @@ test_yin_parse_content(void **state)
                                             {LY_STMT_DEFAULT, &def, YIN_SUBELEM_UNIQUE},
                                             {LY_STMT_ENUM, &enum_type, 0},
                                             {LY_STMT_ERROR_APP_TAG, &app_tag, YIN_SUBELEM_UNIQUE},
-                                            {LY_STMT_ERROR_MESSAGE, &err_msg, 0},
+                                            {LY_STMT_ERROR_MESSAGE, &error_message, 0},
                                             {LY_STMT_EXTENSION, &ext_def, 0},
                                             {LY_STMT_IF_FEATURE, &if_features, 0},
                                             {LY_STMT_LENGTH, &len_type, 0},
@@ -670,7 +636,7 @@ test_yin_parse_content(void **state)
     assert_string_equal(def.str, "default-value");
     const char *exts_name = "urn:example:extensions:custom";
     const char *exts_arg  = "totally amazing extension";
-    LYSP_EXT_INSTANCE_CHECK(exts, exts_arg, 0, NULL, 
+    LYSP_EXT_INSTANCE_CHECK(exts, exts_arg, 0, NULL,
             LYEXT_SUBSTMT_PREFIX, 0, exts_name, 0, 0x1, 0x1);
     assert_string_equal(value, "wsefsdf");
     assert_string_equal(units, "radians");
@@ -678,17 +644,16 @@ test_yin_parse_content(void **state)
     assert_string_equal(when_p->dsc, "when_desc");
     assert_string_equal(when_p->ref, "when_ref");
     assert_int_equal(config, LYS_CONFIG_W);
-    //LYSP_TYPE_ENUM_CHECK(NODE, DSC, EXTS, FLAGS, IFFEATURES, NAME, REF, VALUE)
     LYSP_TYPE_ENUM_CHECK(&pos_enum, NULL, 0, LYS_SET_VALUE, 0, NULL, NULL, 25);
     LYSP_TYPE_ENUM_CHECK(&val_enum, NULL, 0, LYS_SET_VALUE, 0, NULL, NULL, -5);
     assert_int_equal(req_type.require_instance, 1);
     assert_true(req_type.flags &= LYS_SET_REQINST);
     assert_string_equal(range_type.range->arg.str, "5..10");
     assert_true(range_type.flags & LYS_SET_RANGE);
-    assert_string_equal(err_msg, "error-msg");
+    assert_string_equal(error_message, "error-msg");
     assert_string_equal(app_tag, "err-app-tag");
     assert_string_equal(enum_type.enums->name, "yay");
-    LYSP_RESTR_CHECK(len_type.length, "baf", NULL, 
+    LYSP_RESTR_CHECK(len_type.length, "baf", NULL,
                     NULL, NULL, 0, NULL);
     assert_true(len_type.flags & LYS_SET_LENGTH);
     assert_string_equal(patter_type.patterns->arg.str, "\x015pattern");
@@ -698,7 +663,7 @@ test_yin_parse_content(void **state)
     lysp_when_free(st->ctx, when_p);
     lysp_ext_free(st->ctx, ext_def);
     FREE_STRING(st->ctx, *if_features);
-    FREE_STRING(st->ctx, err_msg);
+    FREE_STRING(st->ctx, error_message);
     FREE_STRING(st->ctx, app_tag);
     FREE_STRING(st->ctx, units);
     FREE_STRING(st->ctx, patter_type.patterns->arg.str);
@@ -732,7 +697,9 @@ test_yin_parse_content(void **state)
 
     ret = yin_parse_content(st->yin_ctx, subelems2, 2, LY_STMT_STATUS, NULL, &exts);
     assert_int_equal(ret, LY_EVALID);
-    logbuf_assert("Redefinition of \"text\" sub-element in \"status\" element. Line number 1.");
+    err_msg[0] = "Redefinition of \"text\" sub-element in \"status\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     lydict_remove(st->ctx, prefix_value);
     lydict_remove(st->ctx, value);
     st = reset_state(state);
@@ -751,7 +718,9 @@ test_yin_parse_content(void **state)
 
     ret = yin_parse_content(st->yin_ctx, subelems3, 2, LY_STMT_STATUS, NULL, &exts);
     assert_int_equal(ret, LY_EVALID);
-    logbuf_assert("Sub-element \"text\" of \"status\" element must be defined as it's first sub-element. Line number 1.");
+    err_msg[0] = "Sub-element \"text\" of \"status\" element must be defined as it's first sub-element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     lydict_remove(st->ctx, prefix_value);
     st = reset_state(state);
 
@@ -764,7 +733,9 @@ test_yin_parse_content(void **state)
 
     ret = yin_parse_content(st->yin_ctx, subelems4, 1, LY_STMT_STATUS, NULL, &exts);
     assert_int_equal(ret, LY_EVALID);
-    logbuf_assert("Missing mandatory sub-element \"prefix\" of \"status\" element. Line number 1.");
+    err_msg[0] = "Missing mandatory sub-element \"prefix\" of \"status\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -774,6 +745,8 @@ test_validate_value(void **state)
 {
     struct test_parser_yin_state *st = *state;
     const char *data = ELEMENT_WRAPPER_START ELEMENT_WRAPPER_END;
+    char *err_msg[1];
+    char *err_path[1];
 
     /* create some XML context */
     ly_in_new_memory(data, &st->in);
@@ -784,7 +757,9 @@ test_validate_value(void **state)
     st->yin_ctx->xmlctx->value = "#invalid";
     st->yin_ctx->xmlctx->value_len = 8;
     assert_int_equal(yin_validate_value(st->yin_ctx, Y_IDENTIF_ARG), LY_EVALID);
-    logbuf_assert("Invalid identifier character '#' (0x0023). Line number 1.");
+    err_msg[0] = "Invalid identifier character '#' (0x0023).";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->yin_ctx->xmlctx->value = "";
     st->yin_ctx->xmlctx->value_len = 0;
@@ -954,8 +929,8 @@ test_bit_elem(void **state)
            "</bit>"
            ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_SUCCESS);
-    uint16_t flags = LYS_STATUS_DEPRC | LYS_SET_VALUE; 
-    LYSP_TYPE_ENUM_CHECK(type.bits, "desc...", 1, flags, 1, "bit-name", "ref...", 55); 
+    uint16_t flags = LYS_STATUS_DEPRC | LYS_SET_VALUE;
+    LYSP_TYPE_ENUM_CHECK(type.bits, "desc...", 1, flags, 1, "bit-name", "ref...", 55);
     assert_string_equal(type.bits->iffeatures[0].str, "feature");
     TEST_1_LYSP_EXT_INSTANCE_CHECK(type.bits->exts, LYEXT_SUBSTMT_SELF);
     lysp_type_free(st->ctx, &type);
@@ -965,7 +940,7 @@ test_bit_elem(void **state)
            "<bit name=\"bit-name\"> </bit>"
            ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_SUCCESS);
-    LYSP_TYPE_ENUM_CHECK(type.bits, NULL, 0, 0, 0, "bit-name", NULL, 0); 
+    LYSP_TYPE_ENUM_CHECK(type.bits, NULL, 0, 0, 0, "bit-name", NULL, 0);
     lysp_type_free(st->ctx, &type);
     memset(&type, 0, sizeof type);
 
@@ -979,6 +954,8 @@ test_meta_elem(void **state)
     char *value = NULL;
     const char *data;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     /* organization element */
     data = ELEMENT_WRAPPER_START
@@ -1035,7 +1012,9 @@ test_meta_elem(void **state)
                 "<reference invalid=\"text\"><text>reference...</text>""</reference>"
            ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &value, NULL, &exts), LY_EVALID);
-    logbuf_assert("Unexpected attribute \"invalid\" of \"reference\" element. Line number 1.");
+    err_msg[0] = "Unexpected attribute \"invalid\" of \"reference\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     FREE_STRING(st->ctx, value);
     value = NULL;
     FREE_ARRAY(st->ctx, exts, lysp_ext_instance_free);
@@ -1046,14 +1025,18 @@ test_meta_elem(void **state)
                 "<reference>reference...</reference>"
            ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &value, NULL, &exts), LY_EVALID);
-    logbuf_assert("Missing mandatory sub-element \"text\" of \"reference\" element. Line number 1.");
+    err_msg[0] = "Missing mandatory sub-element \"text\" of \"reference\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     /* reference element */
     data = ELEMENT_WRAPPER_START
                 "<reference>" EXT_SUBELEM "<text>reference...</text></reference>"
            ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &value, NULL, &exts), LY_EVALID);
-    logbuf_assert("Sub-element \"text\" of \"reference\" element must be defined as it's first sub-element. Line number 1.");
+    err_msg[0] = "Sub-element \"text\" of \"reference\" element must be defined as it's first sub-element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     FREE_STRING(st->ctx, value);
     value = NULL;
     FREE_ARRAY(st->ctx, exts, lysp_ext_instance_free);
@@ -1069,6 +1052,8 @@ test_import_elem(void **state)
     const char *data;
     struct lysp_import *imports = NULL;
     struct import_meta imp_meta = {"prefix", &imports};
+    char *err_msg[1];
+    char *err_path[1];
     /* max subelems */
     data = ELEMENT_WRAPPER_START
                 "<import module=\"a\">"
@@ -1101,7 +1086,9 @@ test_import_elem(void **state)
     /* invalid (missing prefix) */
     data = ELEMENT_WRAPPER_START "<import module=\"a\"></import>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &imp_meta, NULL, NULL), LY_EVALID);
-    logbuf_assert("Missing mandatory sub-element \"prefix\" of \"import\" element. Line number 1.");
+    err_msg[0] = "Missing mandatory sub-element \"prefix\" of \"import\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     FREE_ARRAY(st->ctx, imports, lysp_import_free);
     imports = NULL;
 
@@ -1115,7 +1102,9 @@ test_import_elem(void **state)
                 "</import>"
            ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &imp_meta, NULL, NULL), LY_EVALID);
-    logbuf_assert("Prefix \"prefix\" already used as module prefix. Line number 1.");
+    err_msg[0] = "Prefix \"prefix\" already used as module prefix.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     FREE_ARRAY(st->ctx, imports, lysp_import_free);
     imports = NULL;
 
@@ -1129,6 +1118,8 @@ test_status_elem(void **state)
     const char *data;
     uint16_t flags = 0;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     /* test valid values */
     data = ELEMENT_WRAPPER_START "<status value=\"current\" />" ELEMENT_WRAPPER_END;
@@ -1149,7 +1140,9 @@ test_status_elem(void **state)
     /* test invalid value */
     data = ELEMENT_WRAPPER_START "<status value=\"invalid\"></status>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &flags, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"invalid\" of \"value\" attribute in \"status\" element. Valid values are \"current\", \"deprecated\" and \"obsolete\". Line number 1.");
+    err_msg[0] = "Invalid value \"invalid\" of \"value\" attribute in \"status\" element. Valid values are \"current\", \"deprecated\" and \"obsolete\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     st->finished_correctly = true;
 }
 
@@ -1195,6 +1188,8 @@ test_yin_element_elem(void **state)
     const char *data;
     uint16_t flags = 0;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<yin-element value=\"true\" />" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &flags, NULL, NULL), LY_SUCCESS);
@@ -1209,7 +1204,9 @@ test_yin_element_elem(void **state)
     data = ELEMENT_WRAPPER_START "<yin-element value=\"invalid\" />" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &flags, NULL, NULL), LY_EVALID);
     assert_true(flags & LYS_YINELEM_TRUE);
-    logbuf_assert("Invalid value \"invalid\" of \"value\" attribute in \"yin-element\" element. Valid values are \"true\" and \"false\". Line number 1.");
+    err_msg[0] = "Invalid value \"invalid\" of \"value\" attribute in \"yin-element\" element. Valid values are \"true\" and \"false\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     st->finished_correctly = true;
 }
 
@@ -1220,6 +1217,8 @@ test_yangversion_elem(void **state)
     const char *data;
     uint8_t version = 0;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     /* valid values */
     data = ELEMENT_WRAPPER_START "<yang-version value=\"1\" />" ELEMENT_WRAPPER_END;
@@ -1235,7 +1234,9 @@ test_yangversion_elem(void **state)
     /* invalid value */
     data = ELEMENT_WRAPPER_START "<yang-version value=\"version\" />" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &version, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"version\" of \"value\" attribute in \"yang-version\" element. Valid values are \"1\" and \"1.1\". Line number 1.");
+    err_msg[0] = "Invalid value \"version\" of \"value\" attribute in \"yang-version\" element. Valid values are \"1\" and \"1.1\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -1247,6 +1248,8 @@ test_mandatory_elem(void **state)
     const char *data;
     uint16_t man = 0;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     /* valid values */
     data = ELEMENT_WRAPPER_START "<mandatory value=\"true\" />" ELEMENT_WRAPPER_END;
@@ -1262,7 +1265,9 @@ test_mandatory_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<mandatory value=\"invalid\" />" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &man, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"invalid\" of \"value\" attribute in \"mandatory\" element. Valid values are \"true\" and \"false\". Line number 1.");
+    err_msg[0] = "Invalid value \"invalid\" of \"value\" attribute in \"mandatory\" element. Valid values are \"true\" and \"false\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -1355,6 +1360,8 @@ test_belongsto_elem(void **state)
     const char *data;
     struct lysp_submodule submod;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START
                 "<belongs-to module=\"module-name\"><prefix value=\"pref\"/>"EXT_SUBELEM"</belongs-to>"
@@ -1368,7 +1375,9 @@ test_belongsto_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<belongs-to module=\"module-name\"></belongs-to>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &submod, NULL, NULL), LY_EVALID);
-    logbuf_assert("Missing mandatory sub-element \"prefix\" of \"belongs-to\" element. Line number 1.");
+    err_msg[0] = "Missing mandatory sub-element \"prefix\" of \"belongs-to\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -1380,6 +1389,8 @@ test_config_elem(void **state)
     const char *data;
     uint16_t flags = 0;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<config value=\"true\">" EXT_SUBELEM "</config>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &flags, NULL, &exts), LY_SUCCESS);
@@ -1396,7 +1407,9 @@ test_config_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<config value=\"invalid\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &flags, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"invalid\" of \"value\" attribute in \"config\" element. Valid values are \"true\" and \"false\". Line number 1.");
+    err_msg[0] = "Invalid value \"invalid\" of \"value\" attribute in \"config\" element. Valid values are \"true\" and \"false\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -1408,6 +1421,8 @@ test_default_elem(void **state)
     const char *data;
     struct lysp_qname val = {0};
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<default value=\"defaul-value\">"EXT_SUBELEM"</default>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &val, NULL, &exts), LY_SUCCESS);
@@ -1420,7 +1435,9 @@ test_default_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<default/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &val, NULL, NULL), LY_EVALID);
-    logbuf_assert("Missing mandatory attribute value of default element. Line number 1.");
+    err_msg[0] = "Missing mandatory attribute value of default element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -1432,6 +1449,8 @@ test_err_app_tag_elem(void **state)
     const char *data;
     const char *val = NULL;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<error-app-tag value=\"val\">"EXT_SUBELEM"</error-app-tag>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &val, NULL, &exts), LY_SUCCESS);
@@ -1444,7 +1463,9 @@ test_err_app_tag_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<error-app-tag/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &val, NULL, NULL), LY_EVALID);
-    logbuf_assert("Missing mandatory attribute value of error-app-tag element. Line number 1.");
+    err_msg[0] = "Missing mandatory attribute value of error-app-tag element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -1456,6 +1477,8 @@ test_err_msg_elem(void **state)
     const char *data;
     const char *val = NULL;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<error-message><value>val</value>"EXT_SUBELEM"</error-message>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &val, NULL, &exts), LY_SUCCESS);
@@ -1467,11 +1490,15 @@ test_err_msg_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<error-message></error-message>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &val, NULL, NULL), LY_EVALID);
-    logbuf_assert("Missing mandatory sub-element \"value\" of \"error-message\" element. Line number 1.");
+    err_msg[0] = "Missing mandatory sub-element \"value\" of \"error-message\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = ELEMENT_WRAPPER_START "<error-message invalid=\"text\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &val, NULL, NULL), LY_EVALID);
-    logbuf_assert("Unexpected attribute \"invalid\" of \"error-message\" element. Line number 1.");
+    err_msg[0] = "Unexpected attribute \"invalid\" of \"error-message\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -1482,6 +1509,8 @@ test_fracdigits_elem(void **state)
     struct test_parser_yin_state *st = *state;
     const char *data;
     struct lysp_type type = {};
+    char *err_msg[1];
+    char *err_path[1];
 
     /* valid value */
     data = ELEMENT_WRAPPER_START "<fraction-digits value=\"10\">"EXT_SUBELEM"</fraction-digits>" ELEMENT_WRAPPER_END;
@@ -1494,23 +1523,33 @@ test_fracdigits_elem(void **state)
     /* invalid values */
     data = ELEMENT_WRAPPER_START "<fraction-digits value=\"-1\"></fraction-digits>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"-1\" of \"value\" attribute in \"fraction-digits\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"-1\" of \"value\" attribute in \"fraction-digits\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = ELEMENT_WRAPPER_START "<fraction-digits value=\"02\"></fraction-digits>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"02\" of \"value\" attribute in \"fraction-digits\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"02\" of \"value\" attribute in \"fraction-digits\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = ELEMENT_WRAPPER_START "<fraction-digits value=\"1p\"></fraction-digits>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"1p\" of \"value\" attribute in \"fraction-digits\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"1p\" of \"value\" attribute in \"fraction-digits\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = ELEMENT_WRAPPER_START "<fraction-digits value=\"19\"></fraction-digits>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"19\" of \"value\" attribute in \"fraction-digits\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"19\" of \"value\" attribute in \"fraction-digits\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = ELEMENT_WRAPPER_START "<fraction-digits value=\"999999999999999999\"></fraction-digits>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"999999999999999999\" of \"value\" attribute in \"fraction-digits\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"999999999999999999\" of \"value\" attribute in \"fraction-digits\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -1522,6 +1561,8 @@ test_iffeature_elem(void **state)
     const char *data;
     const char **iffeatures = NULL;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<if-feature name=\"local-storage\">"EXT_SUBELEM"</if-feature>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &iffeatures, NULL, &exts), LY_SUCCESS);
@@ -1535,7 +1576,9 @@ test_iffeature_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<if-feature/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &iffeatures, NULL, NULL), LY_EVALID);
-    logbuf_assert("Missing mandatory attribute name of if-feature element. Line number 1.");
+    err_msg[0] = "Missing mandatory attribute name of if-feature element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     LY_ARRAY_FREE(iffeatures);
     iffeatures = NULL;
 
@@ -1548,6 +1591,8 @@ test_length_elem(void **state)
     struct test_parser_yin_state *st = *state;
     const char *data;
     struct lysp_type type = {};
+    char *err_msg[1];
+    char *err_path[1];
 
     /* max subelems */
     data = ELEMENT_WRAPPER_START
@@ -1560,7 +1605,7 @@ test_length_elem(void **state)
                 "</length>"
             ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_SUCCESS);
-    LYSP_RESTR_CHECK(type.length, "length-str", "desc", 
+    LYSP_RESTR_CHECK(type.length, "length-str", "desc",
                     "err-app-tag", "err-msg", 1, "ref");
     assert_true(type.flags & LYS_SET_LENGTH);
     TEST_1_LYSP_EXT_INSTANCE_CHECK(&(type.length->exts[0]),  LYEXT_SUBSTMT_SELF);
@@ -1573,7 +1618,7 @@ test_length_elem(void **state)
                 "</length>"
             ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_SUCCESS);
-    LYSP_RESTR_CHECK(type.length, "length-str", NULL, 
+    LYSP_RESTR_CHECK(type.length, "length-str", NULL,
                     NULL, NULL, 0, NULL);
     lysp_type_free(st->ctx, &type);
     assert_true(type.flags & LYS_SET_LENGTH);
@@ -1581,7 +1626,9 @@ test_length_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<length></length>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_EVALID);
-    logbuf_assert("Missing mandatory attribute value of length element. Line number 1.");
+    err_msg[0] = "Missing mandatory attribute value of length element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     lysp_type_free(st->ctx, &type);
     memset(&type, 0, sizeof(type));
 
@@ -1595,6 +1642,8 @@ test_modifier_elem(void **state)
     const char *data;
     const char *pat;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     assert_int_equal(LY_SUCCESS, lydict_insert(st->ctx, "\006pattern", 8, &pat));
     data = ELEMENT_WRAPPER_START "<modifier value=\"invert-match\">" EXT_SUBELEM "</modifier>" ELEMENT_WRAPPER_END;
@@ -1608,7 +1657,9 @@ test_modifier_elem(void **state)
     assert_int_equal(LY_SUCCESS, lydict_insert(st->ctx, "\006pattern", 8, &pat));
     data = ELEMENT_WRAPPER_START "<modifier value=\"invert\" />" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &pat, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"invert\" of \"value\" attribute in \"modifier\" element. Only valid value is \"invert-match\". Line number 1.");
+    err_msg[0] = "Invalid value \"invert\" of \"value\" attribute in \"modifier\" element. Only valid value is \"invert-match\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     FREE_STRING(st->ctx, pat);
 
     st->finished_correctly = true;
@@ -1621,6 +1672,8 @@ test_namespace_elem(void **state)
     const char *data;
     const char *ns;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<namespace uri=\"ns\">" EXT_SUBELEM "</namespace>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &ns, NULL, &exts), LY_SUCCESS);
@@ -1632,7 +1685,9 @@ test_namespace_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<namespace/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &ns, NULL, NULL), LY_EVALID);
-    logbuf_assert("Missing mandatory attribute uri of namespace element. Line number 1.");
+    err_msg[0] = "Missing mandatory attribute uri of namespace element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -1679,78 +1734,88 @@ test_value_position_elem(void **state)
     struct test_parser_yin_state *st = *state;
     const char *data;
     struct lysp_type_enum en = {};
+    char *err_msg[1];
+    char *err_path[1];
 
     /* valid values */
     data = ELEMENT_WRAPPER_START "<value value=\"55\">" EXT_SUBELEM "</value>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_SUCCESS);
-    //TODO: erro sigsegv becouse exts
-    //LYSP_TYPE_ENUM_CHECK(&(en), NULL, 0, LYS_SET_VALUE, 0, "value", NULL, 55);
+    LYSP_TYPE_ENUM_CHECK(&(en), NULL, 1, LYS_SET_VALUE, 0, NULL, NULL, 55);
     TEST_1_LYSP_EXT_INSTANCE_CHECK(&(en.exts[0]),  LYEXT_SUBSTMT_VALUE);
     FREE_ARRAY(st->ctx, en.exts, lysp_ext_instance_free);
     memset(&en, 0, sizeof(en));
 
     data = ELEMENT_WRAPPER_START "<value value=\"-55\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_SUCCESS);
-    //TODO: erro sigsegv becouse exts
-    //LYSP_TYPE_ENUM_CHECK(&(en), NULL, 0, LYS_SET_VALUE, 0, "value", NULL, -55);
+    LYSP_TYPE_ENUM_CHECK(&(en), NULL, 0, LYS_SET_VALUE, 0, NULL, NULL, -55);
     memset(&en, 0, sizeof(en));
 
     data = ELEMENT_WRAPPER_START "<value value=\"0\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_SUCCESS);
-    //TODO: erro sigsegv becouse exts
-    //LYSP_TYPE_ENUM_CHECK(&(en), NULL, 0, LYS_SET_VALUE, 0, "value", NULL, 0);
+    LYSP_TYPE_ENUM_CHECK(&(en), NULL, 0, LYS_SET_VALUE, 0, NULL, NULL, 0);
     memset(&en, 0, sizeof(en));
 
     data = ELEMENT_WRAPPER_START "<value value=\"-0\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_SUCCESS);
-    //TODO: erro sigsegv becouse exts
-    //LYSP_TYPE_ENUM_CHECK(&(en), NULL, 0, LYS_SET_VALUE, 0, "value", NULL, 0);
+    LYSP_TYPE_ENUM_CHECK(&(en), NULL, 0, LYS_SET_VALUE, 0, NULL, NULL, 0);
     memset(&en, 0, sizeof(en));
 
     /* valid positions */
     data = ELEMENT_WRAPPER_START "<position value=\"55\">" EXT_SUBELEM "</position>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_SUCCESS);
-    //TODO: erro sigsegv becouse exts
-    //LYSP_TYPE_ENUM_CHECK(&(en), NULL, 0, LYS_SET_VALUE, 0, "value", NULL, 55);
+    LYSP_TYPE_ENUM_CHECK(&(en), NULL, 1, LYS_SET_VALUE, 0, NULL, NULL, 55);
     TEST_1_LYSP_EXT_INSTANCE_CHECK(&(en.exts[0]),  LYEXT_SUBSTMT_POSITION);
     FREE_ARRAY(st->ctx, en.exts, lysp_ext_instance_free);
     memset(&en, 0, sizeof(en));
 
     data = ELEMENT_WRAPPER_START "<position value=\"0\" />" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_SUCCESS);
-    //TODO: erro sigsegv becouse exts
-    //LYSP_TYPE_ENUM_CHECK(&(en), NULL, 0, LYS_SET_VALUE, 0, "value", NULL, 0);
+    LYSP_TYPE_ENUM_CHECK(&(en), NULL, 0, LYS_SET_VALUE, 0, NULL, NULL, 0);
     memset(&en, 0, sizeof(en));
 
     /* invalid values */
     data = ELEMENT_WRAPPER_START "<value value=\"99999999999999999999999\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"99999999999999999999999\" of \"value\" attribute in \"value\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"99999999999999999999999\" of \"value\" attribute in \"value\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = ELEMENT_WRAPPER_START "<value value=\"1k\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"1k\" of \"value\" attribute in \"value\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"1k\" of \"value\" attribute in \"value\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = ELEMENT_WRAPPER_START "<value value=\"\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"\" of \"value\" attribute in \"value\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"\" of \"value\" attribute in \"value\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     /*invalid positions */
     data = ELEMENT_WRAPPER_START "<position value=\"-5\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"-5\" of \"value\" attribute in \"position\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"-5\" of \"value\" attribute in \"position\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = ELEMENT_WRAPPER_START "<position value=\"-0\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"-0\" of \"value\" attribute in \"position\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"-0\" of \"value\" attribute in \"position\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = ELEMENT_WRAPPER_START "<position value=\"99999999999999999999\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"99999999999999999999\" of \"value\" attribute in \"position\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"99999999999999999999\" of \"value\" attribute in \"position\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = ELEMENT_WRAPPER_START "<position value=\"\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &en, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"\" of \"value\" attribute in \"position\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"\" of \"value\" attribute in \"position\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -1821,6 +1886,8 @@ test_reqinstance_elem(void **state)
     struct test_parser_yin_state *st = *state;
     const char *data;
     struct lysp_type type = {};
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<require-instance value=\"true\">" EXT_SUBELEM "</require-instance>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_SUCCESS);
@@ -1839,7 +1906,9 @@ test_reqinstance_elem(void **state)
     data = ELEMENT_WRAPPER_START "<require-instance value=\"invalid\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &type, NULL, NULL), LY_EVALID);
     memset(&type, 0, sizeof(type));
-    logbuf_assert("Invalid value \"invalid\" of \"value\" attribute in \"require-instance\" element. Valid values are \"true\" and \"false\". Line number 1.");
+    err_msg[0] = "Invalid value \"invalid\" of \"value\" attribute in \"require-instance\" element. Valid values are \"true\" and \"false\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -1851,6 +1920,8 @@ test_revision_date_elem(void **state)
     const char *data;
     char rev[LY_REV_SIZE];
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<revision-date date=\"2000-01-01\">"EXT_SUBELEM"</revision-date>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, rev, NULL, &exts), LY_SUCCESS);
@@ -1864,7 +1935,9 @@ test_revision_date_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<revision-date date=\"2000-50-05\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, rev, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"2000-50-05\" of \"revision-date\". Line number 1.");
+    err_msg[0] = "Invalid value \"2000-50-05\" of \"revision-date\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -2006,12 +2079,12 @@ test_type_elem(void **state)
     assert_string_equal(type.bits->name,  "bit");
     assert_string_equal(type.enums->name,  "enum");
     assert_int_equal(type.fraction_digits, 2);
-    LYSP_RESTR_CHECK(type.length, "length", NULL, 
+    LYSP_RESTR_CHECK(type.length, "length", NULL,
                     NULL, NULL, 0, NULL);
     assert_string_equal(type.path->expr, "/path");
-    LYSP_RESTR_CHECK(type.patterns, "\006pattern", NULL, 
+    LYSP_RESTR_CHECK(type.patterns, "\006pattern", NULL,
                     NULL, NULL, 0, NULL);
-    LYSP_RESTR_CHECK(type.range, "range", NULL, 
+    LYSP_RESTR_CHECK(type.range, "range", NULL,
                     NULL, NULL, 0, NULL);
     assert_int_equal(type.require_instance, 1);
     assert_string_equal(type.types->name, "sub-type-name");
@@ -2046,6 +2119,8 @@ test_max_elems_elem(void **state)
     struct lysp_node_list list = {};
     struct lysp_node_leaflist llist = {};
     struct lysp_refine refine = {};
+    char *err_msg[1];
+    char *err_path[1];
 
     data = "<refine xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <max-elements value=\"unbounded\">"EXT_SUBELEM"</max-elements> </refine>";
     assert_int_equal(test_element_helper(st, data, &refine, NULL, NULL), LY_SUCCESS);
@@ -2057,16 +2132,14 @@ test_max_elems_elem(void **state)
     data = "<list xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <max-elements value=\"5\">"EXT_SUBELEM"</max-elements> </list>";
     assert_int_equal(test_element_helper(st, data, &list, NULL, NULL), LY_SUCCESS);
     assert_int_equal(list.max, 5);
-    assert_true(list.flags & LYS_SET_MAX);
-    //TODO: name => not setup
-    //LYSP_NODE_CHECK(&list, NULL, 1, LYS_SET_MAX, 0, "name", 0, LYS_LIST, NULL, NULL, 0);
+    LYSP_NODE_CHECK(&list, NULL, 1, LYS_SET_MAX, 0, NULL, 0, LYS_UNKNOWN, NULL, NULL, 0);
     TEST_1_LYSP_EXT_INSTANCE_CHECK(&(list.exts[0]),  LYEXT_SUBSTMT_MAX);
     FREE_ARRAY(st->ctx, list.exts, lysp_ext_instance_free);
 
     data = "<leaf-list xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <max-elements value=\"85\">"EXT_SUBELEM"</max-elements> </leaf-list>";
     assert_int_equal(test_element_helper(st, data, &llist, NULL, NULL), LY_SUCCESS);
     assert_int_equal(llist.max, 85);
-    assert_true(llist.flags & LYS_SET_MAX);
+    LYSP_NODE_CHECK(&llist, NULL, 1, LYS_SET_MAX, 0, NULL, 0, LYS_UNKNOWN, NULL, NULL, 0);
     TEST_1_LYSP_EXT_INSTANCE_CHECK(&(llist.exts[0]),  LYEXT_SUBSTMT_MAX);
     FREE_ARRAY(st->ctx, llist.exts, lysp_ext_instance_free);
 
@@ -2077,19 +2150,27 @@ test_max_elems_elem(void **state)
 
     data = "<list xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <max-elements value=\"0\"/> </list>";
     assert_int_equal(test_element_helper(st, data, &list, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"0\" of \"value\" attribute in \"max-elements\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"0\" of \"value\" attribute in \"max-elements\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = "<list xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <max-elements value=\"-10\"/> </list>";
     assert_int_equal(test_element_helper(st, data, &list, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"-10\" of \"value\" attribute in \"max-elements\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"-10\" of \"value\" attribute in \"max-elements\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = "<list xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <max-elements value=\"k\"/> </list>";
     assert_int_equal(test_element_helper(st, data, &list, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"k\" of \"value\" attribute in \"max-elements\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"k\" of \"value\" attribute in \"max-elements\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = "<list xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <max-elements value=\"u12\"/> </list>";
     assert_int_equal(test_element_helper(st, data, &list, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"u12\" of \"value\" attribute in \"max-elements\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"u12\" of \"value\" attribute in \"max-elements\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -2102,6 +2183,8 @@ test_min_elems_elem(void **state)
     struct lysp_node_list list = {};
     struct lysp_node_leaflist llist = {};
     struct lysp_refine refine = {};
+    char *err_msg[1];
+    char *err_path[1];
 
     data = "<refine xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <min-elements value=\"0\">"EXT_SUBELEM"</min-elements> </refine>";
     assert_int_equal(test_element_helper(st, data, &refine, NULL, NULL), LY_SUCCESS);
@@ -2126,19 +2209,27 @@ test_min_elems_elem(void **state)
 
     data = "<leaf-list xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <min-elements value=\"-5\"/> </leaf-list>";
     assert_int_equal(test_element_helper(st, data, &llist, NULL, NULL), LY_EVALID);
-    logbuf_assert("Value \"-5\" of \"value\" attribute in \"min-elements\" element is out of bounds. Line number 1.");
+    err_msg[0] = "Value \"-5\" of \"value\" attribute in \"min-elements\" element is out of bounds.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = "<leaf-list xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <min-elements value=\"99999999999999999\"/> </leaf-list>";
     assert_int_equal(test_element_helper(st, data, &llist, NULL, NULL), LY_EVALID);
-    logbuf_assert("Value \"99999999999999999\" of \"value\" attribute in \"min-elements\" element is out of bounds. Line number 1.");
+    err_msg[0] = "Value \"99999999999999999\" of \"value\" attribute in \"min-elements\" element is out of bounds.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = "<leaf-list xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <min-elements value=\"5k\"/> </leaf-list>";
     assert_int_equal(test_element_helper(st, data, &llist, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"5k\" of \"value\" attribute in \"min-elements\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"5k\" of \"value\" attribute in \"min-elements\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     data = "<leaf-list xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\"> <min-elements value=\"05\"/> </leaf-list>";
     assert_int_equal(test_element_helper(st, data, &llist, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"05\" of \"value\" attribute in \"min-elements\" element. Line number 1.");
+    err_msg[0] = "Invalid value \"05\" of \"value\" attribute in \"min-elements\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -2150,6 +2241,8 @@ test_ordby_elem(void **state)
     const char *data;
     uint16_t flags = 0;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<ordered-by value=\"system\">"EXT_SUBELEM"</ordered-by>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &flags, NULL, &exts), LY_SUCCESS);
@@ -2163,7 +2256,9 @@ test_ordby_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<ordered-by value=\"inv\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &flags, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"inv\" of \"value\" attribute in \"ordered-by\" element. Valid values are \"system\" and \"user\". Line number 1.");
+    err_msg[0] = "Invalid value \"inv\" of \"value\" attribute in \"ordered-by\" element. Valid values are \"system\" and \"user\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -2176,7 +2271,7 @@ test_any_elem(void **state)
     struct lysp_node *siblings = NULL;
     struct tree_node_meta node_meta = {.parent = NULL, .nodes = &siblings};
     struct lysp_node_anydata *parsed = NULL;
-    uint16_t flags; 
+    uint16_t flags;
 
     /* anyxml max subelems */
     data = ELEMENT_WRAPPER_START
@@ -2304,6 +2399,8 @@ test_leaf_list_elem(void **state)
     struct tree_node_meta node_meta = {.parent = NULL, .nodes = &siblings};
     struct lysp_node_leaflist *parsed = NULL;
     uint16_t flags;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START
                 "<leaf-list name=\"llist\">"
@@ -2423,7 +2520,9 @@ test_leaf_list_elem(void **state)
                 "</leaf-list>"
             ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &node_meta, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid combination of min-elements and max-elements: min value 15 is bigger than the max value 5. Line number 1.");
+    err_msg[0] = "Invalid combination of min-elements and max-elements: min value 15 is bigger than the max value 5.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     lysp_node_free(st->ctx, siblings);
     siblings = NULL;
 
@@ -2435,7 +2534,9 @@ test_leaf_list_elem(void **state)
                 "</leaf-list>"
             ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &node_meta, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid combination of sub-elemnts \"min-elements\" and \"default\" in \"leaf-list\" element. Line number 1.");
+    err_msg[0] = "Invalid combination of sub-elemnts \"min-elements\" and \"default\" in \"leaf-list\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     lysp_node_free(st->ctx, siblings);
     siblings = NULL;
 
@@ -2444,7 +2545,9 @@ test_leaf_list_elem(void **state)
                 "</leaf-list>"
             ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &node_meta, NULL, NULL), LY_EVALID);
-    logbuf_assert("Missing mandatory sub-element \"type\" of \"leaf-list\" element. Line number 1.");
+    err_msg[0] = "Missing mandatory sub-element \"type\" of \"leaf-list\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     lysp_node_free(st->ctx, siblings);
     siblings = NULL;
 
@@ -2458,6 +2561,8 @@ test_presence_elem(void **state)
     const char *data;
     const char *val;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<presence value=\"presence-val\">"EXT_SUBELEM"</presence>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &val, NULL, &exts), LY_SUCCESS);
@@ -2473,7 +2578,9 @@ test_presence_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<presence/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &val, NULL, NULL), LY_EVALID);
-    logbuf_assert("Missing mandatory attribute value of presence element. Line number 1.");
+    err_msg[0] = "Missing mandatory attribute value of presence element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -2485,6 +2592,8 @@ test_key_elem(void **state)
     const char *data;
     const char *val;
     struct lysp_ext_instance *exts = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     data = ELEMENT_WRAPPER_START "<key value=\"key-value\">"EXT_SUBELEM"</key>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &val, NULL, &exts), LY_SUCCESS);
@@ -2500,7 +2609,9 @@ test_key_elem(void **state)
 
     data = ELEMENT_WRAPPER_START "<key/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &val, NULL, NULL), LY_EVALID);
-    logbuf_assert("Missing mandatory attribute value of key element. Line number 1.");
+    err_msg[0] = "Missing mandatory attribute value of key element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -2649,6 +2760,8 @@ test_revision_elem(void **state)
     struct test_parser_yin_state *st = *state;
     const char *data;
     struct lysp_revision *revs = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     /* max subelems */
     data = ELEMENT_WRAPPER_START
@@ -2676,7 +2789,9 @@ test_revision_elem(void **state)
     /* invalid value */
     data = ELEMENT_WRAPPER_START "<revision date=\"05-05-2005\" />" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &revs, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"05-05-2005\" of \"revision\". Line number 1.");
+    err_msg[0] = "Invalid value \"05-05-2005\" of \"revision\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     FREE_ARRAY(st->ctx, revs, lysp_revision_free);
     revs = NULL;
 
@@ -2690,6 +2805,8 @@ test_include_elem(void **state)
     const char *data;
     struct lysp_include *includes = NULL;
     struct include_meta inc_meta = {"module-name", &includes};
+    char *err_msg[1];
+    char *err_path[1];
 
     /* max subelems */
     st->yin_ctx->parsed_mod->version = LYS_VERSION_1_1;
@@ -2726,7 +2843,9 @@ test_include_elem(void **state)
                 "</include>"
            ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &inc_meta, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid sub-elemnt \"description\" of \"include\" element - this sub-element is allowed only in modules with version 1.1 or newer. Line number 1.");
+    err_msg[0] = "Invalid sub-elemnt \"description\" of \"include\" element - this sub-element is allowed only in modules with version 1.1 or newer.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     FREE_ARRAY(st->ctx, includes, lysp_include_free);
     includes = NULL;
 
@@ -2738,7 +2857,9 @@ test_include_elem(void **state)
                 "</include>"
            ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &inc_meta, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid sub-elemnt \"reference\" of \"include\" element - this sub-element is allowed only in modules with version 1.1 or newer. Line number 1.");
+    err_msg[0] = "Invalid sub-elemnt \"reference\" of \"include\" element - this sub-element is allowed only in modules with version 1.1 or newer.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     FREE_ARRAY(st->ctx, includes, lysp_include_free);
     includes = NULL;
 
@@ -3203,6 +3324,8 @@ test_inout_elem(void **state)
     const char *data;
     struct lysp_action_inout inout = {};
     struct inout_meta inout_meta = {NULL, &inout};
+    char *err_msg[1];
+    char *err_path[1];
 
     /* max subelements */
     st->yin_ctx->parsed_mod->version = LYS_VERSION_1_1;
@@ -3306,7 +3429,9 @@ test_inout_elem(void **state)
     /* invalid combinations */
     data = ELEMENT_WRAPPER_START "<input name=\"test\"/>" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &inout_meta, NULL, NULL), LY_EVALID);
-    logbuf_assert("Unexpected attribute \"name\" of \"input\" element. Line number 1.");
+    err_msg[0] = "Unexpected attribute \"name\" of \"input\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     memset(&inout, 0, sizeof inout);
 
     st->finished_correctly = true;
@@ -3483,6 +3608,8 @@ test_deviate_elem(void **state)
     struct lysp_deviate_add *d_add;
     struct lysp_deviate_rpl *d_rpl;
     struct lysp_deviate_del *d_del;
+    char *err_msg[1];
+    char *err_path[1];
 
     /* all valid arguments with min subelems */
     data = ELEMENT_WRAPPER_START "<deviate value=\"not-supported\" />" ELEMENT_WRAPPER_END;
@@ -3607,22 +3734,30 @@ test_deviate_elem(void **state)
     /* invalid arguments */
     data = ELEMENT_WRAPPER_START "<deviate value=\"\" />" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &deviates, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"\" of \"value\" attribute in \"deviate\" element. Valid values are \"not-supported\", \"add\", \"replace\" and \"delete\". Line number 1.");
+    err_msg[0] = "Invalid value \"\" of \"value\" attribute in \"deviate\" element. Valid values are \"not-supported\", \"add\", \"replace\" and \"delete\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     deviates = NULL;
 
     data = ELEMENT_WRAPPER_START "<deviate value=\"invalid\" />" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &deviates, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"invalid\" of \"value\" attribute in \"deviate\" element. Valid values are \"not-supported\", \"add\", \"replace\" and \"delete\". Line number 1.");
+    err_msg[0] = "Invalid value \"invalid\" of \"value\" attribute in \"deviate\" element. Valid values are \"not-supported\", \"add\", \"replace\" and \"delete\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     deviates = NULL;
 
     data = ELEMENT_WRAPPER_START "<deviate value=\"ad\" />" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &deviates, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"ad\" of \"value\" attribute in \"deviate\" element. Valid values are \"not-supported\", \"add\", \"replace\" and \"delete\". Line number 1.");
+    err_msg[0] = "Invalid value \"ad\" of \"value\" attribute in \"deviate\" element. Valid values are \"not-supported\", \"add\", \"replace\" and \"delete\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     deviates = NULL;
 
     data = ELEMENT_WRAPPER_START "<deviate value=\"adds\" />" ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &deviates, NULL, NULL), LY_EVALID);
-    logbuf_assert("Invalid value \"adds\" of \"value\" attribute in \"deviate\" element. Valid values are \"not-supported\", \"add\", \"replace\" and \"delete\". Line number 1.");
+    err_msg[0] = "Invalid value \"adds\" of \"value\" attribute in \"deviate\" element. Valid values are \"not-supported\", \"add\", \"replace\" and \"delete\".";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     deviates = NULL;
 
     data = ELEMENT_WRAPPER_START
@@ -3631,7 +3766,9 @@ test_deviate_elem(void **state)
                 "</deviate>"
            ELEMENT_WRAPPER_END;
     assert_int_equal(test_element_helper(st, data, &deviates, NULL, NULL), LY_EVALID);
-    logbuf_assert("Deviate of this type doesn't allow \"must\" as it's sub-element. Line number 1.");
+    err_msg[0] = "Deviate of this type doesn't allow \"must\" as it's sub-element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -3642,6 +3779,8 @@ test_deviation_elem(void **state)
     struct test_parser_yin_state *st = *state;
     const char *data;
     struct lysp_deviation *deviations = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     /* min subelems */
     data = ELEMENT_WRAPPER_START
@@ -3678,7 +3817,9 @@ test_deviation_elem(void **state)
     assert_int_equal(test_element_helper(st, data, &deviations, NULL, NULL), LY_EVALID);
     FREE_ARRAY(st->ctx, deviations, lysp_deviation_free);
     deviations = NULL;
-    logbuf_assert("Missing mandatory sub-element \"deviate\" of \"deviation\" element. Line number 1.");
+    err_msg[0] = "Missing mandatory sub-element \"deviate\" of \"deviation\" element.";
+    err_path[0] = "Line number 1.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     /* TODO */
     st->finished_correctly = true;
 }
@@ -3703,6 +3844,8 @@ test_module_elem(void **state)
     struct test_parser_yin_state *st = *state;
     const char *data;
     struct lysp_module *lysp_mod = mod_renew(st->yin_ctx);
+    char *err_msg[1];
+    char *err_path[1];
 
     /* max subelems */
     data = "<module xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\" name=\"mod\">\n"
@@ -3807,7 +3950,9 @@ test_module_elem(void **state)
     assert_int_equal(ly_in_new_memory(data, &st->in), LY_SUCCESS);
     assert_int_equal(lyxml_ctx_new(st->ctx, st->in, &st->yin_ctx->xmlctx), LY_SUCCESS);
     assert_int_equal(yin_parse_mod(st->yin_ctx, lysp_mod), LY_EVALID);
-    logbuf_assert("Invalid order of module\'s sub-elements \"namespace\" can\'t appear after \"feature\". Line number 2.");
+    err_msg[0] = "Invalid order of module\'s sub-elements \"namespace\" can\'t appear after \"feature\".";
+    err_path[0] = "Line number 2.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -3833,6 +3978,8 @@ test_submodule_elem(void **state)
     struct test_parser_yin_state *st = *state;
     const char *data;
     struct lysp_submodule *lysp_submod = submod_renew(st->yin_ctx, "module-name");
+    char *err_msg[1];
+    char *err_path[1];
 
     /* max subelements */
     data = "<submodule xmlns=\"urn:ietf:params:xml:ns:yang:yin:1\" name=\"mod\">\n"
@@ -3934,7 +4081,9 @@ test_submodule_elem(void **state)
     assert_int_equal(ly_in_new_memory(data, &st->in), LY_SUCCESS);
     assert_int_equal(lyxml_ctx_new(st->ctx, st->in, &st->yin_ctx->xmlctx), LY_SUCCESS);
     assert_int_equal(yin_parse_submod(st->yin_ctx, lysp_submod), LY_EVALID);
-    logbuf_assert("Invalid order of submodule's sub-elements \"belongs-to\" can't appear after \"reference\". Line number 2.");
+    err_msg[0] = "Invalid order of submodule's sub-elements \"belongs-to\" can't appear after \"reference\".";
+    err_path[0] = "Line number 2.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
 
     st->finished_correctly = true;
 }
@@ -3947,6 +4096,8 @@ test_yin_parse_module(void **state)
     struct lys_module *mod;
     struct lys_yin_parser_ctx *yin_ctx = NULL;
     struct ly_in *in = NULL;
+    char *err_msg[1];
+    char *err_path[1];
 
     mod = calloc(1, sizeof *mod);
     mod->ctx = st->ctx;
@@ -4056,7 +4207,9 @@ test_yin_parse_module(void **state)
             "<module>";
     assert_int_equal(ly_in_new_memory(data, &in), LY_SUCCESS);
     assert_int_equal(yin_parse_module(&yin_ctx, in, mod), LY_EVALID);
-    logbuf_assert("Trailing garbage \"<module>\" after module, expected end-of-input. Line number 5.");
+    err_msg[0] = "Trailing garbage \"<module>\" after module, expected end-of-input.";
+    err_path[0] = "Line number 5.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     lys_module_free(mod, NULL);
     yin_parser_ctx_free(yin_ctx);
     ly_in_free(in, 0);
@@ -4074,6 +4227,8 @@ test_yin_parse_submodule(void **state)
     struct lys_yin_parser_ctx *yin_ctx = NULL;
     struct lysp_submodule *submod = NULL;
     struct ly_in *in;
+    char *err_msg[1];
+    char *err_path[1];
 
     lydict_insert(st->ctx, "a", 0, &st->yin_ctx->parsed_mod->mod->name);
 
@@ -4151,7 +4306,9 @@ test_yin_parse_submodule(void **state)
             "</submodule>";
     assert_int_equal(ly_in_new_memory(data, &in), LY_SUCCESS);
     assert_int_equal(yin_parse_submodule(&yin_ctx, st->ctx, (struct lys_parser_ctx *)st->yin_ctx, in, &submod), LY_EVALID);
-    logbuf_assert("Trailing garbage \"<submodule name...\" after submodule, expected end-of-input. Line number 2.");
+    err_msg[0] = "Trailing garbage \"<submodule name...\" after submodule, expected end-of-input.";
+    err_path[0] = "Line number 2.";
+    LY_ERROR_CHECK(st->ctx, err_msg, err_path);
     lysp_module_free((struct lysp_module *)submod);
     yin_parser_ctx_free(yin_ctx);
     ly_in_free(in, 0);

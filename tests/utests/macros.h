@@ -56,11 +56,10 @@
  * @param[in] PARSE_OPTIONS Options for parser, see @ref dataparseroptions.
  * @param[in] VALIDATE_OPTIONS Options for the validation phase, see @ref datavalidationoptions.
  * @param[in] OUT_STATUS expected return status
- * @param[in] ERR_MSG    check error or warning message. (NOT IMPLEMENTED YET)
  * @param[out] OUT_NODE Resulting data tree built from the input data. Note that NULL can be a valid result as a representation of an empty YANG data tree.
  * The returned data are expected to be freed using LYD_NODE_DESTROY().
  */
-#define LYD_NODE_CREATE_PARAM(INPUT, INPUT_FORMAT, PARSE_OPTIONS, VALIDATE_OPTIONS, OUT_STATUS, ERR_MSG, OUT_NODE) \
+#define LYD_NODE_CREATE_PARAM(INPUT, INPUT_FORMAT, PARSE_OPTIONS, VALIDATE_OPTIONS, OUT_STATUS, OUT_NODE) \
                         assert_int_equal(OUT_STATUS, lyd_parse_data_mem(ly_context, INPUT, INPUT_FORMAT, PARSE_OPTIONS, VALIDATE_OPTIONS, & OUT_NODE));\
                         if (OUT_STATUS ==  LY_SUCCESS) { \
                             assert_non_null(OUT_NODE);\
@@ -68,7 +67,6 @@
                         else { \
                             assert_null(OUT_NODE);\
                         }\
-                        /*assert_string_equal(ERR_MSG, );*/
 
 /**
  * @breaf free lyd_node
@@ -124,7 +122,23 @@
                             }\
                         }\
 
+#define LY_NO_ERROR_CHECK(CONTEXT)\
+                assert_null(ly_err_first(CONTEXT))\
 
+
+#define LY_ERROR_CHECK(CONTEXT, ERR, PATH)\
+                {\
+                    struct ly_err_item * item = ly_err_first(CONTEXT);\
+                    for(int unsigned it = 0; it < sizeof(ERR)/sizeof(char *); it++){\
+                        struct ly_err_item * old = item;\
+                        assert_non_null(old);\
+                        assert_string(old->msg , ERR[it]);\
+                        assert_string(old->path, PATH[it]);\
+                        item = old->next;\
+                        ly_err_clean(CONTEXT, old);\
+                    }\
+                    assert_null(item);\
+                }
 /*
     SUPPORT MACROS 
 */
@@ -445,24 +459,12 @@
  */
 #define LYSP_TYPE_ENUM_CHECK(NODE, DSC, EXTS, FLAGS, IFFEATURES, NAME, REF, VALUE)\
                 assert_non_null(NODE);\
-                if(DSC != NULL){\
-                    assert_string_equal(DSC, (NODE)->dsc);\
-                } else {\
-                    assert_null((NODE)->dsc);\
-                }\
+                assert_string((NODE)->dsc, DSC);\
                 assert_array((NODE)->exts, EXTS);\
-                assert_int_equal(FLAGS, (NODE)->flags);\
+                assert_int_equal((NODE)->flags, FLAGS);\
                 assert_array((NODE)->iffeatures, IFFEATURES);\
-                if(NAME != NULL){\
-                    assert_string_equal(NAME, (NODE)->name);\
-                } else {\
-                    assert_null((NODE)->name);\
-                }\
-                if(REF != NULL){\
-                    assert_string_equal(REF, (NODE)->ref);\
-                } else {\
-                    assert_null((NODE)->ref);\
-                }\
+                assert_string((NODE)->name, NAME);\
+                assert_string((NODE)->ref, REF);\
                 assert_int_equal(VALUE, (NODE)->value)
 
 
@@ -483,28 +485,16 @@
  */
 #define LYSP_NODE_CHECK(NODE, DSC, EXTS, FLAGS, IFFEATURES, NAME, NEXT, TYPE, PARENT, REF, WHEN) \
                 assert_non_null(NODE);\
-                if(DSC != NULL){\
-                    assert_non_null((NODE)->dsc);\
-                    assert_string_equal(DSC, (NODE)->dsc);\
-                } else {\
-                    assert_null((NODE)->dsc);\
-                }\
+                assert_string((NODE)->dsc, DSC);\
                 assert_array((NODE)->exts, EXTS);\
                 assert_int_equal(FLAGS, (NODE)->flags);\
                 assert_array((NODE)->iffeatures, IFFEATURES);\
-                assert_non_null((NODE)->name);\
-                assert_string_equal(NAME, (NODE)->name);\
+                assert_string((NODE)->name, NAME);\
                 assert_true(NEXT == 0 ? (NODE)->next == NULL : (NODE)->next != NULL);\
                 assert_int_equal(TYPE, (NODE)->nodetype);\
                 assert_true(PARENT == 0 ? (NODE)->parent == NULL : (NODE)->parent != NULL);\
-                if(REF != NULL){\
-                    assert_non_null((NODE)->ref);\
-                    assert_string_equal(REF, (NODE)->ref);\
-                } else {\
-                    assert_null((NODE)->ref);\
-                }\
+                assert_string((NODE)->ref, REF);\
                 assert_true(WHEN == 0 ? (NODE)->when == NULL : (NODE)->when != NULL)\
-
 
 
 /**
@@ -782,6 +772,15 @@
                 assert_non_null((NODE).realtype); \
                 assert_int_equal(LY_TYPE_IDENT, (NODE).realtype->basetype); \
                 assert_string_equal(VALUE, (NODE).ident->name)
+
+
+static void
+logger_null(LY_LOG_LEVEL level, const char *msg, const char *path)
+{
+    (void) level; /* unused */
+    (void) msg;
+    (void) path;
+}
 
 
 

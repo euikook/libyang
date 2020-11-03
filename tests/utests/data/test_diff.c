@@ -16,7 +16,7 @@
 #include "../macros.h"
 
 #define LYD_NODE_CREATE(INPUT, MODEL) \
-                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, "", MODEL)
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, MODEL)
 
 #define CONTEXT_CREATE \
                 CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG); \
@@ -656,8 +656,8 @@ test_wd(void **state)
 
     struct lyd_node *model_2;
     struct lyd_node *model_3;
-    LYD_NODE_CREATE_PARAM(xml2, LYD_XML, 0, LYD_VALIDATE_PRESENT,LY_SUCCESS, "", model_2);
-    LYD_NODE_CREATE_PARAM(xml3, LYD_XML, 0, LYD_VALIDATE_PRESENT,LY_SUCCESS, "", model_3);
+    LYD_NODE_CREATE_PARAM(xml2, LYD_XML, 0, LYD_VALIDATE_PRESENT,LY_SUCCESS, model_2);
+    LYD_NODE_CREATE_PARAM(xml3, LYD_XML, 0, LYD_VALIDATE_PRESENT,LY_SUCCESS, model_3);
 
     /* diff1 */
     struct lyd_node *diff1 = NULL;

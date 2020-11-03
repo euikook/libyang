@@ -26,30 +26,6 @@
 #include "tree_schema.h"
 #include "tree_data_internal.h"
 
-#define BUFSIZE 1024
-char logbuf[BUFSIZE] = {0};
-int store = -1; /* negative for infinite logging, positive for limited logging */
-
-/* set to 0 to printing error messages to stderr instead of checking them in code */
-#define ENABLE_LOGGER_CHECKING 1
-
-#if ENABLE_LOGGER_CHECKING
-static void
-logger(LY_LOG_LEVEL level, const char *msg, const char *path)
-{
-    (void) level; /* unused */
-    if (store) {
-        if (path && path[0]) {
-            snprintf(logbuf, BUFSIZE - 1, "%s %s", msg, path);
-        } else {
-            strncpy(logbuf, msg, BUFSIZE - 1);
-        }
-        if (store > 0) {
-            --store;
-        }
-    }
-}
-#endif
 
 const char *schema_a =
     "module a {"
@@ -406,6 +382,7 @@ const char *schema_j =
 
 
 #define CONTEXT_CREATE() \
+                ly_set_log_clb(logger_null, 1);\
                 CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG);\
                 assert_non_null(ly_ctx_load_module(CONTEXT_GET, "ietf-netconf-with-defaults", "2011-06-01"));\
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, NULL));\
@@ -428,39 +405,30 @@ const char *schema_j =
 
 
 #define LYD_NODE_CREATE(INPUT, MODEL) \
-                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, MODEL)
 
 
 #define LYD_NODE_CHECK_CHAR(IN_MODEL, TEXT) \
                 LYD_NODE_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_XML, LYD_PRINT_SHRINK | LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
 
 
-
-void
-logbuf_clean(void)
-{
-    logbuf[0] = '\0';
-}
-
-#if ENABLE_LOGGER_CHECKING
-#   define logbuf_assert(str) assert_string_equal(logbuf, str)
-#else
-#   define logbuf_assert(str)
-#endif
-
 static void
 test_when(void **state)
 {
     (void) state;
 
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
     struct lyd_node *tree;
     
     CONTEXT_CREATE();
 
     data    = "<c xmlns=\"urn:tests:a\">hey</c>";
-    err_msg = "When condition \"/cont/b = 'val_b'\" not satisfied. /a:c";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "When condition \"/cont/b = 'val_b'\" not satisfied.";
+    err_path[0] = "/a:c";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
 
     data = "<cont xmlns=\"urn:tests:a\"><b>val_b</b></cont><c xmlns=\"urn:tests:a\">hey</c>";
@@ -488,20 +456,28 @@ test_mandatory(void **state)
 
     CONTEXT_CREATE();
 
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
     struct lyd_node *tree;
 
     data    = "<d xmlns=\"urn:tests:b\"/>";
-    err_msg = "Mandatory node \"choic\" instance does not exist. /b:choic";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Mandatory node \"choic\" instance does not exist.";
+    err_path[0] = "/b:choic";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<l xmlns=\"urn:tests:b\">string</l><d xmlns=\"urn:tests:b\"/>";
-    err_msg = "Mandatory node \"c\" instance does not exist. /b:c";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Mandatory node \"c\" instance does not exist.";
+    err_path[0] = "/b:c";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<a xmlns=\"urn:tests:b\">string</a>";
-    err_msg = "Mandatory node \"c\" instance does not exist. /b:c";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Mandatory node \"c\" instance does not exist.";
+    err_path[0] = "/b:c";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<a xmlns=\"urn:tests:b\">string</a><c xmlns=\"urn:tests:b\">string2</c>";
     LYD_NODE_CREATE(data, tree);
@@ -515,20 +491,26 @@ test_minmax(void **state)
 {
     (void) state;
 
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
     struct lyd_node *tree;
 
     CONTEXT_CREATE();
 
     data = "<d xmlns=\"urn:tests:c\"/>";
-    err_msg = "Too few \"l\" instances. /c:choic/b/l";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Too few \"l\" instances.";
+    err_path[0] = "/c:choic/b/l";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data =
     "<l xmlns=\"urn:tests:c\">val1</l>"
     "<l xmlns=\"urn:tests:c\">val2</l>";
-    err_msg = "Too few \"l\" instances. /c:choic/b/l";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Too few \"l\" instances.";
+    err_path[0] = "/c:choic/b/l";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
 
     data =
@@ -547,8 +529,10 @@ test_minmax(void **state)
     "<lt xmlns=\"urn:tests:c\"><k>val3</k></lt>"
     "<lt xmlns=\"urn:tests:c\"><k>val4</k></lt>"
     "<lt xmlns=\"urn:tests:c\"><k>val5</k></lt>";
-    err_msg = "Too many \"lt\" instances. /c:lt";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Too many \"lt\" instances.";
+    err_path[0] = "/c:lt";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -558,7 +542,9 @@ test_unique(void **state)
 {
 
     (void) state;
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
     struct lyd_node *tree;
 
     CONTEXT_CREATE();
@@ -595,8 +581,10 @@ test_unique(void **state)
         "<k>val2</k>"
         "<l1>same</l1>"
     "</lt>";
-    err_msg = "Unique data leaf(s) \"l1\" not satisfied in \"/d:lt[k='val1']\" and \"/d:lt[k='val2']\". /d:lt[k='val2']";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Unique data leaf(s) \"l1\" not satisfied in \"/d:lt[k='val1']\" and \"/d:lt[k='val2']\".";
+    err_path[0] = "/d:lt[k='val2']";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* now try with more instances */
     data =
@@ -698,8 +686,10 @@ test_unique(void **state)
         "<k>val8</k>"
         "<l1>8</l1>"
     "</lt>";
-    err_msg = "Unique data leaf(s) \"l1\" not satisfied in \"/d:lt[k='val7']\" and \"/d:lt[k='val2']\". /d:lt[k='val2']";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Unique data leaf(s) \"l1\" not satisfied in \"/d:lt[k='val7']\" and \"/d:lt[k='val2']\".";
+    err_path[0] = "/d:lt[k='val2']";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -709,7 +699,9 @@ test_unique_nested(void **state)
 {
     (void) state;
 
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
     struct lyd_node *tree;
 
     CONTEXT_CREATE();
@@ -831,9 +823,12 @@ test_unique_nested(void **state)
             "<l3>3</l3>"
         "</lt3>"
     "</lt2>";
-    err_msg = "Unique data leaf(s) \"l3\" not satisfied in \"/d:lt2[k='val2']/lt3[kk='val3']\" and"
-                  " \"/d:lt2[k='val2']/lt3[kk='val1']\". /d:lt2[k='val2']/lt3[kk='val1']";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Unique data leaf(s) \"l3\" not satisfied in"
+                  " \"/d:lt2[k='val2']/lt3[kk='val3']\" and"
+                  " \"/d:lt2[k='val2']/lt3[kk='val1']\".";
+    err_path[0] =  "/d:lt2[k='val2']/lt3[kk='val1']";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
 
     data =
@@ -872,8 +867,10 @@ test_unique_nested(void **state)
         "</cont>"
         "<l4>5</l4>"
     "</lt2>";
-    err_msg = "Unique data leaf(s) \"cont/l2 l4\" not satisfied in \"/d:lt2[k='val4']\" and \"/d:lt2[k='val2']\". /d:lt2[k='val2']";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Unique data leaf(s) \"cont/l2 l4\" not satisfied in \"/d:lt2[k='val4']\" and \"/d:lt2[k='val2']\".";
+    err_path[0] = "/d:lt2[k='val2']";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data =
     "<lt2 xmlns=\"urn:tests:d\">"
@@ -920,8 +917,10 @@ test_unique_nested(void **state)
         "<l6>3</l6>"
     "</lt2>";
 
-    err_msg = "Unique data leaf(s) \"l5 l6\" not satisfied in \"/d:lt2[k='val5']\" and \"/d:lt2[k='val3']\". /d:lt2[k='val3']";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Unique data leaf(s) \"l5 l6\" not satisfied in \"/d:lt2[k='val5']\" and \"/d:lt2[k='val3']\".";
+    err_path[0] = "/d:lt2[k='val3']";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -931,50 +930,70 @@ test_dup(void **state)
 {
     (void) state;
 
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
     struct lyd_node *tree;
 
     CONTEXT_CREATE();
 
     data = "<d xmlns=\"urn:tests:e\">25</d><d xmlns=\"urn:tests:e\">50</d>";
-    err_msg = "Duplicate instance of \"d\". /e:d";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Duplicate instance of \"d\".";
+    err_path[0] = "/e:d";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data = "<lt xmlns=\"urn:tests:e\"><k>A</k></lt><lt xmlns=\"urn:tests:e\"><k>B</k></lt><lt xmlns=\"urn:tests:e\"><k>A</k></lt>";
-    err_msg = "Duplicate instance of \"lt\". /e:lt[k='A']";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Duplicate instance of \"lt\".";
+    err_path[0] = "/e:lt[k='A']";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data = "<ll xmlns=\"urn:tests:e\">A</ll><ll xmlns=\"urn:tests:e\">B</ll><ll xmlns=\"urn:tests:e\">B</ll>";
-    err_msg = "Duplicate instance of \"ll\". /e:ll[.='B']";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Duplicate instance of \"ll\".";
+    err_path[0] = "/e:ll[.='B']";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data = "<cont xmlns=\"urn:tests:e\"></cont><cont xmlns=\"urn:tests:e\"/>";
-    err_msg = "Duplicate instance of \"cont\". /e:cont";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Duplicate instance of \"cont\".";
+    err_path[0] = "/e:cont";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* same tests again but using hashes */
     data = "<cont xmlns=\"urn:tests:e\"><d>25</d><d>50</d><ll>1</ll><ll>2</ll><ll>3</ll><ll>4</ll></cont>";
-    err_msg = "Duplicate instance of \"d\". /e:cont/d";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Duplicate instance of \"d\".";
+    err_path[0] = "/e:cont/d";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data = "<cont xmlns=\"urn:tests:e\"><ll>1</ll><ll>2</ll><ll>3</ll><ll>4</ll>"
         "<lt><k>a</k></lt><lt><k>b</k></lt><lt><k>c</k></lt><lt><k>d</k></lt><lt><k>c</k></lt></cont>";
-    err_msg = "Duplicate instance of \"lt\". /e:cont/lt[k='c']";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Duplicate instance of \"lt\".";
+    err_path[0] = "/e:cont/lt[k='c']";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data = "<cont xmlns=\"urn:tests:e\"><ll>1</ll><ll>2</ll><ll>3</ll><ll>4</ll>"
         "<ll>a</ll><ll>b</ll><ll>c</ll><ll>d</ll><ll>d</ll></cont>";
-    err_msg = "Duplicate instance of \"ll\". /e:cont/ll[.='d']";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Duplicate instance of \"ll\".";
+    err_path[0] = "/e:cont/ll[.='d']";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* cases */
     data = "<l xmlns=\"urn:tests:e\">a</l><l xmlns=\"urn:tests:e\">b</l><l xmlns=\"urn:tests:e\">c</l><l xmlns=\"urn:tests:e\">b</l>";
-    err_msg = "Duplicate instance of \"l\". /e:l[.='b']";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Duplicate instance of \"l\".";
+    err_path[0] = "/e:l[.='b']";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data = "<l xmlns=\"urn:tests:e\">a</l><l xmlns=\"urn:tests:e\">b</l><l xmlns=\"urn:tests:e\">c</l><a xmlns=\"urn:tests:e\">aa</a>";
-    err_msg = "Data for both cases \"a\" and \"b\" exist. /e:choic";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Data for both cases \"a\" and \"b\" exist.";
+    err_path[0] = "/e:choic";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -986,7 +1005,6 @@ test_defaults(void **state)
 
     struct lyd_node *tree, *node, *diff;
     const struct lys_module *mod;
-    const char *data, *err_msg;
     const char *str;
 
     CONTEXT_CREATE();
@@ -1172,7 +1190,9 @@ test_state(void **state)
 {
     (void) state;
 
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
     struct lyd_node *tree;
 
     CONTEXT_CREATE();
@@ -1183,12 +1203,16 @@ test_state(void **state)
             "<l>val</l>"
         "</cont2>"
     "</cont>";
-    err_msg = "Invalid state data node \"cont2\" found. /h:cont/cont2";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, LYD_PARSE_ONLY | LYD_PARSE_NO_STATE, 0, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid state data node \"cont2\" found.";
+    err_path[0] = "/h:cont/cont2";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, LYD_PARSE_ONLY | LYD_PARSE_NO_STATE, 0, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, "", tree);
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, tree);
     assert_int_equal(LY_EVALID, lyd_validate_all(&tree, NULL, LYD_VALIDATE_PRESENT | LYD_VALIDATE_NO_STATE, NULL));
-    logbuf_assert("Invalid state data node \"cont2\" found. /h:cont/cont2");
+    err_msg[0]  = "Invalid state data node \"cont2\" found.";
+    err_path[0] = "/h:cont/cont2"; 
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     LYD_NODE_DESTROY(tree);
 
@@ -1199,7 +1223,9 @@ static void
 test_must(void **state)
 {
     (void) state;
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
     struct lyd_node *tree;
 
     CONTEXT_CREATE();
@@ -1209,8 +1235,10 @@ test_must(void **state)
         "<l>wrong</l>"
         "<l2>val</l2>"
     "</cont>";
-    err_msg = "Must condition \"../l = 'right'\" not satisfied. /i:cont/l2";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Must condition \"../l = 'right'\" not satisfied.";
+    err_path[0] = "/i:cont/l2";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data =
     "<cont xmlns=\"urn:tests:i\">"
@@ -1228,7 +1256,9 @@ test_action(void **state)
 {
     (void) state;
 
-    const char *data, *err_msg;
+    const char *data;
+    char *err_msg[1];
+    char *err_path[1];
     struct ly_in *in;
     struct lyd_node *tree, *op_tree;
 
@@ -1249,8 +1279,9 @@ test_action(void **state)
 
     /* missing leafref */
     assert_int_equal(LY_EVALID, lyd_validate_op(op_tree, NULL, LYD_VALIDATE_OP_RPC, NULL));
-    logbuf_assert("Invalid leafref value \"target\" - no target instance \"/lf3\" with the same value."
-        " /j:cont/l1[k='val1']/act/lf2");
+    err_msg[0] = "Invalid leafref value \"target\" - no target instance \"/lf3\" with the same value.";
+    err_path[0] = "/j:cont/l1[k='val1']/act/lf2";
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     ly_in_free(in, 0);
 
     data =
@@ -1258,11 +1289,13 @@ test_action(void **state)
         "<lf1>not true</lf1>"
     "</cont>"
     "<lf3 xmlns=\"urn:tests:j\">target</lf3>";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, LYD_PARSE_ONLY | LYD_PARSE_TRUSTED, 0, LY_SUCCESS, "", tree);
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, LYD_PARSE_ONLY | LYD_PARSE_TRUSTED, 0, LY_SUCCESS, tree);
 
     /* input must false */
     assert_int_equal(LY_EVALID, lyd_validate_op(op_tree, tree, LYD_VALIDATE_OP_RPC, NULL));
-    logbuf_assert("Must condition \"../../lf1 = 'true'\" not satisfied. /j:cont/l1[k='val1']/act");
+    err_msg[0] = "Must condition \"../../lf1 = 'true'\" not satisfied.";
+    err_path[0] = "/j:cont/l1[k='val1']/act";
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     LYD_NODE_DESTROY(tree);
     data =
@@ -1270,7 +1303,7 @@ test_action(void **state)
         "<lf1>true</lf1>"
     "</cont>"
     "<lf3 xmlns=\"urn:tests:j\">target</lf3>";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML,LYD_PARSE_ONLY | LYD_PARSE_TRUSTED, 0, LY_SUCCESS, "", tree);
+    LYD_NODE_CREATE_PARAM(data, LYD_XML,LYD_PARSE_ONLY | LYD_PARSE_TRUSTED, 0, LY_SUCCESS, tree);
 
     /* success */
     assert_int_equal(LY_SUCCESS, lyd_validate_op(op_tree, tree, LYD_VALIDATE_OP_RPC, NULL));
@@ -1285,7 +1318,9 @@ static void
 test_reply(void **state)
 {
     (void) state;
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
     struct ly_in *in;
     struct lyd_node *tree, *op_tree, *request;
 
@@ -1314,19 +1349,22 @@ test_reply(void **state)
 
     /* missing leafref */
     assert_int_equal(LY_EVALID, lyd_validate_op(op_tree, NULL, LYD_VALIDATE_OP_REPLY, NULL));
-    logbuf_assert("Invalid leafref value \"target\" - no target instance \"/lf4\" with the same value."
-        " /j:cont/l1[k='val1']/act/lf2");
+    err_msg[0] = "Invalid leafref value \"target\" - no target instance \"/lf4\" with the same value.";
+    err_path[0] = "/j:cont/l1[k='val1']/act/lf2";
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data =
     "<cont xmlns=\"urn:tests:j\">"
         "<lf1>not true</lf1>"
     "</cont>"
     "<lf4 xmlns=\"urn:tests:j\">target</lf4>";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML,LYD_PARSE_ONLY | LYD_PARSE_TRUSTED, 0, LY_SUCCESS, "", tree);
+    LYD_NODE_CREATE_PARAM(data, LYD_XML,LYD_PARSE_ONLY | LYD_PARSE_TRUSTED, 0, LY_SUCCESS, tree);
 
     /* input must false */
     assert_int_equal(LY_EVALID, lyd_validate_op(op_tree, tree, LYD_VALIDATE_OP_REPLY, NULL));
-    logbuf_assert("Must condition \"../../lf1 = 'true2'\" not satisfied. /j:cont/l1[k='val1']/act");
+    err_msg[0] = "Must condition \"../../lf1 = 'true2'\" not satisfied.";
+    err_path[0] = "/j:cont/l1[k='val1']/act";
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     LYD_NODE_DESTROY(tree);
     data =
@@ -1334,7 +1372,7 @@ test_reply(void **state)
         "<lf1>true2</lf1>"
     "</cont>"
     "<lf4 xmlns=\"urn:tests:j\">target</lf4>";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML,LYD_PARSE_ONLY | LYD_PARSE_TRUSTED, 0, LY_SUCCESS, "", tree);
+    LYD_NODE_CREATE_PARAM(data, LYD_XML,LYD_PARSE_ONLY | LYD_PARSE_TRUSTED, 0, LY_SUCCESS, tree);
 
     /* success */
     assert_int_equal(LY_SUCCESS, lyd_validate_op(op_tree, tree, LYD_VALIDATE_OP_REPLY, NULL));

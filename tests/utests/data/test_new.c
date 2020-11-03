@@ -12,40 +12,18 @@
  *     https://opensource.org/licenses/BSD-3-Clause
  */
 
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <setjmp.h>
-#include <cmocka.h>
-
+#include "../macros.h"
 #include "libyang.h"
-
-#define BUFSIZE 1024
-char logbuf[BUFSIZE] = {0};
-int store = -1; /* negative for infinite logging, positive for limited logging */
 
 struct ly_ctx *ctx; /* context for tests */
 
-/* set to 0 to printing error messages to stderr instead of checking them in code */
-#define ENABLE_LOGGER_CHECKING 1
 
-#if ENABLE_LOGGER_CHECKING
-static void
-logger(LY_LOG_LEVEL level, const char *msg, const char *path)
-{
-    (void) level; /* unused */
-    if (store) {
-        if (path && path[0]) {
-            snprintf(logbuf, BUFSIZE - 1, "%s %s", msg, path);
-        } else {
-            strncpy(logbuf, msg, BUFSIZE - 1);
-        }
-        if (store > 0) {
-            --store;
-        }
+#define logbuf_assert(str)\
+    {\
+        const char * err_msg[]  = {str};\
+        const char * err_path[] = {NULL};\
+        LY_ERROR_CHECK(ctx, err_msg, err_path);\
     }
-}
-#endif
 
 static int
 setup(void **state)
@@ -61,9 +39,7 @@ setup(void **state)
             "list l2 {config false; container c{leaf x {type string;}}}"
             "rpc oper {input {leaf param {type string;}} output {leaf param {type int8;}}}}";
 
-#if ENABLE_LOGGER_CHECKING
-    ly_set_log_clb(logger, 1);
-#endif
+    ly_set_log_clb(logger_null, 1);
 
     assert_int_equal(LY_SUCCESS, ly_ctx_new(NULL, 0, &ctx));
     assert_int_equal(LY_SUCCESS, lys_parse_mem(ctx, schema_a, LYS_IN_YANG, NULL));
@@ -74,31 +50,13 @@ setup(void **state)
 static int
 teardown(void **state)
 {
-#if ENABLE_LOGGER_CHECKING
-    if (*state) {
-        fprintf(stderr, "%s\n", logbuf);
-    }
-#else
-    (void) state; /* unused */
-#endif
-
+    (void) state;
     ly_ctx_destroy(ctx, NULL);
     ctx = NULL;
 
     return 0;
 }
 
-void
-logbuf_clean(void)
-{
-    logbuf[0] = '\0';
-}
-
-#if ENABLE_LOGGER_CHECKING
-#   define logbuf_assert(str) assert_string_equal(logbuf, str)
-#else
-#   define logbuf_assert(str)
-#endif
 
 static void
 test_top_level(void **state)
@@ -106,7 +64,9 @@ test_top_level(void **state)
     *state = test_top_level;
 
     const struct lys_module *mod;
-    struct lyd_node *node, *rpc;
+    struct lyd_node *node;
+    const char *err_msg[1];
+    const char *err_path[1];
 
     /* we need the module first */
     mod = ly_ctx_get_module_implemented(ctx, "a");
@@ -123,7 +83,9 @@ test_top_level(void **state)
     logbuf_assert("Not found node \"key1\" in path.");
 
     assert_int_equal(lyd_new_list2(NULL, mod, "l1", "[a='a'][b='b'][c='c']", 0, &node), LY_EVALID);
-    logbuf_assert("Key expected instead of leaf \"c\" in path. /a:l1/c");
+    err_msg[0]  = "Key expected instead of leaf \"c\" in path.";
+    err_path[0] = "/a:l1/c";
+    LY_ERROR_CHECK(ctx, err_msg, err_path);
 
     assert_int_equal(lyd_new_list2(NULL, mod, "c", "[a='a'][b='b']", 0, &node), LY_ENOTFOUND);
     logbuf_assert("List node \"c\" not found.");
@@ -142,7 +104,9 @@ test_top_level(void **state)
 
     /* leaf */
     assert_int_equal(lyd_new_term(NULL, mod, "foo", "[a='a'][b='b'][c='c']", 0, &node), LY_EVALID);
-    logbuf_assert("Invalid uint16 value \"[a='a'][b='b'][c='c']\". /a:foo");
+    err_msg[0]  = "Invalid uint16 value \"[a='a'][b='b'][c='c']\".";
+    err_path[0] = "/a:foo";
+    LY_ERROR_CHECK(ctx, err_msg, err_path);
 
     assert_int_equal(lyd_new_term(NULL, mod, "c", "value", 0, &node), LY_ENOTFOUND);
     logbuf_assert("Term node \"c\" not found.");
@@ -227,6 +191,8 @@ test_path(void **state)
 
     LY_ERR ret;
     struct lyd_node *root, *node, *parent;
+    const char *err_msg[1];
+    const char *err_path[1];
 
     /* create 2 nodes */
     ret = lyd_new_path2(NULL, ctx, "/a:c/x[.='val']", "vvv", 0, 0, &root, &node);
@@ -267,7 +233,9 @@ test_path(void **state)
 
     ret = lyd_new_path2(NULL, ctx, "/a:foo", NULL, 0, 0, NULL, NULL);
     assert_int_equal(ret, LY_EVALID);
-    logbuf_assert("Invalid empty uint16 value. /a:foo");
+    err_msg[0]  = "Invalid empty uint16 value.";
+    err_path[0] = "/a:foo"; 
+    LY_ERROR_CHECK(ctx, err_msg, err_path);
 
     ret = lyd_new_path2(NULL, ctx, "/a:foo", NULL, 0, LYD_NEW_PATH_OPAQ, NULL, &root);
     assert_int_equal(ret, LY_SUCCESS);

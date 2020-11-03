@@ -21,40 +21,6 @@
 #include "plugins_types.h"
 #include "path.h"
 
-#define BUFSIZE 1024
-char logbuf[BUFSIZE] = {0};
-int store = -1; /* negative for infinite logging, positive for limited logging */
-
-struct state_s {
-    void *func;
-    struct ly_ctx *ctx;
-    const struct lys_module *mod_types;
-    const struct lys_module *mod_defs;
-};
-
-/* set to 0 to printing error messages to stderr instead of checking them in code */
-#define ENABLE_LOGGER_CHECKING 1
-
-#if ENABLE_LOGGER_CHECKING
-static void
-logger(LY_LOG_LEVEL level, const char *msg, const char *path)
-{
-    (void) level; /* unused */
-    if (store) {
-        if (path && path[0]) {
-            snprintf(logbuf, BUFSIZE - 1, "%s %s", msg, path);
-        } else {
-            strncpy(logbuf, msg, BUFSIZE - 1);
-        }
-        if (store > 0) {
-            --store;
-        }
-    }
-}
-#endif
-
-
-
 const char *schema_a = "module defs {namespace urn:tests:defs;prefix d;yang-version 1.1;"
         "identity crypto-alg; identity interface-type; identity ethernet {base interface-type;} identity fast-ethernet {base ethernet;}"
         "typedef iref {type identityref {base interface-type;}}}";
@@ -104,14 +70,14 @@ const char *schema_b = "module types {namespace urn:tests:types;prefix t;yang-ve
           "type string {length 1..20;}}}}";
 
 #define CONTEXT_CREATE(LYD_NODE_1, LYD_NODE_2) \
+                ly_set_log_clb(logger_null, 1);\
                 CONTEXT_CREATE_PATH(NULL);\
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, &(LYD_NODE_1)));  \
-                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_b, LYS_IN_YANG, &(LYD_NODE_2))); \
-                ly_set_log_clb(logger, 1)
+                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_b, LYS_IN_YANG, &(LYD_NODE_2)))
 
 
 #define LYD_NODE_CREATE(INPUT, MODEL) \
-                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, MODEL)
 
 
 #define LYD_NODE_CHECK_CHAR(IN_MODEL, TEXT) \
@@ -156,17 +122,12 @@ const char *schema_b = "module types {namespace urn:tests:types;prefix t;yang-ve
                 }
 
 
-void
-logbuf_clean(void)
-{
-    logbuf[0] = '\0';
-}
-
-#if ENABLE_LOGGER_CHECKING
-#   define logbuf_assert(str) assert_string_equal(logbuf, str)
-#else
-#   define logbuf_assert(str)
-#endif
+#define logbuf_assert(str)\
+    {\
+        const char * err_msg[]  = {str};\
+        const char * err_path[] = {NULL};\
+        LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);\
+    }
 
 
 static void
@@ -175,7 +136,9 @@ test_int(void **state)
     (void) state;
 
     struct lyd_node *tree;
-    const char *data, *err_msg;
+    const char *data;
+    char *err_msg[1];
+    char *err_path[1];
 
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
@@ -190,26 +153,38 @@ test_int(void **state)
 
     /* invalid range */
     data    = "<int8 xmlns=\"urn:tests:types\">1</int8>";
-    err_msg = "Value \"1\" does not satisfy the range constraint. /types:int8";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Value \"1\" does not satisfy the range constraint.";
+    err_path[0] = "/types:int8";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<int16 xmlns=\"urn:tests:types\">100</int16>";
-    err_msg = "Value \"100\" does not satisfy the range constraint. /types:int16";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Value \"100\" does not satisfy the range constraint.";
+    err_path[0] = "/types:int16";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
 
     /* invalid value */
     data    = "<int32 xmlns=\"urn:tests:types\">0x01</int32>";
-    err_msg = "Invalid int32 value \"0x01\". /types:int32";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid int32 value \"0x01\".";
+    err_path[0] = "/types:int32";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<int64 xmlns=\"urn:tests:types\"></int64>";
-    err_msg = "Invalid empty int64 value. /types:int64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid empty int64 value.";
+    err_path[0] = "/types:int64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<int64 xmlns=\"urn:tests:types\">   </int64>";
-    err_msg = "Invalid empty int64 value. /types:int64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid empty int64 value.";
+    err_path[0] = "/types:int64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<int64 xmlns=\"urn:tests:types\">-10  xxx</int64>";
-    err_msg = "Invalid int64 value \"-10  xxx\". /types:int64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid int64 value \"-10  xxx\".";
+    err_path[0] = "/types:int64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -220,7 +195,9 @@ test_uint(void **state)
     (void) state;
 
     struct lyd_node *tree;
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
 
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
@@ -234,25 +211,37 @@ test_uint(void **state)
 
     /* invalid range */
     data    = "<uint8 xmlns=\"urn:tests:types\">\n 15 \t\n  </uint8>";
-    err_msg = "Value \"15\" does not satisfy the range constraint. /types:uint8";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Value \"15\" does not satisfy the range constraint.";
+    err_path[0] = "/types:uint8";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<uint16 xmlns=\"urn:tests:types\">\n 1500 \t\n  </uint16>";
-    err_msg = "Value \"1500\" does not satisfy the range constraint. /types:uint16";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Value \"1500\" does not satisfy the range constraint.";
+    err_path[0] = "/types:uint16";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* invalid value */
     data    = "<uint32 xmlns=\"urn:tests:types\">-10</uint32>";
-    err_msg = "Value \"-10\" is out of uint32's min/max bounds. /types:uint32";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Value \"-10\" is out of uint32's min/max bounds.";
+    err_path[0] = "/types:uint32";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<uint64 xmlns=\"urn:tests:types\"/>";
-    err_msg = "Invalid empty uint64 value. /types:uint64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid empty uint64 value.";
+    err_path[0] = "/types:uint64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<uint64 xmlns=\"urn:tests:types\">   </uint64>";
-    err_msg = "Invalid empty uint64 value. /types:uint64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid empty uint64 value.";
+    err_path[0] = "/types:uint64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<uint64 xmlns=\"urn:tests:types\">10  xxx</uint64>";
-    err_msg = "Invalid uint64 value \"10  xxx\". /types:uint64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid uint64 value \"10  xxx\".";
+    err_path[0] = "/types:uint64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -263,8 +252,9 @@ test_dec64(void **state)
     (void) state;
 
     struct lyd_node *tree;
+    char *err_msg[1];
+    char *err_path[1];
     const char *data;
-    const char *err_msg = "";
 
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
@@ -294,28 +284,42 @@ test_dec64(void **state)
 
     /* invalid range */
     data    = "<dec64 xmlns=\"urn:tests:types\">\n 15 \t\n  </dec64>";
-    err_msg = "Value \"15.0\" does not satisfy the range constraint. /types:dec64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Value \"15.0\" does not satisfy the range constraint.";
+    err_path[0] = "/types:dec64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<dec64 xmlns=\"urn:tests:types\">\n 0 \t\n  </dec64>";
-    err_msg = "Value \"0.0\" does not satisfy the range constraint. /types:dec64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Value \"0.0\" does not satisfy the range constraint.";
+    err_path[0] = "/types:dec64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* invalid value */
     data    = "<dec64 xmlns=\"urn:tests:types\">xxx</dec64>";
-    err_msg = "Invalid 1. character of decimal64 value \"xxx\". /types:dec64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid 1. character of decimal64 value \"xxx\".";
+    err_path[0] = "/types:dec64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<dec64 xmlns=\"urn:tests:types\"/>";
-    err_msg = "Invalid empty decimal64 value. /types:dec64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid empty decimal64 value.";
+    err_path[0] = "/types:dec64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<dec64 xmlns=\"urn:tests:types\">   </dec64>";
-    err_msg = "Invalid empty decimal64 value. /types:dec64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid empty decimal64 value.";
+    err_path[0] = "/types:dec64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<dec64 xmlns=\"urn:tests:types\">8.5  xxx</dec64>";
-    err_msg = "Invalid 6. character of decimal64 value \"8.5  xxx\". /types:dec64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid 6. character of decimal64 value \"8.5  xxx\".";
+    err_path[0] = "/types:dec64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<dec64 xmlns=\"urn:tests:types\">8.55  xxx</dec64>";
-    err_msg = "Value \"8.55\" of decimal64 type exceeds defined number (1) of fraction digits. /types:dec64";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Value \"8.55\" of decimal64 type exceeds defined number (1) of fraction digits.";
+    err_path[0] = "/types:dec64";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -326,7 +330,9 @@ test_string(void **state)
     (void) state;
 
     struct lyd_node *tree;
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
 
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
@@ -347,27 +353,39 @@ test_string(void **state)
 
     /*error */
     data    = "<str-utf8 xmlns=\"urn:tests:types\">€</str-utf8>";
-    err_msg = "Length \"1\" does not satisfy the length constraint. /types:str-utf8";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Length \"1\" does not satisfy the length constraint.";
+    err_path[0] = "/types:str-utf8";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<str-utf8 xmlns=\"urn:tests:types\">€€€€€€</str-utf8>";
-    err_msg = "Length \"6\" does not satisfy the length constraint. /types:str-utf8";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Length \"6\" does not satisfy the length constraint.";
+    err_path[0] = "/types:str-utf8";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<str-utf8 xmlns=\"urn:tests:types\">€€x</str-utf8>";
-    err_msg = "String \"€€x\" does not conform to the pattern \"€*\". /types:str-utf8";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "String \"€€x\" does not conform to the pattern \"€*\".";
+    err_path[0] = "/types:str-utf8";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* invalid length */
     data    = "<str xmlns=\"urn:tests:types\">short</str>";
-    err_msg = "Length \"5\" does not satisfy the length constraint. /types:str";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Length \"5\" does not satisfy the length constraint.";
+    err_path[0] = "/types:str";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<str xmlns=\"urn:tests:types\">tooooo long</str>";
-    err_msg = "Length \"11\" does not satisfy the length constraint. /types:str";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Length \"11\" does not satisfy the length constraint.";
+    err_path[0] = "/types:str";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* invalid pattern */
     data    = "<str xmlns=\"urn:tests:types\">string15</str>";
-    err_msg = "String \"string15\" does not conform to the pattern \"[a-z ]*\". /types:str";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "String \"string15\" does not conform to the pattern \"[a-z ]*\".";
+    err_path[0] = "/types:str";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -379,10 +397,10 @@ test_bits(void **state)
     (void) state;;
 
     struct lyd_node *tree;
-    struct lyd_node_term *leaf;
-    struct lyd_value value = {0};
 
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
 
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
@@ -403,8 +421,10 @@ test_bits(void **state)
 
     /* disabled feature */
     data    = "<bits xmlns=\"urn:tests:types\"> \t one \n\t </bits>";
-    err_msg = "Bit \"one\" is disabled by its 1. if-feature condition. /types:bits";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Bit \"one\" is disabled by its 1. if-feature condition.";
+    err_path[0] = "/types:bits";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* enable that feature */
     assert_int_equal(LY_SUCCESS, lys_feature_enable(ly_ctx_get_module(CONTEXT_GET, "types", NULL), "f"));
@@ -419,13 +439,17 @@ test_bits(void **state)
 
     /* multiple instances of the bit */
     data    = "<bits xmlns=\"urn:tests:types\">one zero one</bits>";
-    err_msg = "Bit \"one\" used multiple times. /types:bits";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Bit \"one\" used multiple times.";
+    err_path[0] = "/types:bits";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* invalid bit value */
     data    = "<bits xmlns=\"urn:tests:types\">one xero one</bits>";
-    err_msg = "Invalid bit value \"xero\". /types:bits";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid bit value \"xero\".";
+    err_path[0] = "/types:bits";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -436,9 +460,9 @@ test_enums(void **state)
     (void) state;
 
     struct lyd_node *tree;
-    struct lyd_node_term *leaf;
-    struct lyd_value value = {0};
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
 
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
@@ -453,8 +477,10 @@ test_enums(void **state)
 
     /* disabled feature */
     data    = "<enums xmlns=\"urn:tests:types\">yellow</enums>";
-    err_msg = "Enumeration \"yellow\" is disabled by its 1. if-feature condition. /types:enums";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Enumeration \"yellow\" is disabled by its 1. if-feature condition.";
+    err_path[0] = "/types:enums";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* enable that feature */
     assert_int_equal(LY_SUCCESS, lys_feature_enable(ly_ctx_get_module(CONTEXT_GET, "types", NULL), "f"));
@@ -465,16 +491,22 @@ test_enums(void **state)
 
     /* leading/trailing whitespaces are not valid */
     data    = "<enums xmlns=\"urn:tests:types\"> white</enums>";
-    err_msg = "Invalid enumeration value \" white\". /types:enums";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid enumeration value \" white\".";
+    err_path[0] = "/types:enums";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     data    = "<enums xmlns=\"urn:tests:types\">white\n</enums>";
-    err_msg = "Invalid enumeration value \"white\n\". /types:enums";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid enumeration value \"white\n\".";
+    err_path[0] = "/types:enums";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* invalid enumeration value */
     data    = "<enums xmlns=\"urn:tests:types\">black</enums>";
-    err_msg = "Invalid enumeration value \"black\". /types:enums";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid enumeration value \"black\".";
+    err_path[0] = "/types:enums";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -485,9 +517,9 @@ test_binary(void **state)
     (void) state;
 
     struct lyd_node *tree;
-    struct lyd_node_term *leaf;
-    struct lyd_value value = {0};
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
 
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
@@ -520,28 +552,38 @@ test_binary(void **state)
 
     /* invalid base64 character */
     data    = "<binary-norestr xmlns=\"urn:tests:types\">a@bcd=</binary-norestr>";
-    err_msg = "Invalid Base64 character (@). /types:binary-norestr";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid Base64 character (@).";
+    err_path[0] = "/types:binary-norestr";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* missing data */
     data    = "<binary-norestr xmlns=\"urn:tests:types\">aGVsbG8</binary-norestr>";
-    err_msg = "Base64 encoded value length must be divisible by 4. /types:binary-norestr";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Base64 encoded value length must be divisible by 4.";
+    err_path[0] = "/types:binary-norestr";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<binary-norestr xmlns=\"urn:tests:types\">VsbG8=</binary-norestr>";
-    err_msg = "Base64 encoded value length must be divisible by 4. /types:binary-norestr";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Base64 encoded value length must be divisible by 4.";
+    err_path[0] = "/types:binary-norestr";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* invalid binary length */
     /* helloworld */
     data    = "<binary xmlns=\"urn:tests:types\">aGVsbG93b3JsZA==</binary>";
-    err_msg = "This base64 value must be of length 5. /types:binary";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "This base64 value must be of length 5.";
+    err_path[0] = "/types:binary";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* M */
     data    = "<binary xmlns=\"urn:tests:types\">TQ==</binary>";
-    err_msg = "This base64 value must be of length 5. /types:binary";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "This base64 value must be of length 5.";
+    err_path[0] = "/types:binary";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -551,7 +593,9 @@ test_boolean(void **state)
 {
     (void) state;
     struct lyd_node *tree;
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
 
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
@@ -576,12 +620,16 @@ test_boolean(void **state)
 
     /* invalid value */
     data    = "<bool xmlns=\"urn:tests:types\">unsure</bool>";
-    err_msg = "Invalid boolean value \"unsure\". /types:bool";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid boolean value \"unsure\".";
+    err_path[0] = "/types:bool";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<bool xmlns=\"urn:tests:types\"> true</bool>";
-    err_msg = "Invalid boolean value \" true\". /types:bool";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid boolean value \" true\".";
+    err_path[0] = "/types:bool";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -592,7 +640,9 @@ test_empty(void **state)
     (void) state;
 
     struct lyd_node *tree;
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
 
@@ -616,12 +666,16 @@ test_empty(void **state)
 
     /* invalid value */
     data    = "<empty xmlns=\"urn:tests:types\">x</empty>";
-    err_msg = "Invalid empty value \"x\". /types:empty";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid empty value \"x\".";
+    err_path[0] = "/types:empty";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<empty xmlns=\"urn:tests:types\"> </empty>";
-    err_msg = "Invalid empty value \" \". /types:empty";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid empty value \" \".";
+    err_path[0] = "/types:empty";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -648,7 +702,9 @@ test_identityref(void **state)
 
     struct lyd_node *tree;
     struct lyd_node_term *leaf;
-    const char *data, *err_msg;
+    char *err_msg[1];
+    char *err_path[1];
+    const char *data;
 
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
@@ -672,20 +728,28 @@ test_identityref(void **state)
 
     /* invalid value */
     data    = "<ident xmlns=\"urn:tests:types\">fast-ethernet</ident>";
-    err_msg = "Invalid identityref \"fast-ethernet\" value - identity not found. /types:ident";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid identityref \"fast-ethernet\" value - identity not found.";
+    err_path[0] = "/types:ident";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<ident xmlns=\"urn:tests:types\" xmlns:x=\"urn:tests:defs\">x:slow-ethernet</ident>";
-    err_msg = "Invalid identityref \"x:slow-ethernet\" value - identity not found. /types:ident";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid identityref \"x:slow-ethernet\" value - identity not found.";
+    err_path[0] = "/types:ident";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<ident xmlns=\"urn:tests:types\" xmlns:x=\"urn:tests:defs\">x:crypto-alg</ident>";
-    err_msg = "Invalid identityref \"x:crypto-alg\" value - identity not accepted by the type specification. /types:ident";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid identityref \"x:crypto-alg\" value - identity not accepted by the type specification.";
+    err_path[0] = "/types:ident";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<ident xmlns=\"urn:tests:types\" xmlns:x=\"urn:tests:unknown\">x:fast-ethernet</ident>";
-    err_msg = "Invalid identityref \"x:fast-ethernet\" value - unable to map prefix to YANG schema. /types:ident";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid identityref \"x:fast-ethernet\" value - unable to map prefix to YANG schema.";
+    err_path[0] = "/types:ident";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }
@@ -706,11 +770,11 @@ test_instanceid(void **state)
 {
     (void) state;
 
+    char *err_msg[1];
+    char *err_path[1]; 
     struct lyd_node *tree;
     struct lyd_node_term *leaf;
-    const char *data, *err_msg;
-
-    struct lyd_value value = {0};
+    const char *data;
 
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
@@ -884,132 +948,186 @@ test_instanceid(void **state)
     /* invalid value */
     data    = "<list xmlns=\"urn:tests:types\"><id>a</id></list><list xmlns=\"urn:tests:types\"><id>b</id><value>x</value></list>"
               "<xdf:inst xmlns:xdf=\"urn:tests:types\">/xdf:list[2]/xdf:value</xdf:inst>";
-    err_msg = "Invalid instance-identifier \"/xdf:list[2]/xdf:value\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/xdf:list[2]/xdf:value\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:1leaftarget</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:1leaftarget\" value - syntax error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:1leaftarget\" value - syntax error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<t:inst xmlns:t=\"urn:tests:types\">/t:cont:t:1leaftarget</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont:t:1leaftarget\" value - syntax error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont:t:1leaftarget\" value - syntax error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:invalid/t:path</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:invalid/t:path\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:invalid/t:path\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<inst xmlns=\"urn:tests:types\" xmlns:t=\"urn:tests:invalid\">/t:cont/t:leaftarget</inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:leaftarget\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:leaftarget\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<inst xmlns=\"urn:tests:types\">/cont/leaftarget</inst>";
-    err_msg = "Invalid instance-identifier \"/cont/leaftarget\" value - syntax error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/cont/leaftarget\" value - syntax error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
 //    /* instance-identifier is here in JSON format because it is already in internal representation without canonical prefixes */
     data    = "<cont xmlns=\"urn:tests:types\"/><t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:leaftarget</t:inst>";
-    err_msg = "Invalid instance-identifier \"/types:cont/leaftarget\" value - required instance not found. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_ENOTFOUND, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/types:cont/leaftarget\" value - required instance not found.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_ENOTFOUND, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     /* instance-identifier is here in JSON format because it is already in internal representation without canonical prefixes */
 
     data    = "<t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:leaftarget</t:inst>";
-    err_msg = "Invalid instance-identifier \"/types:cont/leaftarget\" value - required instance not found. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_ENOTFOUND, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/types:cont/leaftarget\" value - required instance not found.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_ENOTFOUND, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<leaflisttarget xmlns=\"urn:tests:types\">x</leaflisttarget><t:inst xmlns:t=\"urn:tests:types\">/t:leaflisttarget[1</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:leaflisttarget[1\" value - syntax error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:leaflisttarget[1\" value - syntax error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<cont xmlns=\"urn:tests:types\"/><t:inst xmlns:t=\"urn:tests:types\">/t:cont[1]</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont[1]\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont[1]\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<cont xmlns=\"urn:tests:types\"/><t:inst xmlns:t=\"urn:tests:types\">[1]</t:inst>";
-    err_msg = "Invalid instance-identifier \"[1]\" value - syntax error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"[1]\" value - syntax error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<cont xmlns=\"urn:tests:types\"><leaflisttarget>1</leaflisttarget></cont><t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:leaflisttarget[id='1']</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:leaflisttarget[id='1']\" value - syntax error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:leaflisttarget[id='1']\" value - syntax error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<cont xmlns=\"urn:tests:types\"><leaflisttarget>1</leaflisttarget></cont>"
               "<t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:leaflisttarget[t:id='1']</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:leaflisttarget[t:id='1']\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:leaflisttarget[t:id='1']\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<cont xmlns=\"urn:tests:types\"><leaflisttarget>1</leaflisttarget><leaflisttarget>2</leaflisttarget></cont>"
               "<t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:leaflisttarget[4]</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:leaflisttarget[4]\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:leaflisttarget[4]\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<t:inst-noreq xmlns:t=\"urn:tests:types\">/t:cont/t:leaflisttarget[6]</t:inst-noreq>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:leaflisttarget[6]\" value - semantic error. /types:inst-noreq";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:leaflisttarget[6]\" value - semantic error.";
+    err_path[0] = "/types:inst-noreq";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<cont xmlns=\"urn:tests:types\"><listtarget><id>1</id><value>x</value></listtarget></cont>"
               "<t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:listtarget[t:value='x']</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:listtarget[t:value='x']\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:listtarget[t:value='x']\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<t:inst-noreq xmlns:t=\"urn:tests:types\">/t:cont/t:listtarget[t:value='x']</t:inst-noreq>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:listtarget[t:value='x']\" value - semantic error. /types:inst-noreq";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:listtarget[t:value='x']\" value - semantic error.";
+    err_path[0] = "/types:inst-noreq";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<t:inst-noreq xmlns:t=\"urn:tests:types\">/t:cont/t:listtarget[t:x='x']</t:inst-noreq>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:listtarget[t:x='x']\" value - semantic error. /types:inst-noreq";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_ENOTFOUND, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:listtarget[t:x='x']\" value - semantic error.";
+    err_path[0] = "/types:inst-noreq";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_ENOTFOUND, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<cont xmlns=\"urn:tests:types\"><listtarget><id>1</id><value>x</value></listtarget></cont>"
               "<t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:listtarget[.='x']</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:listtarget[.='x']\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:listtarget[.='x']\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* instance-identifier is here in JSON format because it is already in internal representation without canonical prefixes */
     data    = "<cont xmlns=\"urn:tests:types\"><leaflisttarget>1</leaflisttarget></cont>"
               "<t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:leaflisttarget[.='2']</t:inst>";
-    err_msg = "Invalid instance-identifier \"/types:cont/leaflisttarget[.='2']\" value - required instance not found. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_ENOTFOUND, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/types:cont/leaflisttarget[.='2']\" value - required instance not found.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_ENOTFOUND, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<cont xmlns=\"urn:tests:types\"><leaflisttarget>1</leaflisttarget></cont>"
               "<t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:leaflisttarget[.='x']</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:leaflisttarget[.='x']\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:leaflisttarget[.='x']\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<cont xmlns=\"urn:tests:types\"><listtarget><id>1</id><value>x</value></listtarget></cont>"
               "<t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:listtarget[t:id='x']</t:inst>";
-    err_msg = "Invalid instance-identifier \"/t:cont/t:listtarget[t:id='x']\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/t:cont/t:listtarget[t:id='x']\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     /* instance-identifier is here in JSON format because it is already in internal representation without canonical prefixes */
     data    = "<cont xmlns=\"urn:tests:types\"><listtarget><id>1</id><value>x</value></listtarget></cont>"
               "<t:inst xmlns:t=\"urn:tests:types\">/t:cont/t:listtarget[t:id='2']</t:inst>";
-    err_msg = "Invalid instance-identifier \"/types:cont/listtarget[id='2']\" value - required instance not found. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_ENOTFOUND, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/types:cont/listtarget[id='2']\" value - required instance not found.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_ENOTFOUND, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<leaflisttarget xmlns=\"urn:tests:types\">a</leaflisttarget>"
               "<leaflisttarget xmlns=\"urn:tests:types\">b</leaflisttarget>"
               "<a:inst xmlns:a=\"urn:tests:types\">/a:leaflisttarget[1][2]</a:inst>";
-    err_msg = "Invalid instance-identifier \"/a:leaflisttarget[1][2]\" value - syntax error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/a:leaflisttarget[1][2]\" value - syntax error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<leaflisttarget xmlns=\"urn:tests:types\">a</leaflisttarget>"
               "<leaflisttarget xmlns=\"urn:tests:types\">b</leaflisttarget>"
               "<a:inst xmlns:a=\"urn:tests:types\">/a:leaflisttarget[.='a'][.='b']</a:inst>";
-    err_msg = "Invalid instance-identifier \"/a:leaflisttarget[.='a'][.='b']\" value - syntax error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/a:leaflisttarget[.='a'][.='b']\" value - syntax error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<list xmlns=\"urn:tests:types\"><id>a</id><value>x</value></list>"
               "<list xmlns=\"urn:tests:types\"><id>b</id><value>y</value></list>"
               "<a:inst xmlns:a=\"urn:tests:types\">/a:list[a:id='a'][a:id='b']/a:value</a:inst>";
-    err_msg = "Invalid instance-identifier \"/a:list[a:id='a'][a:id='b']/a:value\" value - syntax error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/a:list[a:id='a'][a:id='b']/a:value\" value - syntax error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<list2 xmlns=\"urn:tests:types\"><id>a</id><value>x</value></list2>"
               "<list2 xmlns=\"urn:tests:types\"><id>b</id><value>y</value></list2>"
               "<a:inst xmlns:a=\"urn:tests:types\">/a:list2[a:id='a']/a:value</a:inst>";
-    err_msg = "Invalid instance-identifier \"/a:list2[a:id='a']/a:value\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/a:list2[a:id='a']/a:value\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
 //    /* check for validting instance-identifier with a complete data tree */
     data    = "<list2 xmlns=\"urn:tests:types\"><id>a</id><value>a</value></list2>"
@@ -1022,24 +1140,32 @@ test_instanceid(void **state)
     data = "/types:list2[id='a'][value='b']/id";
     assert_int_equal(LY_ENOTFOUND, lyd_value_validate(CONTEXT_GET, (const struct lyd_node_term*)tree->prev->prev, data, strlen(data),
                                                    tree, NULL));
-    logbuf_assert("Invalid instance-identifier \"/types:list2[id='a'][value='b']/id\" value - required instance not found. /types:inst");
+    err_msg[0] = "Invalid instance-identifier \"/types:list2[id='a'][value='b']/id\" value - required instance not found.";
+    err_path[0] = "/types:inst";
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     /* leaf-list-predicate */
     data = "/types:leaflisttarget[.='c']";
     assert_int_equal(LY_ENOTFOUND, lyd_value_validate(CONTEXT_GET, (const struct lyd_node_term*)tree->prev->prev, data, strlen(data),
                                                    tree, NULL));
-    logbuf_assert("Invalid instance-identifier \"/types:leaflisttarget[.='c']\" value - required instance not found. /types:inst");
+    err_msg[0] = "Invalid instance-identifier \"/types:leaflisttarget[.='c']\" value - required instance not found.";
+    err_path[0] = "/types:inst";
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     /* position predicate */
     data = "/types:list_keyless[4]";
     assert_int_equal(LY_ENOTFOUND, lyd_value_validate(CONTEXT_GET, (const struct lyd_node_term*)tree->prev->prev, data, strlen(data),
                                                    tree, NULL));
-    logbuf_assert("Invalid instance-identifier \"/types:list_keyless[4]\" value - required instance not found. /types:inst");
+    err_msg[0] = "Invalid instance-identifier \"/types:list_keyless[4]\" value - required instance not found.";
+    err_path[0] = "/types:inst";
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     LYD_NODE_DESTROY(tree);
 
     data    = "<leaflisttarget xmlns=\"urn:tests:types\">b</leaflisttarget>"
             "<inst xmlns=\"urn:tests:types\">/a:leaflisttarget[1]</inst>";
-    err_msg = "Invalid instance-identifier \"/a:leaflisttarget[1]\" value - semantic error. /types:inst";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid instance-identifier \"/a:leaflisttarget[1]\" value - semantic error.";
+    err_path[0] = "/types:inst";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
     CONTEXT_DESTROY;
 }
 
@@ -1051,7 +1177,9 @@ test_leafref(void **state)
     struct lyd_node *tree;
     struct lyd_node_term *leaf;
 
-    const char *data, *err_msg;
+    const char *data;
+    char *err_msg[1];
+    char *err_path[1];
 
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
@@ -1123,36 +1251,48 @@ test_leafref(void **state)
 
 //    /* invalid value */
     data    = "<leaflisttarget xmlns=\"urn:tests:types\">x</leaflisttarget><lref xmlns=\"urn:tests:types\">y</lref>";
-    err_msg = "Invalid leafref value \"y\" - no target instance \"/leaflisttarget\" with the same value. /types:lref";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid leafref value \"y\" - no target instance \"/leaflisttarget\" with the same value.";
+    err_path[0] = "/types:lref";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<list xmlns=\"urn:tests:types\"><id>x</id><targets>a</targets><targets>b</targets></list>"
               "<list xmlns=\"urn:tests:types\"><id>y</id><targets>x</targets><targets>y</targets></list>"
               "<str-norestr xmlns=\"urn:tests:types\">y</str-norestr><lref2 xmlns=\"urn:tests:types\">b</lref2>";
-    err_msg = "Invalid leafref value \"b\" - no target instance \"../list[id = current()/../str-norestr]/targets\" with the same value. /types:lref2";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid leafref value \"b\" - no target instance \"../list[id = current()/../str-norestr]/targets\" with the same value.";
+    err_path[0] = "/types:lref2";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<list xmlns=\"urn:tests:types\"><id>x</id><targets>a</targets><targets>b</targets></list>"
               "<list xmlns=\"urn:tests:types\"><id>y</id><targets>x</targets><targets>y</targets></list>"
               "<lref2 xmlns=\"urn:tests:types\">b</lref2>";
-    err_msg = "Invalid leafref value \"b\" - no target instance \"../list[id = current()/../str-norestr]/targets\" with the same value. /types:lref2";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid leafref value \"b\" - no target instance \"../list[id = current()/../str-norestr]/targets\" with the same value.";
+    err_path[0] = "/types:lref2";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<str-norestr xmlns=\"urn:tests:types\">y</str-norestr><lref2 xmlns=\"urn:tests:types\">b</lref2>";
-    err_msg = "Invalid leafref value \"b\" - no target instance \"../list[id = current()/../str-norestr]/targets\" with the same value. /types:lref2";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid leafref value \"b\" - no target instance \"../list[id = current()/../str-norestr]/targets\" with the same value.";
+    err_path[0] = "/types:lref2";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<str-norestr xmlns=\"urn:tests:types\">y</str-norestr>"
               "<c xmlns=\"urn:tests:leafrefs\"><l><id>x</id><value>x</value><lr1>a</lr1></l></c>";
-    err_msg = "Invalid leafref value \"a\" - no target instance \"../../../t:str-norestr\" with the same value. /leafrefs:c/l[id='x'][value='x']/lr1";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid leafref value \"a\" - no target instance \"../../../t:str-norestr\" with the same value.";
+    err_path[0] = "/leafrefs:c/l[id='x'][value='x']/lr1";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data    = "<str-norestr xmlns=\"urn:tests:types\">z</str-norestr>"
               "<c xmlns=\"urn:tests:leafrefs\"><l><id>y</id><value>y</value></l>"
               "<l><id>x</id><value>x</value><lr2>z</lr2></l></c>";
-    err_msg = "Invalid leafref value \"z\" - no target instance \"../../l[id=current()/../../../t:str-norestr]"
-              "[value=current()/../../../t:str-norestr]/value\" with the same value. /leafrefs:c/l[id='x'][value='x']/lr2";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid leafref value \"z\" - no target instance \"../../l[id=current()/../../../t:str-norestr]"
+              "[value=current()/../../../t:str-norestr]/value\" with the same value.";
+    err_path[0] = "/leafrefs:c/l[id='x'][value='x']/lr2";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
 
     CONTEXT_DESTROY;
@@ -1165,9 +1305,10 @@ test_union(void **state)
 
     struct lyd_node *tree;
     struct lyd_node_term *leaf;
-    struct lyd_value value = {0};
 
-    const char *data, *err_msg;
+    const char *data;
+    char *err_msg[1];
+    char *err_path[1];
     const struct lys_module *mod_types;
     const struct lys_module *mod_defs;
 
@@ -1242,8 +1383,10 @@ test_union(void **state)
     LYD_NODE_DESTROY(tree);
 
     data    = "<un1 xmlns=\"urn:tests:types\">123456789012345678901</un1>";
-    err_msg = "Invalid union value \"123456789012345678901\" - no matching subtype found. /types:un1";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, err_msg, tree);
+    err_msg[0] = "Invalid union value \"123456789012345678901\" - no matching subtype found.";
+    err_path[0] = "/types:un1";
+    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
+    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     CONTEXT_DESTROY;
 }

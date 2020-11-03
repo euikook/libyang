@@ -19,32 +19,6 @@
 #include "path.h"
 #include "xpath.h"
 
-#define BUFSIZE 1024
-char logbuf[BUFSIZE] = {0};
-int store = -1; /* negative for infinite logging, positive for limited logging */
-
-/* set to 0 to printing error messages to stderr instead of checking them in code */
-#define ENABLE_LOGGER_CHECKING 1
-
-#if ENABLE_LOGGER_CHECKING
-static void
-logger(LY_LOG_LEVEL level, const char *msg, const char *path)
-{
-    (void) level; /* unused */
-    if (store) {
-        if (path && path[0]) {
-            snprintf(logbuf, BUFSIZE - 1, "%s %s", msg, path);
-        } else {
-            strncpy(logbuf, msg, BUFSIZE - 1);
-        }
-        if (store > 0) {
-            --store;
-        }
-    }
-}
-#endif
-
-
     const char *schema_a = "module a {namespace urn:tests:a;prefix a;yang-version 1.1;"
             "leaf bar {type string;}"
             "list l1 { key \"a b\"; leaf a {type string;} leaf b {type string;} leaf c {type string;}}"
@@ -58,13 +32,13 @@ logger(LY_LOG_LEVEL level, const char *msg, const char *path)
 
 
 #define CONTEXT_CREATE \
+                ly_set_log_clb(logger_null, 1);\
                 CONTEXT_CREATE_PATH(NULL);\
-                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, NULL));\
-                ly_set_log_clb(logger, 1)
+                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, NULL))\
 
 
 #define LYD_NODE_CREATE(INPUT, MODEL) \
-                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, "", MODEL)
+                LYD_NODE_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_SUCCESS, MODEL)
 
 
 #define LYD_NODE_CHECK_CHAR(IN_MODEL, TEXT) \
@@ -72,17 +46,12 @@ logger(LY_LOG_LEVEL level, const char *msg, const char *path)
 
 
 
-void
-logbuf_clean(void)
-{
-    logbuf[0] = '\0';
-}
-
-#if ENABLE_LOGGER_CHECKING
-#   define logbuf_assert(str) assert_string_equal(logbuf, str)
-#else
-#   define logbuf_assert(str)
-#endif
+#define logbuf_assert(str)\
+    {\
+        const char * err_msg[]  = {str};\
+        const char * err_path[] = {NULL};\
+        LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);\
+    }
 
 static void
 test_compare(void **state)
@@ -200,7 +169,7 @@ test_dup(void **state)
     assert_int_equal(LY_SUCCESS, lyd_dup_single(tree1, NULL, 0, &tree2));
     LYD_NODE_DESTROY(tree1);
     result = "<l2 xmlns=\"urn:tests:a\"/>";
-    LYD_NODE_CREATE_PARAM(result, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, "", tree1);
+    LYD_NODE_CREATE_PARAM(result, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, tree1);
     assert_int_equal(LY_SUCCESS, lyd_compare_single(tree1, tree2, LYD_COMPARE_FULL_RECURSION));
     LYD_NODE_DESTROY(tree1);
     LYD_NODE_DESTROY(tree2);
