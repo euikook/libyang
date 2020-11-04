@@ -654,7 +654,7 @@ struct trt_fp_read
 {
     trt_keyword_stmt (*module_name)(const struct trt_tree_ctx*);    /**< Get name of the module. */
     trt_node (*node)(const struct trt_tree_ctx*);                   /**< Get current node. */
-    trt_node (*next_sibling)(const struct trt_tree_ctx*);           /**< Get next sibling of the current node. */
+    ly_bool (*if_sibling_exists)(const struct trt_tree_ctx*);       /**< Check if node's sibling exists. */
 };
 
 /* ===================================== */
@@ -937,7 +937,7 @@ struct trt_tree_ctx
 /* --------- <Read getters> --------- */
 trt_keyword_stmt tro_read_module_name(const struct trt_tree_ctx*);
 trt_node tro_read_node(const struct trt_tree_ctx*);
-trt_node tro_read_next_sibling(const struct trt_tree_ctx*);
+ly_bool tro_read_if_sibling_exists(const struct trt_tree_ctx*);
 
 /* --------- <Modify getters> --------- */
 trt_node tro_modi_parent(struct trt_tree_ctx*);
@@ -2082,7 +2082,7 @@ ly_bool
 trb_parent_is_last_sibling(struct trt_fp_all fp, struct trt_tree_ctx* tc)
 {
     fp.modify.parent(tc);
-    ly_bool ret = trp_node_is_empty(fp.read.next_sibling(tc));
+    ly_bool ret = fp.read.if_sibling_exists(tc);
     fp.modify.next_child(tc);
     return ret;
 }
@@ -2375,8 +2375,8 @@ tro_read_node(const struct trt_tree_ctx* a)
     return ret;
 }
 
-trt_node
-tro_read_next_sibling(const struct trt_tree_ctx*);
+ly_bool
+tro_read_if_sibling_exists(const struct trt_tree_ctx*);
 
 /* --------- <Modify getters> --------- */
 trt_node
