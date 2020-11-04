@@ -2291,7 +2291,7 @@ tro_lysp_flags2status(uint16_t flags)
 }
 
 trt_status_type
-tro_lysp_node_name(uint16_t ancestor_flags, uint16_t node_flags)
+tro_lysp_node_status(uint16_t ancestor_flags, uint16_t node_flags)
 {
     if(node_flags & (LYS_STATUS_CURR | LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)) {
         /* node status was set */

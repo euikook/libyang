@@ -32,12 +32,7 @@ TEST(line, fully)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_container, "prefix", "node"},
-<<<<<<< HEAD
         {trd_type_target, "target"},
-=======
-        trp_empty_opts_keys(),
-        {trd_type_target, trp_set_breakable_str("target")},
->>>>>>> 33ff042d... tree printer BUGFIX divided node indentation
         trp_set_iffeature()
     };
     trt_wrapper wr = trp_wrapper_set_mark(trp_wrapper_set_mark(trp_init_wrapper_top()));
@@ -56,12 +51,7 @@ TEST(line, firstNode)
     {
         trd_status_type_current, trd_flags_type_rw,
         {trd_node_container, "prefix", "node"},
-<<<<<<< HEAD
         {trd_type_target, "target"},
-=======
-        trp_empty_opts_keys(),
-        {trd_type_target, trp_set_breakable_str("target")},
->>>>>>> 33ff042d... tree printer BUGFIX divided node indentation
         trp_set_iffeature()
     };
     trt_printing p = {&out, Out::print_string, 0};

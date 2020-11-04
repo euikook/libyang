@@ -140,8 +140,6 @@ typedef struct
  */
 void trp_injected_strlen(void *out, int arg_count, va_list ap); 
 
-<<<<<<< HEAD
-=======
 typedef struct
 {
     const char* src;
@@ -156,7 +154,6 @@ bool trp_breakable_str_begin_will_be_printed(trt_breakable_str);
 bool trp_breakable_str_end_will_be_printed(trt_breakable_str);
 void trp_print_breakable_str(trt_breakable_str, trt_printing);
 
->>>>>>> 33ff042d... tree printer BUGFIX divided node indentation
 /* ======================================= */
 /* ----------- <Print getters> ----------- */
 /* ======================================= */
@@ -1002,8 +999,6 @@ void trg_print_linebreak(trt_printing*);
 
 /** Print a substring but limited to the maximum length. */
 const char* trg_print_substr(const char*, size_t len, trt_printing*);
-
-void trg_print_linebreak(trt_printing);
 
 /* ================================ */
 /* ----------- <symbol> ----------- */

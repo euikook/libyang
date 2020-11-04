@@ -15,24 +15,7 @@ trp_cnt_linebreak_reset(trt_printing* p)
 void
 trp_cnt_linebreak_increment(trt_printing* p)
 {
-<<<<<<< HEAD
     p->cnt_linebreak++;
-=======
-    trt_counter* cnt = (trt_counter*)out;
-
-    for(int i = 0; i < arg_count; i++)
-        cnt->bytes += strlen(va_arg(ap, char*));
-}
-
-trt_breakable_str
-trp_set_breakable_str(const char* src)
-{
-    trt_breakable_str ret;
-    ret.src = src;
-    ret.substr_start = src;
-    ret.substr_size = 0;
-    return ret;
->>>>>>> 33ff042d... tree printer BUGFIX divided node indentation
 }
 
 void
@@ -460,12 +443,8 @@ trp_print_node(trt_node a, trt_pck_print pck, trt_indent_in_node ind, trt_printi
 
     /* <status>--<flags> <name><opts> <type> <if-features> */
 
-<<<<<<< HEAD
     const ly_bool triple_dot = a.name.type == trd_node_triple_dot;
     const ly_bool divided = ind.type == trd_indent_in_node_divided;
-=======
-    const bool divided = ind.type == trd_indent_in_node_divided;
->>>>>>> 33ff042d... tree printer BUGFIX divided node indentation
     const char char_space = trd_separator_space[0];
 
     if(triple_dot) { 
@@ -780,12 +759,8 @@ trp_first_half_node(trt_node node, trt_indent_in_node ind)
     trt_pair_indent_node ret = {ind, node};
 
     if(ind.btw_name_opts == trd_linebreak) {
-<<<<<<< HEAD
         ret.node.name.type = trp_opts_keys_are_set(node.name) ?
             trd_node_listLeaflist : node.name.type;
-=======
-        ret.node.opts_keys = trp_empty_opts_keys();
->>>>>>> 00fbd41c... tree printer BUGFIX divided node - keep iffeature indent
         ret.node.type = trp_empty_type();
         ret.node.iffeatures = trp_empty_iffeature();
     } else if(ind.btw_opts_type == trd_linebreak) {
@@ -809,7 +784,6 @@ trp_second_half_node(trt_node node, trt_indent_in_node ind)
          * the correct indent.
          */
         ret.indent.btw_name_opts = 0;
-<<<<<<< HEAD
         ret.indent.btw_opts_type = trp_type_is_empty(node.type) ?
             0 : trd_indent_before_type;
         ret.indent.btw_type_iffeatures = trp_iffeature_is_empty(node.iffeatures) ?
@@ -824,15 +798,6 @@ trp_second_half_node(trt_node node, trt_indent_in_node ind)
     } else if(ind.btw_type_iffeatures == trd_linebreak) {
         ret.node.name.type = trp_opts_keys_are_set(node.name) ?
             trd_node_listLeaflist : node.name.type;
-=======
-    } else if(ind.btw_opts_type == trd_linebreak) {
-        ret.node.opts_keys = trp_empty_opts_keys();
-        ret.indent.btw_name_opts = 0;
-        ret.indent.btw_opts_type = 0;
-        ret.indent.btw_type_iffeatures = trp_iffeature_is_empty(node.iffeatures) ? 0 : trd_indent_before_iffeatures;
-    } else if(ind.btw_type_iffeatures == trd_linebreak) {
-        ret.node.opts_keys = trp_empty_opts_keys();
->>>>>>> 00fbd41c... tree printer BUGFIX divided node - keep iffeature indent
         ret.node.type = trp_empty_type();
         ret.indent.btw_name_opts = 0;
         ret.indent.btw_opts_type = 0;
@@ -878,7 +843,6 @@ trp_try_normal_indent_in_node(trt_node n, trt_pck_print p, trt_pck_indent ind, u
         /* success */
         return ret;
     } else {
-<<<<<<< HEAD
         ret.indent = trp_indent_in_node_place_break(ret.indent);
         if(ret.indent.type != trd_indent_in_node_failed) {
             /* erase information in node due to line break */
@@ -1070,25 +1034,6 @@ trb_try_unified_indent(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tr
             }
             /* else - node fits to the unified gap and will not be divided.
              * Success is coming. Continue with rest nodes.
-=======
-        /* somewhere must be set a line break in node */
-        /* pointers for just shortening the name */
-        trt_indent_btw* const name_opts = &ret.indent.btw_name_opts;
-        trt_indent_btw* const opts_type = &ret.indent.btw_opts_type;
-        trt_indent_btw* const type_iffe = &ret.indent.btw_type_iffeatures;
-        /* gradually break the node from the end */
-        if(*type_iffe != trd_linebreak && *type_iffe != 0) {
-            *type_iffe = trd_linebreak;
-        } else if(*opts_type != trd_linebreak && *opts_type != 0) {
-            *opts_type = trd_linebreak;
-        } else if(*name_opts != trd_linebreak && *name_opts != 0) {
-            /* set line break between name and opts */
-            *name_opts = trd_linebreak;
-        } else {
-            ret.indent.type = trd_indent_in_node_failed;
-            /* it is not possible to place a more line breaks,
-             * unfortunately the max_line_length constraint is violated
->>>>>>> 00fbd41c... tree printer BUGFIX divided node - keep iffeature indent
              */
             pc->fp.modify.next_sibling(tc);
         }
@@ -1098,7 +1043,6 @@ trb_try_unified_indent(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tr
             succ = 1;
             break;
         }
-<<<<<<< HEAD
         /* Try another node to create a new max unified length. */
     }
 
@@ -1221,18 +1165,6 @@ trm_print_yang_data(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
         ks = pc->fp.modify.next_yang_data(tc))
     {
         trm_print_body_section(ks, pc, tc);
-=======
-        /* erase information in node due to line break */
-        ret = trp_first_half_node(n, ret.indent);
-        /* setting parameters */
-        n = ret.node;
-        ind.in_node = ret.indent;
-        /* check if line fits */
-        ret = trp_try_normal_indent_in_node(n, p, ind, mll);
-        /* make sure that the result will be with the status divided */
-        ret.indent.type = trd_indent_in_node_divided;
-        return ret;
->>>>>>> 00fbd41c... tree printer BUGFIX divided node - keep iffeature indent
     }
 }
 
