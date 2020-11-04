@@ -2284,44 +2284,16 @@ tro_lysp_node_charptr(uint16_t flags, trt_get_charptr_func f, const struct lysp_
 trt_status_type
 tro_lysp_flags2status(uint16_t flags)
 {
-    return flags & LYS_STATUS_CURR ?    trd_status_type_current :
-        flags & LYS_STATUS_DEPRC ?      trd_status_type_deprecated :
+    return flags & LYS_STATUS_DEPRC ?   trd_status_type_deprecated :
         flags & LYS_STATUS_OBSLT ?      trd_status_type_obsolete :
-        trd_status_type_empty;
-}
-
-trt_status_type
-tro_lysp_node_status(uint16_t ancestor_flags, uint16_t node_flags)
-{
-    if(node_flags & (LYS_STATUS_CURR | LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)) {
-        /* node status was set */
-        if(ancestor_flags & LYS_STATUS_CURR) {
-            return tro_lysp_flags2status(node_flags);
-        }
-    }
-    /* get status of my ancestor */
-    return tro_lysp_flags2status(ancestor_flags);
+        trd_status_type_current;
 }
 
 trt_flags_type
 tro_lysp_flags2config(uint16_t flags)
 {
-    return flags & LYS_CONFIG_R ?   trd_flags_type_ro :
-        flags & LYS_CONFIG_W ?      trd_flags_type_rw :
-        trd_flags_type_empty;
-}
-
-trt_flags_type
-tro_lysp_node_config(uint16_t ancestor_flags, const struct lysp_node *pn)
-{
-    /* precondition: assumed that node is not LYS_INPUT, LYS_USES, LYS_RPC, LYS_ACTION, LYS_NOTIF type. */
-    if(pn->nodetype & (LYS_CONTAINER | LYS_CHOICE | LYS_LEAF | LYS_LEAFLIST | LYS_LIST | LYS_ANYDATA | LYS_ANYXML)) {
-        trt_flags_type my_ft = tro_lysp_flags2config(pn->flags);
-        return my_ft == trd_flags_type_empty ? tro_lysp_flags2config(ancestor_flags) : my_ft;
-    } else {
-        /* return some default value */
-        return trd_flags_type_empty;
-    }
+    return flags & LYS_CONFIG_R ?
+        trd_flags_type_ro : trd_flags_type_rw;
 }
 
 trt_keyword_stmt
@@ -2335,19 +2307,31 @@ tro_read_node(const struct trt_tree_ctx* a)
     if((pn == NULL) || (pn->nodetype == LYS_UNKNOWN) || pn->name == NULL)
         return ret;
 
-    /* define <status> */
-    ret.status = tro_lysp_node_status(a->pc.lys_status, pn->flags);
+    /* <status> */
+    ret.status =
+        /* if ancestor's status is deprc or obslt */
+        a->pc.lys_status & (LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)
+        /* or node's status is not set */
+        || !(pn->flags & (LYS_STATUS_CURR | LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)) ?
+            /* get ancestor's status */
+            tro_lysp_flags2status(a->pc.lys_status) :
+            /* else get node's status */
+            tro_lysp_flags2status(pn->flags);
 
     /* TODO: trd_flags_type_mount_point aka "mp" is not supported right now. */
+    /* <flags> */
     ret.flags = 
-        pn->nodetype & LYS_INPUT ?              trd_flags_type_rpc_input_params :
-        pn->nodetype & LYS_USES ?               trd_flags_type_uses_of_grouping :
-        pn->nodetype & (LYS_RPC | LYS_ACTION) ? trd_flags_type_rpc :
-        pn->nodetype & LYS_NOTIF ?              trd_flags_type_notif :
-        tro_lysp_node_config(a->pc.lys_config, pn); /* return trd_flags_type_ro || trd_flags_type_rw || empty  */
+        pn->nodetype & LYS_INPUT ?                      trd_flags_type_rpc_input_params :
+        pn->nodetype & LYS_USES ?                       trd_flags_type_uses_of_grouping :
+        pn->nodetype & (LYS_RPC | LYS_ACTION) ?         trd_flags_type_rpc :
+        pn->nodetype & LYS_NOTIF ?                      trd_flags_type_notif :
+        /* if config is not set then look at ancestor's config and get his config */
+        !(pn->flags & (LYS_CONFIG_R | LYS_CONFIG_W)) ?  tro_lysp_flags2config(a->pc.lys_config) :
+        tro_lysp_flags2config(pn->flags);
 
     /* TODO: trd_node_top_level1 aka '/' is not supported right now. */
     /* TODO: trd_node_top_level2 aka '@' is not supported right now. */
+    /* set type of the node */
     ret.name.type =
         pn->nodetype & LYS_CASE ?                       trd_node_case :
         pn->nodetype & LYS_CHOICE
@@ -2367,8 +2351,10 @@ tro_read_node(const struct trt_tree_ctx* a)
 
     /* TODO: ret.name.module_prefix is not supported right now. */
 
+    /* set node's name */
     ret.name.str = pn->name;
 
+    /* <type> */
     const char* tmp = NULL;
     if((tmp = tro_lysp_node_charptr(LYS_LEAFLIST, tro_lysp_leaflist_refpath, pn))) {
         ret.type = (trt_type){trd_type_target, tmp};
@@ -2382,6 +2368,7 @@ tro_read_node(const struct trt_tree_ctx* a)
         ret.type = trp_empty_type();
     }
 
+    /* <iffeature> */
     ret.iffeatures = tro_lysp_node_has_iffeature(pn->iffeatures);
 
     return ret;
