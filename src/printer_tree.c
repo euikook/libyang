@@ -2321,6 +2321,7 @@ tro_read_node(const struct trt_tree_ctx* a)
     /* TODO: trd_flags_type_mount_point aka "mp" is not supported right now. */
     /* <flags> */
     ret.flags = 
+        pn->nodetype & LYS_OUTPUT ?                     trd_flags_type_ro :
         pn->nodetype & LYS_INPUT ?                      trd_flags_type_rpc_input_params :
         pn->nodetype & LYS_USES ?                       trd_flags_type_uses_of_grouping :
         pn->nodetype & (LYS_RPC | LYS_ACTION) ?         trd_flags_type_rpc :
