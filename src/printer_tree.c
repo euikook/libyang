@@ -2297,15 +2297,22 @@ tro_lysp_flags2config(uint16_t flags)
 }
 
 trt_keyword_stmt
-tro_read_module_name(const struct trt_tree_ctx*);
+tro_read_module_name(const struct trt_tree_ctx* a)
+{
+    return (trt_keyword_stmt)
+    {
+        trd_keyword_stmt_top,
+        trd_keyword_module,
+        a->module->name
+    };
+}
 
 trt_node
 tro_read_node(const struct trt_tree_ctx* a)
 {
     const struct lysp_node *pn = a->pn;
     trt_node ret = trp_empty_node();
-    if((pn == NULL) || (pn->nodetype == LYS_UNKNOWN) || pn->name == NULL)
-        return ret;
+    assert(pn != NULL && pn->nodetype != LYS_UNKNOWN && pn->name != NULL);
 
     /* <status> */
     ret.status =
@@ -2376,11 +2383,23 @@ tro_read_node(const struct trt_tree_ctx* a)
 }
 
 ly_bool
-tro_read_if_sibling_exists(const struct trt_tree_ctx*);
+tro_read_if_sibling_exists(const struct trt_tree_ctx* a)
+{
+    const struct lysp_node *pn = a->pn;
+    assert(pn != NULL && pn->nodetype != LYS_UNKNOWN);
+    return pn->next != NULL;
+}
 
 /* --------- <Modify getters> --------- */
 trt_node
-tro_modi_parent(struct trt_tree_ctx*);
+tro_modi_parent(struct trt_tree_ctx* a)
+{
+    const struct lysp_node *pn = a->pn;
+    assert(pn->parent == NULL && pn != NULL && pn->nodetype != LYS_UNKNOWN);
+    a->pn = pn->parent;
+    /* TODO: restore cache... not posible this way */
+    return tro_read_node(a);
+}
 
 trt_node
 tro_modi_next_sibling(struct trt_tree_ctx*);
