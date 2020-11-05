@@ -968,8 +968,8 @@ void tro_modi_parent(struct trt_tree_ctx *);
 trt_node tro_modi_next_sibling(struct trt_parent_cache, struct trt_tree_ctx *);
 struct trt_level tro_modi_next_child(struct trt_parent_cache, struct trt_tree_ctx *);
 trt_keyword_stmt tro_modi_next_augment(struct trt_tree_ctx*);
-trt_keyword_stmt tro_modi_next_rpcs(struct trt_tree_ctx*);
-trt_keyword_stmt tro_modi_next_notifications(struct trt_tree_ctx*);
+trt_keyword_stmt tro_modi_get_rpcs(struct trt_tree_ctx*);
+trt_keyword_stmt tro_modi_get_notifications(struct trt_tree_ctx*);
 trt_keyword_stmt tro_modi_next_grouping(struct trt_tree_ctx*);
 trt_keyword_stmt tro_modi_next_yang_data(struct trt_tree_ctx*);
 
@@ -2423,16 +2423,47 @@ tro_modi_parent(struct trt_tree_ctx* tc)
     assert(tc != NULL && tc->pn != NULL);
     /* If no parent exists, stay in actual node. */
     tc->pn = tc->pn->parent != NULL ? tc->pn->parent : tc->pn;
+    /* TODO: special case for notifications and rpcs */
 }
 
 trt_node
 tro_modi_next_sibling(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
 {
-    assert(tc != NULL && tc->pn != NULL);
-    if(tc->pn->next != NULL) {
+    assert(tc != NULL && tc->pn != NULL && tc->module != NULL && tc->module->parsed != NULL);
+
+    //TODO: different for rpcs and notifications
+    if(tc->section == trd_sect_rpcs) {
+        /* TODO: parent_cache logic */
+        if(tc->pn->nodetype & LYS_INPUT) {
+            /* TODO: go to lysp_action, then go to LYS_OUTPUT if exists */
+            return trp_empty_node();
+        } else if(tc->pn->nodetype & LYS_OUTPUT) {
+            /* there is nowhere else to go */
+            return trp_empty_node();
+        } else if(tc->pn->nodetype & (LYS_RPC | LYS_ACTION)){
+            /* go to next lysp_action by lysp_module */
+            tc->index_within_section++;
+            const struct lysp_action *arr = tc->module->parsed->rpcs;
+            if(arr == NULL)
+                return trp_empty_node();
+            if(tc->index_within_section < LY_ARRAY_COUNT(arr)) {
+                const struct lysp_action *item = &(arr[tc->index_within_section]);
+                tc->pn = (const struct lysp_node*)item;
+                return tro_read_node(ca, tc);
+            } else {
+                return trp_empty_node();
+            }
+        } /* else actual node is rpc's data node */
+    } else if(tc->section == trd_sect_notif && tc->pn->nodetype & LYS_NOTIF) {
+        /* TODO: got to the next lysp_notif by lysp_module */
+        /* TODO: parent_cache logic */
+    }
+
+    /* data nodes */
+    if (tc->pn->next != NULL) {
         tc->pn = tc->pn->next;
         return tro_read_node(ca, tc);
-    } else {
+    } else { 
         return trp_empty_node();
     }
 }
@@ -2441,10 +2472,18 @@ struct trt_level
 tro_modi_next_child(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
 {
     assert(tc != NULL && tc->pn != NULL);
+
+    if(tc->pn->nodetype & (LYS_ACTION | LYS_RPC)) {
+        /* TODO: parent_cache logic */
+        /* TODO: go to LYS_INPUT if exists
+         * else go to LYS_OUTPUT if exists
+         */
+    }
+
     const struct lysp_node *pn = lysp_node_children(tc->pn);
     if(pn != NULL) {
         tc->pn = pn;
-        /* TODO parent_cache logic */
+        /* TODO: parent_cache logic */
         return (struct trt_level){};
     } else {
         return (struct trt_level){trp_empty_node(), ca};
@@ -2459,48 +2498,67 @@ tro_modi_next_augment(struct trt_tree_ctx* tc)
     if(arr == NULL)
         return trp_empty_keyword_stmt();
 
-    LY_ARRAY_COUNT_TYPE size = LY_ARRAY_COUNT(arr);
-    if(tc->index_within_section < size) {
+    tc->section = trd_sect_augment;
+    if(tc->index_within_section < LY_ARRAY_COUNT(arr)) {
         const struct lysp_augment *item = &(arr[tc->index_within_section]);
         tc->pn = item->child;
         tc->index_within_section++;
-        //TODO 
-        //return (trt_keyword_stmt){trd_keyword_stmt_body, trd_keyword_augment, item->nodeid};
-        return trp_empty_keyword_stmt();
+        return (trt_keyword_stmt){trd_keyword_augment, item->nodeid};
     } else {
         return trp_empty_keyword_stmt();
     }
 }
 
 trt_keyword_stmt
-tro_modi_next_rpcs(struct trt_tree_ctx* tc)
+tro_modi_get_rpcs(struct trt_tree_ctx* tc)
 {
     assert(tc != NULL && tc->module != NULL && tc->module->parsed != NULL);
-    tc->index_within_section++;
-    return trp_empty_keyword_stmt();
+    const struct lysp_action *arr = tc->module->parsed->rpcs;
+    if(arr == NULL)
+        return trp_empty_keyword_stmt();
+
+    tc->section = trd_sect_rpcs;
+    tc->pn = (const struct lysp_node*)arr;
+    return (trt_keyword_stmt){trd_keyword_rpc, tc->pn->name};
 }
 
 trt_keyword_stmt
-tro_modi_next_notifications(struct trt_tree_ctx* tc)
+tro_modi_get_notifications(struct trt_tree_ctx* tc)
 {
     assert(tc != NULL && tc->module != NULL && tc->module->parsed != NULL);
-    tc->index_within_section++;
-    return trp_empty_keyword_stmt();
+    const struct lysp_notif *arr = tc->module->parsed->notifs;
+    if(arr == NULL)
+        return trp_empty_keyword_stmt();
+
+    tc->section = trd_sect_notif;
+    tc->pn = (const struct lysp_node*)arr;
+    return (trt_keyword_stmt){trd_keyword_notif, tc->pn->name};
 }
 
 trt_keyword_stmt
 tro_modi_next_grouping(struct trt_tree_ctx* tc)
 {
     assert(tc != NULL && tc->module != NULL && tc->module->parsed != NULL);
-    tc->index_within_section++;
-    return trp_empty_keyword_stmt();
+    const struct lysp_grp *arr = tc->module->parsed->groupings;
+    if(arr == NULL)
+        return trp_empty_keyword_stmt();
+
+    tc->section = trd_sect_grouping;
+    if(tc->index_within_section < LY_ARRAY_COUNT(arr)) {
+        const struct lysp_grp *item = &(arr[tc->index_within_section]);
+        tc->pn = item->data;
+        tc->index_within_section++;
+        return (trt_keyword_stmt){trd_keyword_grouping, item->name};
+    } else {
+        return trp_empty_keyword_stmt();
+    }
 }
 
 trt_keyword_stmt
 tro_modi_next_yang_data(struct trt_tree_ctx* tc)
 {
-    assert(tc != NULL && tc->module != NULL && tc->module->parsed != NULL);
-    tc->index_within_section++;
+    tc->section = trd_sect_yang_data;
+    /* TODO: yang-data is not supported */
     return trp_empty_keyword_stmt();
 }
 
