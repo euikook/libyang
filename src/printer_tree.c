@@ -571,26 +571,18 @@ static const char trd_body_keyword_grouping[] = "grouping";
 static const char trd_body_keyword_yang_data[] = "yang-data";
 
 /**
- * @brief Type of the trt_keyword_stmt.
- */
-typedef enum
-{
-    trd_keyword_stmt_top = 0,   /**< Indicates the section with the keyword module. */
-    trd_keyword_stmt_body,      /**< Indicates the section with the keyword e.g. augment, grouping.*/
-} trt_keyword_stmt_type;
-
-/**
  * @brief Type of the trt_keyword.
  */
 typedef enum 
 {
-    trd_keyword_module = 0,     /**< Used when trd_keyword_stmt_top is set. */
-    trd_keyword_submodule,      /**< Used when trd_keyword_stmt_top is set. */
-    trd_keyword_augment,        /**< Used when trd_keyword_stmt_body is set. */
-    trd_keyword_rpc,            /**< Used when trd_keyword_stmt_body is set. */
-    trd_keyword_notif,          /**< Used when trd_keyword_stmt_body is set. */
-    trd_keyword_grouping,       /**< Used when trd_keyword_stmt_body is set. */
-    trd_keyword_yang_data       /**< Used when trd_keyword_stmt_body is set. */
+    trd_keyword_empty = 0,
+    trd_keyword_module,
+    trd_keyword_submodule,
+    trd_keyword_augment,
+    trd_keyword_rpc,
+    trd_keyword_notif,
+    trd_keyword_grouping,
+    trd_keyword_yang_data,
 } trt_keyword_type;
 
 /**
@@ -598,8 +590,7 @@ typedef enum
  */
 typedef struct
 {
-    trt_keyword_stmt_type type; /**< Type of the keyword_stmt. */
-    trt_keyword_type keyword;   /**< String containing some of the top or body keyword. */
+    trt_keyword_type type;      /**< String containing some of the top or body keyword. */
     const char* str;            /**< Name or path, it determines the type. */
 } trt_keyword_stmt;
 
@@ -1261,15 +1252,13 @@ trp_node_body_is_empty(trt_node node)
 trt_keyword_stmt
 trp_empty_keyword_stmt()
 {
-    trt_keyword_stmt ret;
-    ret.str = NULL;
-    return ret;
+    return (trt_keyword_stmt){trd_keyword_empty, NULL};
 }
 
 ly_bool
 trp_keyword_stmt_is_empty(trt_keyword_stmt ks)
 {
-    return ks.str == NULL;
+    return ks.type == trd_keyword_empty;
 }
 
 void
@@ -1519,24 +1508,17 @@ void
 trt_print_keyword_stmt_begin(trt_keyword_stmt a, trt_printing* p)
 {
     switch(a.type) {
-    case trd_keyword_stmt_top:
-        switch(a.keyword) {
-        case trd_keyword_module:
-            trp_print(p, 1, trd_top_keyword_module);
-            break;
-        case trd_keyword_submodule:
-            trp_print(p, 1, trd_top_keyword_submodule);
-            break;
-        default:
-            break;
-        }
-        trp_print(p, 2, trd_separator_colon, trd_separator_space);
-        break;
-    case trd_keyword_stmt_body:
+    case trd_keyword_module:
+        trp_print(p, 3, trd_top_keyword_module, trd_separator_colon, trd_separator_space);
+        return;
+    case trd_keyword_submodule:
+        trp_print(p, 3, trd_top_keyword_submodule, trd_separator_colon, trd_separator_space);
+        return;
+    default:
         trg_print_n_times(trd_indent_line_begin, trd_separator_space[0], p);
-        switch(a.keyword) {
+        switch(a.type) {
         case trd_keyword_augment:
-            trp_print(p, 1, trd_body_keyword_augment);
+            trp_print(p, 2, trd_body_keyword_augment, trd_separator_space);
             break;
         case trd_keyword_rpc:
             trp_print(p, 1, trd_body_keyword_rpc);
@@ -1545,17 +1527,14 @@ trt_print_keyword_stmt_begin(trt_keyword_stmt a, trt_printing* p)
             trp_print(p, 1, trd_body_keyword_notif);
             break;
         case trd_keyword_grouping:
-            trp_print(p, 1, trd_body_keyword_grouping);
+            trp_print(p, 2, trd_body_keyword_grouping, trd_separator_space);
             break;
         case trd_keyword_yang_data:
-            trp_print(p, 1, trd_body_keyword_yang_data);
+            trp_print(p, 2, trd_body_keyword_yang_data, trd_separator_space);
             break;
         default:
             break;
         }
-        trp_print(p, 1, trd_separator_space);
-        break;
-    default:
         break;
     }
 }
@@ -1590,7 +1569,7 @@ trt_print_keyword_stmt_str(trt_keyword_stmt a, uint32_t mll, trt_printing* p)
         return;
 
     /* module name cannot be splitted */
-    if(a.type == trd_keyword_stmt_top) {
+    if(a.type == trd_keyword_module || a.type == trd_keyword_submodule) {
         trp_print(p, 1, a.str);
         return;
     }
@@ -1599,7 +1578,7 @@ trt_print_keyword_stmt_str(trt_keyword_stmt a, uint32_t mll, trt_printing* p)
 
     const char slash = trd_separator_slash[0];
     /* set begin indentation */
-    const uint32_t ind_initial = trd_indent_line_begin + trp_keyword_type_strlen(a.keyword) + 1;
+    const uint32_t ind_initial = trd_indent_line_begin + trp_keyword_type_strlen(a.type) + 1;
     const uint32_t ind_divided = ind_initial + trd_indent_long_line_break; 
     /* flag if path must be splitted to more lines */
     ly_bool linebreak_was_set = 0;
@@ -1653,7 +1632,7 @@ trt_print_keyword_stmt_str(trt_keyword_stmt a, uint32_t mll, trt_printing* p)
 void
 trt_print_keyword_stmt_end(trt_keyword_stmt a, trt_printing* p)
 {
-    if(a.type == trd_keyword_stmt_body)
+    if(a.type != trd_keyword_module && a.type != trd_keyword_submodule)
         trp_print(p, 1, trd_separator_colon);
 }
 
@@ -2349,7 +2328,6 @@ tro_read_module_name(const struct trt_tree_ctx* a)
     assert(a != NULL && a->module != NULL && a->module->name != NULL);
     return (trt_keyword_stmt)
     {
-        trd_keyword_stmt_top,
         trd_keyword_module,
         a->module->name
     };
