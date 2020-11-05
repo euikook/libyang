@@ -622,6 +622,9 @@ size_t trp_keyword_type_strlen(trt_keyword_type);
 /* ----------- <Modify getters> ----------- */
 /* ======================================== */
 
+struct trt_level;
+struct trt_parent_cache;
+
 /**
  * @brief Functions that change the state of the tree_ctx structure.
  *
@@ -630,14 +633,14 @@ size_t trp_keyword_type_strlen(trt_keyword_type);
  */
 struct trt_fp_modify_ctx
 {
-    trt_node (*parent)(struct trt_tree_ctx*);                       /**< Jump to parent node. */
-    trt_node (*next_sibling)(struct trt_tree_ctx*);                 /**< Jump to next sibling of the current node. */
-    trt_node (*next_child)(struct trt_tree_ctx*);                   /**< Jump to the child of the current node. */
-    trt_keyword_stmt (*next_augment)(struct trt_tree_ctx*);         /**< Jump to the augment section. */
-    trt_keyword_stmt (*get_rpcs)(struct trt_tree_ctx*);             /**< Jump to the rpcs section. */
-    trt_keyword_stmt (*get_notifications)(struct trt_tree_ctx*);    /**< Jump to the notifications section. */
-    trt_keyword_stmt (*next_grouping)(struct trt_tree_ctx*);        /**< Jump to the grouping section. */
-    trt_keyword_stmt (*next_yang_data)(struct trt_tree_ctx*);       /**< Jump to the yang-data section. */
+    void (*parent)(struct trt_tree_ctx*);                                           /**< Jump to parent node. */
+    trt_node (*next_sibling)(struct trt_parent_cache, struct trt_tree_ctx*);        /**< Jump to next sibling of the current node. */
+    struct trt_level (*next_child)(struct trt_parent_cache, struct trt_tree_ctx*);  /**< Jump to the child of the current node. */
+    trt_keyword_stmt (*next_augment)(struct trt_tree_ctx*);                         /**< Jump to the augment section. */
+    trt_keyword_stmt (*get_rpcs)(struct trt_tree_ctx*);                             /**< Jump to the rpcs section. */
+    trt_keyword_stmt (*get_notifications)(struct trt_tree_ctx*);                    /**< Jump to the notifications section. */
+    trt_keyword_stmt (*next_grouping)(struct trt_tree_ctx*);                        /**< Jump to the grouping section. */
+    trt_keyword_stmt (*next_yang_data)(struct trt_tree_ctx*);                       /**< Jump to the yang-data section. */
 };
 
 /* ====================================== */
@@ -652,9 +655,9 @@ struct trt_fp_modify_ctx
  */
 struct trt_fp_read
 {
-    trt_keyword_stmt (*module_name)(const struct trt_tree_ctx*);    /**< Get name of the module. */
-    trt_node (*node)(const struct trt_tree_ctx*);                   /**< Get current node. */
-    ly_bool (*if_sibling_exists)(const struct trt_tree_ctx*);       /**< Check if node's sibling exists. */
+    trt_keyword_stmt (*module_name)(const struct trt_tree_ctx*);            /**< Get name of the module. */
+    trt_node (*node)(struct trt_parent_cache, const struct trt_tree_ctx*);  /**< Get current node. */
+    ly_bool (*if_sibling_exists)(const struct trt_tree_ctx*);               /**< Check if node's sibling exists. */
 };
 
 /* ===================================== */
@@ -725,7 +728,8 @@ trt_pair_indent_node trp_try_normal_indent_in_node(trt_node, trt_pck_print, trt_
 /** 
  * @brief Print all parents and their children. 
  * 
- * Function call print_subtree_nodes for all parents.
+ * This function is suitable for printing top-level nodes that do not have ancestors.
+ * Function call print_subtree_nodes for all top-level siblings.
  * Use this function after 'module' keyword or 'augment' and so.
  */
 void trb_print_family_tree(trd_wrapper_type, struct trt_printer_ctx*, struct trt_tree_ctx*);
@@ -736,8 +740,13 @@ void trb_print_family_tree(trd_wrapper_type, struct trt_printer_ctx*, struct trt
  * The current node is expected to be the root of the subtree.
  * Before root node is no linebreak printing. This must be addressed by the caller.
  * Root node will also be printed. Behind last printed node is no linebreak.
+ *
+ * @param[in] wr is wrapper saying how deep in the whole tree is the root of the subtree.
+ * @param[in] ca is parent_cache from root's parent. If root is top-level node, insert result of the tro_empty_parent_cache function.
+ * @param[in,out] pc is pointer to the printer (trp) context.
+ * @param[in,out] tc is pointer to the tree (tro) context.
  */
-void trb_print_subtree_nodes(trt_wrapper, struct trt_printer_ctx*, struct trt_tree_ctx*);
+void trb_print_subtree_nodes(trt_wrapper wr, struct trt_parent_cache ca, struct trt_printer_ctx *pc, struct trt_tree_ctx *tc);
 
 /**
  * @brief For the current node: recursively print all of its child nodes and all of its siblings, including their children.
@@ -747,7 +756,15 @@ void trb_print_subtree_nodes(trt_wrapper, struct trt_printer_ctx*, struct trt_tr
  * Nodes are printed, including unified sibling node alignment (align <type> to column).
  * Side-effect -> current node is set to the last sibling.
  */
-void trb_print_nodes(trt_wrapper, struct trt_printer_ctx*, struct trt_tree_ctx*);
+void trb_print_nodes(trt_wrapper, struct trt_parent_cache, struct trt_printer_ctx *, struct trt_tree_ctx *);
+
+/**
+ * @brief Print node.
+ *
+ * This function is wrapper for trp_print_entire_node function.
+ * But difference is that take max_gap_before_type parameter which will be used to set the unified alignment.
+ */
+void trb_print_entire_node(uint32_t max_gap_before_type, trt_wrapper, struct trt_parent_cache, struct trt_printer_ctx *, struct trt_tree_ctx *);
 
 /* --------- <For browse tree> --------- */
 
@@ -779,7 +796,7 @@ ly_bool trb_parent_is_last_sibling(struct trt_fp_all, struct trt_tree_ctx*);
  * @return positive number indicating the maximum number of spaces before <type> if the length of the node name is 0.
  *  To calculate the btw_opts_type indent size for a particular node, use the trb_calc_btw_opts_type function.
 */
-uint32_t trb_try_unified_indent(trt_wrapper, struct trt_printer_ctx*, struct trt_tree_ctx*);
+uint32_t trb_try_unified_indent(trt_wrapper, struct trt_parent_cache, struct trt_printer_ctx *, struct trt_tree_ctx *);
 
 /**
  * @brief Calculate the btw_opts_type indent size for a particular node.
@@ -789,14 +806,6 @@ uint32_t trb_try_unified_indent(trt_wrapper, struct trt_printer_ctx*, struct trt
  * @return btw_opts_type for node.
  */
 trt_indent_btw trb_calc_btw_opts_type(trt_node_name, trt_indent_btw max_len);
-
-/**
- * @brief Print node.
- *
- * This function is wrapper for trp_print_entire_node function.
- * But difference is that take max_gap_before_type parameter which will be used to set the unified alignment.
- */
-void trb_print_entire_node(uint32_t max_gap_before_type, trt_wrapper, struct trt_printer_ctx*, struct trt_tree_ctx*);
 
 /**
  * @brief Get size of node name.
@@ -813,7 +822,7 @@ int32_t trb_strlen_of_name_and_mark(trt_node_name);
  * @return positive number lesser than upper_limit as a sign that only the node name is included in the size.
  * @return negative number whose absolute value is less than upper_limit and sign that node name and his opt mark is included in the size.
  */
-int32_t trb_maxlen_node_name(struct trt_printer_ctx*, struct trt_tree_ctx*, int32_t upper_limit);
+int32_t trb_maxlen_node_name(struct trt_parent_cache, struct trt_printer_ctx *, struct trt_tree_ctx *, int32_t upper_limit);
 
 /**
  * @brief Find sibling with the nth biggest node name and return that size.
@@ -821,7 +830,7 @@ int32_t trb_maxlen_node_name(struct trt_printer_ctx*, struct trt_tree_ctx*, int3
  * Function has the same return value as trb_maxlen_node_name but for nth biggest node name.
  * Side-effect -> Current node is set to the first sibling.
  */
-int32_t trb_nth_maxlen_node_name(uint32_t nth, struct trt_printer_ctx*, struct trt_tree_ctx*);
+int32_t trb_nth_maxlen_node_name(uint32_t nth, struct trt_parent_cache, struct trt_printer_ctx *, struct trt_tree_ctx *);
 
 /**
  * @brief Find sibling with the nth biggest node name.
@@ -829,7 +838,7 @@ int32_t trb_nth_maxlen_node_name(uint32_t nth, struct trt_printer_ctx*, struct t
  * Side-effect -> Current node is set to the first sibling.
  * @return max btw_opts_type value for rest of the siblings
  */
-trt_indent_btw trb_max_btw_opts_type4siblings(uint32_t nth_biggest_node, struct trt_printer_ctx*, struct trt_tree_ctx*);
+trt_indent_btw trb_max_btw_opts_type4siblings(uint32_t nth_biggest_node, struct trt_parent_cache, struct trt_printer_ctx *, struct trt_tree_ctx *);
 
 /* ======================================== */
 /* --------- <Main trm functions> --------- */
@@ -902,25 +911,49 @@ typedef uint32_t trt_opt;
 
 #define TRC_OPT_DEFAULT 0   /**< Default settings for trt_options.code variable. */
 
+/**
+ * @brief Saved information when browsing the tree downwards.
+ *
+ * This structure helps prevent frequent retrieval of information from the tree.
+ * Browsing functions (trb) are designed to preserve this structures during their recursive calls.
+ * Browsing functions (trb) do not interfere in any way with this data.
+ * This structure is used by Obtaining functions (tro) which, thanks to this structure, can return a node with the correct data.
+ * The word parent is in the name, because this data refers to the last parent and at the same time the states of its ancestors data.
+ * Only the function jumping on the child (next_child(...)) creates this structure,
+ * because the pointer to the current node moves down the tree.
+ * It's like passing the genetic code to children.
+ * Some data must be inherited and there are two approaches to this problem.
+ * Either it will always be determined which inheritance states belong to the current node
+ * (which can lead to regular travel to the root node) or the inheritance states will be stored during the recursive calls.
+ * So the problem was solved by the second option.
+ * Why does the structure contain this data? Because it walks through the lysp tree.
+ * In the future, this data may change if another type of tree (such as the lysc tree) is traversed.
+ */
+struct trt_parent_cache {
+  uint16_t lys_status; /**< Inherited status CURR, DEPRC, OBSLT or nothing. */
+  uint16_t lys_config; /**< Inherited config W, R or nothing. */
+  const struct lysp_node_list *last_list; /**< The last LYS_LIST passed. */
+};
+
+/** Return trt_parent_cache filled with default values. */
+struct trt_parent_cache tro_empty_parent_cache();
+
+/**
+ * @brief Used only as a package for the trt_cache and trt_node structure
+ */
+struct trt_level
+{
+    trt_node node;
+    struct trt_parent_cache parent_cache;
+};
+
 /** Setting the behavior of this entire printer_tree module. */
 typedef struct
 {
     trt_opt code;
-    uint32_t max_linebreaks;    /**< Max linebreaks per section. Variable is used if TRC_OPT_MAX_LB_PER_SECT in code is set. */
-    uint32_t* cnt_linebreak;    /**< Pointer to trt_printing.cnt_linebreak counter. Value is used if TRC_OPT_MAX_LB_PER_SECT in code is set. */
+    uint32_t max_linebreaks;    /**< Max linebreaks per section. Functionality is not implemented. */
+    uint32_t* cnt_linebreak;    /**< Pointer to trt_printing.cnt_linebreak counter. Functionality is not implemented. */
 } trt_options;
-
-/**
- * @brief Saved information when browsing the lysp tree.
- *
- * This structure helps prevent frequent retrieval of information from the tree.
- */
-typedef struct 
-{
-    uint16_t lys_status;                    /**< Inherited status CURR, DEPRC, OBSLT or nothing. */
-    uint16_t lys_config;                    /**< Inherited config W, R or nothing. */
-    const struct lysp_node_list* last_list; /**< The last LYS_LIST passed. */
-} trt_lysp_cache;
 
 /**
  * @brief Main structure for browsing the libyang tree
@@ -930,19 +963,18 @@ struct trt_tree_ctx
     trt_actual_section section;
     const struct lys_module *module;
     const struct lysp_node *pn;         /**< Actual pointer to parsed node. */
-    trt_lysp_cache pc;                  /**< Cache memory for browsing the lysp tree. */
     trt_options opt;                    /**< Options for printing. */
 };
 
 /* --------- <Read getters> --------- */
 trt_keyword_stmt tro_read_module_name(const struct trt_tree_ctx*);
-trt_node tro_read_node(const struct trt_tree_ctx*);
+trt_node tro_read_node(struct trt_parent_cache, const struct trt_tree_ctx *);
 ly_bool tro_read_if_sibling_exists(const struct trt_tree_ctx*);
 
 /* --------- <Modify getters> --------- */
-trt_node tro_modi_parent(struct trt_tree_ctx*);
-trt_node tro_modi_next_sibling(struct trt_tree_ctx*);
-trt_node tro_modi_next_child(struct trt_tree_ctx*);
+void tro_modi_parent(struct trt_tree_ctx *);
+trt_node tro_modi_next_sibling(struct trt_parent_cache, struct trt_tree_ctx *);
+struct trt_level tro_modi_next_child(struct trt_parent_cache, struct trt_tree_ctx *);
 trt_node tro_modi_next_augment(struct trt_tree_ctx*);
 trt_node tro_modi_next_rpcs(struct trt_tree_ctx*);
 trt_node tro_modi_next_notifications(struct trt_tree_ctx*);
@@ -1876,51 +1908,78 @@ trb_print_family_tree(trd_wrapper_type wr_t, struct trt_printer_ctx* pc, struct 
     uint32_t total_parents = trb_get_number_of_siblings(pc->fp.modify, tc);
     for(uint32_t i = 0; i < total_parents; i++) {
         trg_print_linebreak(&pc->print);
-        trb_print_subtree_nodes(wr, pc, tc);
+        trb_print_subtree_nodes(wr, tro_empty_parent_cache(), pc, tc);
     }
 }
 
 void
-trb_print_subtree_nodes(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+trb_print_subtree_nodes(trt_wrapper wr, struct trt_parent_cache ca, struct trt_printer_ctx *pc, struct trt_tree_ctx *tc)
 {
-    /* print root node */
-    trt_node root = pc->fp.read.node(tc);
-    trp_print_entire_node(root, (trt_pck_print){tc, pc->fp.print},
-        (trt_pck_indent){wr, trp_default_indent_in_node(root)}, pc->max_line_length, &pc->print);
+  /* print root of subtree */
+  trt_node root = pc->fp.read.node(ca, tc);
+  trp_print_entire_node(root, (trt_pck_print){tc, pc->fp.print},
+                        (trt_pck_indent){wr, trp_default_indent_in_node(root)},
+                        pc->max_line_length, &pc->print);
+  /* go to the actual node's child */
+  struct trt_level lev = pc->fp.modify.next_child(ca, tc);
+  if (!trp_node_is_empty(lev.node)) {
+    /* print root's nodes */
+    trb_print_nodes(wr, lev.parent_cache, pc, tc);
+    /* get back from child node to actual node */
+    pc->fp.modify.parent(tc);
+  }
+  /* else -> tc is set to root node */
+}
+
+void
+trb_print_nodes(trt_wrapper wr, struct trt_parent_cache ca, struct trt_printer_ctx *pc, struct trt_tree_ctx *tc)
+{
+  /* if node is last sibling, then do not add '|' to wrapper */
+  wr = trb_parent_is_last_sibling(pc->fp, tc) ? trp_wrapper_set_shift(wr)
+                                              : trp_wrapper_set_mark(wr);
+  /* try unified indentation in node */
+  uint32_t max_gap_before_type = trb_try_unified_indent(wr, ca, pc, tc);
+
+  /* print all siblings */
+  do {
+    /* print linebreak before printing actual node */
+    trg_print_linebreak(&pc->print);
+    /* print node */
+    trb_print_entire_node(max_gap_before_type, wr, ca, pc, tc);
     /* go to the actual node's child or stay in actual node */
-    if(!trp_node_is_empty(pc->fp.modify.next_child(tc))) {
-        /* print root's nodes */
-        trb_print_nodes(wr, pc, tc);
-        /* get back from child node to actual node */
-        pc->fp.modify.parent(tc);
+    struct trt_level lev = pc->fp.modify.next_child(ca, tc);
+    if (!trp_node_is_empty(lev.node)) {
+      /* print all childs - recursive call */
+      trb_print_nodes(wr, lev.parent_cache, pc, tc);
+      /* get back from child node to actual node */
+      pc->fp.modify.parent(tc);
     }
+    /* go to the next sibling or stay in actual node */
+  } while (!trp_node_is_empty(pc->fp.modify.next_sibling(ca, tc)));
 }
 
 void
-trb_print_nodes(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+trb_print_entire_node(uint32_t max_gap_before_type, trt_wrapper wr, struct trt_parent_cache ca, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
 {
-    /* if node is last sibling, then do not add '|' to wrapper */
-    wr = trb_parent_is_last_sibling(pc->fp, tc) ?
-        trp_wrapper_set_shift(wr) :
-        trp_wrapper_set_mark(wr);
-    /* try unified indentation in node */
-    uint32_t max_gap_before_type = trb_try_unified_indent(wr, pc, tc);
+    trt_node node = pc->fp.read.node(ca, tc);
+    trt_indent_in_node ind = trp_default_indent_in_node(node);
+    if(max_gap_before_type > 0 && node.type.type != trd_type_empty) {
+        /* print actual node with unified indent */
+        ind.btw_opts_type = trb_calc_btw_opts_type(node.name, max_gap_before_type);
+    }
+    /* else - print actual node with default indent */
+    trp_print_entire_node(node, (trt_pck_print){tc, pc->fp.print},
+        (trt_pck_indent){wr, ind},
+        pc->max_line_length, &pc->print);
+}
 
-    /* print all siblings */
-    do {
-        /* print linebreak before printing actual node */
-        trg_print_linebreak(&pc->print);
-        /* print node */
-        trb_print_entire_node(max_gap_before_type, wr, pc, tc);
-        /* go to the actual node's child or stay in actual node */
-        if(!trp_node_is_empty(pc->fp.modify.next_child(tc))) {
-            /* print all childs - recursive call */
-            trb_print_nodes(wr, pc, tc);
-            /* get back from child node to actual node */
-            pc->fp.modify.parent(tc);
-        }
-        /* go to the next sibling or stay in actual node */
-    } while(!trp_node_is_empty(pc->fp.modify.next_sibling(tc)));
+ly_bool
+trb_parent_is_last_sibling(struct trt_fp_all fp, struct trt_tree_ctx* tc)
+{
+    fp.modify.parent(tc);
+    ly_bool ret = fp.read.if_sibling_exists(tc);
+    fp.modify.next_child(tro_empty_parent_cache(), tc);
+    return ret;
 }
 
 void
@@ -1928,7 +1987,7 @@ trb_jump_to_first_sibling(struct trt_fp_modify_ctx fp, struct trt_tree_ctx* tc)
 {
     /* expect that parent exists */
     fp.parent(tc);
-    fp.next_child(tc);
+    fp.next_child(tro_empty_parent_cache(), tc);
 }
 
 uint32_t
@@ -1937,7 +1996,7 @@ trb_get_number_of_siblings(struct trt_fp_modify_ctx fp, struct trt_tree_ctx* tc)
     /* including actual node */
     trb_jump_to_first_sibling(fp, tc);
     uint32_t ret = 1;
-    while(!trp_node_is_empty(fp.next_sibling(tc))) {
+    while(!trp_node_is_empty(fp.next_sibling(tro_empty_parent_cache(), tc))) {
         ret++;
     }
     trb_jump_to_first_sibling(fp, tc);
@@ -1966,11 +2025,11 @@ trb_calc_btw_opts_type(trt_node_name name, trt_indent_btw max_len4all)
 }
 
 int32_t
-trb_maxlen_node_name(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc, int32_t upper_limit)
+trb_maxlen_node_name(struct trt_parent_cache ca, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc, int32_t upper_limit)
 {
     trb_jump_to_first_sibling(pc->fp.modify, tc);
     int32_t ret = 0;
-    for(trt_node node = pc->fp.read.node(tc); !trp_node_is_empty(node); node = pc->fp.modify.next_sibling(tc)) {
+    for(trt_node node = pc->fp.read.node(ca, tc); !trp_node_is_empty(node); node = pc->fp.modify.next_sibling(ca, tc)) {
         int32_t maxlen = trb_strlen_of_name_and_mark(node.name);
         ret = trg_abs(maxlen) > trg_abs(ret) && trg_abs(maxlen) < trg_abs(upper_limit) ? maxlen : ret; 
     }
@@ -1979,21 +2038,21 @@ trb_maxlen_node_name(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc, int32_
 }
 
 int32_t
-trb_nth_maxlen_node_name(uint32_t nth, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+trb_nth_maxlen_node_name(uint32_t nth, struct trt_parent_cache ca, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
 {
     trb_jump_to_first_sibling(pc->fp.modify, tc);
     int32_t upper_limit = INT32_MAX;
     for(uint32_t i = 0; i <= nth; i++) {
-        upper_limit = trb_maxlen_node_name(pc, tc, upper_limit);
+        upper_limit = trb_maxlen_node_name(ca, pc, tc, upper_limit);
     }
     trb_jump_to_first_sibling(pc->fp.modify, tc);
     return upper_limit;
 }
 
 trt_indent_btw
-trb_max_btw_opts_type4siblings(uint32_t nth_biggest_node, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+trb_max_btw_opts_type4siblings(uint32_t nth_biggest_node, struct trt_parent_cache ca, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
 {
-    int32_t maxlen_node_name = trb_nth_maxlen_node_name(nth_biggest_node, pc, tc);
+    int32_t maxlen_node_name = trb_nth_maxlen_node_name(nth_biggest_node, ca, pc, tc);
     trt_indent_btw ind_before_type = maxlen_node_name < 0 ?
         trd_indent_before_type - 1 : /* mark was present */
         trd_indent_before_type;
@@ -2001,7 +2060,7 @@ trb_max_btw_opts_type4siblings(uint32_t nth_biggest_node, struct trt_printer_ctx
 }
 
 uint32_t
-trb_try_unified_indent(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
+trb_try_unified_indent(trt_wrapper wr, struct trt_parent_cache ca, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
 {
     /* expect that tc point to non-empty node */
     uint32_t ret; /* max_gap_before_type for all siblings */
@@ -2010,12 +2069,12 @@ trb_try_unified_indent(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tr
     /* tolerance of the number of divided nodes = tdn */
     for(uint32_t tdn = 0; tdn < total_siblings; tdn++) {
         /* get max_gap_before_type (aka unified_indent or indent_before_type) from nth node */
-        ret = trb_max_btw_opts_type4siblings(tdn, pc, tc);
+        ret = trb_max_btw_opts_type4siblings(tdn, ca, pc, tc);
         uint32_t j; /* iterator over all siblings */
         uint32_t tdn_cnt = 0; /* number of divided nodes */
         /* for all nodes try if unified indent can be applied */
         for(j = 0; j < total_siblings; j++) {
-            trt_node node = pc->fp.read.node(tc);
+            trt_node node = pc->fp.read.node(ca, tc);
             trt_indent_in_node ind = trp_default_indent_in_node(node);
 
             /* calculate btw_opts_type for node from actual unified_indent */
@@ -2042,7 +2101,7 @@ trb_try_unified_indent(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tr
             /* else - node fits to the unified gap and will not be divided.
              * Success is coming. Continue with rest nodes.
              */
-            pc->fp.modify.next_sibling(tc);
+            pc->fp.modify.next_sibling(ca, tc);
         }
         /* Check if all siblings was tested with max_gap_before_type (ret). */
         if(j == total_siblings) {
@@ -2061,30 +2120,6 @@ trb_try_unified_indent(trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tr
      * (Ignore that unifying spaces for one node doesn't make sense.)
      */
     return succ ? ret : 0;
-}
-
-void
-trb_print_entire_node(uint32_t max_gap_before_type, trt_wrapper wr, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
-{
-    trt_node node = pc->fp.read.node(tc);
-    trt_indent_in_node ind = trp_default_indent_in_node(node);
-    if(max_gap_before_type > 0 && node.type.type != trd_type_empty) {
-        /* print actual node with unified indent */
-        ind.btw_opts_type = trb_calc_btw_opts_type(node.name, max_gap_before_type);
-    }
-    /* else - print actual node with default indent */
-    trp_print_entire_node(node, (trt_pck_print){tc, pc->fp.print},
-        (trt_pck_indent){wr, ind},
-        pc->max_line_length, &pc->print);
-}
-
-ly_bool
-trb_parent_is_last_sibling(struct trt_fp_all fp, struct trt_tree_ctx* tc)
-{
-    fp.modify.parent(tc);
-    ly_bool ret = fp.read.if_sibling_exists(tc);
-    fp.modify.next_child(tc);
-    return ret;
 }
 
 /* ----------- <Definition of trm main functions> ----------- */
@@ -2204,6 +2239,12 @@ trm_default_printer_ctx(uint32_t max_line_length)
 
 /* ----------- <Definition of tree functions> ----------- */
 
+struct trt_parent_cache
+tro_empty_parent_cache()
+{
+    return (struct trt_parent_cache){LYS_STATUS_CURR, LYS_CONFIG_W, NULL};
+}
+
 ly_bool
 tro_lysp_list_has_keys(const struct lysp_node* pn)
 {
@@ -2225,10 +2266,10 @@ tro_lysp_node_has_iffeature(const struct lysp_qname *iffs)
 }
 
 ly_bool
-tro_lysp_leaf_is_key(const struct trt_tree_ctx* a)
+tro_lysp_leaf_is_key(struct trt_parent_cache ca, const struct trt_tree_ctx* a)
 {
     const struct lysp_node_leaf* leaf = (const struct lysp_node_leaf*) a->pn;
-    const struct lysp_node_list* list = a->pc.last_list;
+    const struct lysp_node_list* list = ca.last_list;
     if(list == NULL)
         return 0;
     return trg_charptr_has_data(list->key) ? 
@@ -2308,7 +2349,7 @@ tro_read_module_name(const struct trt_tree_ctx* a)
 }
 
 trt_node
-tro_read_node(const struct trt_tree_ctx* a)
+tro_read_node(struct trt_parent_cache ca, const struct trt_tree_ctx* a)
 {
     const struct lysp_node *pn = a->pn;
     trt_node ret = trp_empty_node();
@@ -2317,11 +2358,11 @@ tro_read_node(const struct trt_tree_ctx* a)
     /* <status> */
     ret.status =
         /* if ancestor's status is deprc or obslt */
-        a->pc.lys_status & (LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)
+        ca.lys_status & (LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)
         /* or node's status is not set */
         || !(pn->flags & (LYS_STATUS_CURR | LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)) ?
             /* get ancestor's status */
-            tro_lysp_flags2status(a->pc.lys_status) :
+            tro_lysp_flags2status(ca.lys_status) :
             /* else get node's status */
             tro_lysp_flags2status(pn->flags);
 
@@ -2334,7 +2375,7 @@ tro_read_node(const struct trt_tree_ctx* a)
         pn->nodetype & (LYS_RPC | LYS_ACTION) ?         trd_flags_type_rpc :
         pn->nodetype & LYS_NOTIF ?                      trd_flags_type_notif :
         /* if config is not set then look at ancestor's config and get his config */
-        !(pn->flags & (LYS_CONFIG_R | LYS_CONFIG_W)) ?  tro_lysp_flags2config(a->pc.lys_config) :
+        !(pn->flags & (LYS_CONFIG_R | LYS_CONFIG_W)) ?  tro_lysp_flags2config(ca.lys_config) :
         tro_lysp_flags2config(pn->flags);
 
     /* TODO: trd_node_top_level1 aka '/' is not supported right now. */
@@ -2354,7 +2395,7 @@ tro_read_node(const struct trt_tree_ctx* a)
             && !(pn->flags & LYS_MAND_TRUE) ?           trd_node_optional :
         pn->nodetype & LYS_LEAF
             && !(pn->flags & LYS_MAND_TRUE)
-            && !tro_lysp_leaf_is_key(a)?                trd_node_optional :
+            && !tro_lysp_leaf_is_key(ca, a)?            trd_node_optional :
         trd_node_else;
 
     /* TODO: ret.name.module_prefix is not supported right now. */
@@ -2391,21 +2432,19 @@ tro_read_if_sibling_exists(const struct trt_tree_ctx* a)
 }
 
 /* --------- <Modify getters> --------- */
-trt_node
+void
 tro_modi_parent(struct trt_tree_ctx* a)
 {
     const struct lysp_node *pn = a->pn;
     assert(pn->parent == NULL && pn != NULL && pn->nodetype != LYS_UNKNOWN);
     a->pn = pn->parent;
-    /* TODO: restore cache... not posible this way */
-    return tro_read_node(a);
 }
 
 trt_node
-tro_modi_next_sibling(struct trt_tree_ctx*);
+tro_modi_next_sibling(struct trt_parent_cache ca, struct trt_tree_ctx*);
 
-trt_node
-tro_modi_next_child(struct trt_tree_ctx*);
+struct trt_level
+tro_modi_next_child(struct trt_parent_cache ca, struct trt_tree_ctx*);
 
 trt_node
 tro_modi_next_augment(struct trt_tree_ctx*);
