@@ -22,9 +22,10 @@
 
 #include "libyang.h"
 
-#include "commands.h"
+#include "cmd.h"
 #include "linenoise/linenoise.h"
 
+/* from the main.c */
 extern struct ly_ctx *ctx;
 
 static void
@@ -45,7 +46,7 @@ get_cmd_completion(const char *hint, char ***matches, unsigned int *match_count)
                 return;
             }
             *matches = p;
-            (*matches)[*match_count-1] = strdup(commands[i].name);
+            (*matches)[*match_count - 1] = strdup(commands[i].name);
         }
     }
 }
@@ -96,7 +97,7 @@ get_model_completion(const char *hint, char ***matches, unsigned int *match_coun
                 return;
             }
             *matches = p;
-            (*matches)[*match_count-1] = strdup(module->name);
+            (*matches)[*match_count - 1] = strdup(module->name);
         }
 
         LY_ARRAY_FOR(module->parsed->includes, u) {
@@ -108,7 +109,7 @@ get_model_completion(const char *hint, char ***matches, unsigned int *match_coun
                     return;
                 }
                 *matches = p;
-                (*matches)[*match_count-1] = strdup(module->parsed->includes[u].submodule->name);
+                (*matches)[*match_count - 1] = strdup(module->parsed->includes[u].submodule->name);
             }
         }
     }
@@ -122,9 +123,9 @@ complete_cmd(const char *buf, const char *hint, linenoiseCompletions *lc)
 
     if (!strncmp(buf, "add ", 4)) {
         linenoisePathCompletion(buf, hint, lc);
-    } else if ((!strncmp(buf, "searchpath ", 11) || !strncmp(buf, "data ", 5)
-            || !strncmp(buf, "config ", 7) || !strncmp(buf, "filter ", 7)
-            || !strncmp(buf, "xpath ", 6) || !strncmp(buf, "clear ", 6)) && !last_is_opt(hint)) {
+    } else if ((!strncmp(buf, "searchpath ", 11) || !strncmp(buf, "data ", 5) ||
+            !strncmp(buf, "config ", 7) || !strncmp(buf, "filter ", 7) ||
+            !strncmp(buf, "xpath ", 6) || !strncmp(buf, "clear ", 6)) && !last_is_opt(hint)) {
         linenoisePathCompletion(buf, hint, lc);
     } else if ((!strncmp(buf, "print ", 6) || !strncmp(buf, "feature ", 8)) && !last_is_opt(hint)) {
         get_model_completion(hint, &matches, &match_count);

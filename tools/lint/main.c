@@ -3,7 +3,7 @@
  * @author Radek Krejci <rkrejci@cesnet.cz>
  * @brief libyang's yanglint tool
  *
- * Copyright (c) 2015-2017 CESNET, z.s.p.o.
+ * Copyright (c) 2015-2020 CESNET, z.s.p.o.
  *
  * This source code is licensed under BSD 3-Clause License (the "License").
  * You may not use this file except in compliance with the License.
@@ -20,14 +20,13 @@
 
 #include "libyang.h"
 
+#include "cmd.h"
+#include "common.h"
 #include "compat.h"
-#include "tools/config.h"
-
-#include "commands.h"
 #include "completion.h"
 #include "configuration.h"
 #include "linenoise/linenoise.h"
-
+#include "tools/config.h"
 
 int done;
 struct ly_ctx *ctx = NULL;
@@ -36,10 +35,10 @@ struct ly_ctx *ctx = NULL;
 int main_ni(int argc, char *argv[]);
 
 int
-main(int argc, char* argv[])
+main(int argc, char *argv[])
 {
-    char *cmd, *cmdline, *cmdstart;
-    int i, j;
+    char *cmdline;
+    int cmdlen;
 
     if (argc > 1) {
         /* run in non-interactive mode */
@@ -56,6 +55,8 @@ main(int argc, char* argv[])
     }
 
     while (!done) {
+        uint8_t executed = 0;
+
         /* get the command from user */
         cmdline = linenoise(PROMPT);
 
@@ -72,38 +73,25 @@ main(int argc, char* argv[])
         }
 
         /* isolate the command word. */
-        for (i = 0; cmdline[i] && (cmdline[i] == ' '); i++);
-        cmdstart = cmdline + i;
-        for (j = 0; cmdline[i] && (cmdline[i] != ' '); i++, j++);
-        cmd = strndup(cmdstart, j);
-
-        /* parse the command line */
-        for (i = 0; commands[i].name; i++) {
-            if (strcmp(cmd, commands[i].name) == 0) {
-                break;
-            }
-        }
+        for (cmdlen = 0; cmdline[cmdlen] && (cmdline[cmdlen] != ' '); cmdlen++) {}
 
         /* execute the command if any valid specified */
-        if (commands[i].name) {
-            /* display help */
-            if ((strchr(cmdstart, ' ') != NULL) && ((strncmp(strchr(cmdstart, ' ')+1, "-h", 2) == 0)
-                    || (strncmp(strchr(cmdstart, ' ')+1, "--help", 6) == 0))) {
-                if (commands[i].help_func != NULL) {
-                    commands[i].help_func();
-                } else {
-                    printf("%s\n", commands[i].helpstring);
-                }
-            } else {
-                commands[i].func((const char *)cmdstart);
+        for (uint16_t i = 0; commands[i].name; i++) {
+            if (strncmp(cmdline, commands[i].name, (size_t)cmdlen) || (commands[i].name[cmdlen] != '\0')) {
+                continue;
             }
-        } else {
-            /* if unknown command specified, tell it to user */
-            fprintf(stderr, "%s: no such command, type 'help' for more information.\n", cmd);
-        }
-        linenoiseHistoryAdd(cmdline);
 
-        free(cmd);
+            commands[i].func(&ctx, cmdline);
+            executed = 1;
+            break;
+        }
+
+        if (!executed) {
+            /* if unknown command specified, tell it to user */
+            fprintf(stderr, "%.*s: no such command, type 'help' for more information.\n", cmdlen, cmdline);
+        }
+
+        linenoiseHistoryAdd(cmdline);
         free(cmdline);
     }
 

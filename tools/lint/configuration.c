@@ -71,6 +71,7 @@ void
 load_config(void)
 {
     char *yl_dir, *history_file;
+
     if ((yl_dir = get_yanglint_dir()) == NULL) {
         return;
     }
