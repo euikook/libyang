@@ -21,53 +21,53 @@
 #include "plugins_types.h"
 #include "path.h"
 
-const char *schema_a = "module defs {namespace urn:tests:defs;prefix d;yang-version 1.1;"
-        "identity crypto-alg; identity interface-type; identity ethernet {base interface-type;} identity fast-ethernet {base ethernet;}"
-        "typedef iref {type identityref {base interface-type;}}}";
-const char *schema_b = "module types {namespace urn:tests:types;prefix t;yang-version 1.1; import defs {prefix defs;}"
-        "feature f; identity gigabit-ethernet { base defs:ethernet;}"
-        "typedef tboolean {type boolean;}"
-        "typedef tempty {type empty;}"
-        "container cont {leaf leaftarget {type empty;}"
-                        "list listtarget {key id; max-elements 5;leaf id {type uint8;} leaf value {type string;}}"
-                        "leaf-list leaflisttarget {type uint8; max-elements 5;}}"
-        "list list {key id; leaf id {type string;} leaf value {type string;} leaf-list targets {type string;}}"
-        "list list2 {key \"id value\"; leaf id {type string;} leaf value {type string;}}"
-        "list list_inst {key id; leaf id {type instance-identifier {require-instance true;}} leaf value {type string;}}"
-        "list list_ident {key id; leaf id {type identityref {base defs:interface-type;}} leaf value {type string;}}"
-        "list list_keyless {config \"false\"; leaf id {type string;} leaf value {type string;}}"
-        "leaf-list leaflisttarget {type string;}"
-        "leaf binary {type binary {length 5 {error-message \"This base64 value must be of length 5.\";}}}"
-        "leaf binary-norestr {type binary;}"
-        "leaf int8 {type int8 {range 10..20;}}"
-        "leaf uint8 {type uint8 {range 150..200;}}"
-        "leaf int16 {type int16 {range -20..-10;}}"
-        "leaf uint16 {type uint16 {range 150..200;}}"
-        "leaf int32 {type int32;}"
-        "leaf uint32 {type uint32;}"
-        "leaf int64 {type int64;}"
-        "leaf uint64 {type uint64;}"
-        "leaf bits {type bits {bit zero; bit one {if-feature f;} bit two;}}"
-        "leaf enums {type enumeration {enum white; enum yellow {if-feature f;}}}"
-        "leaf dec64 {type decimal64 {fraction-digits 1; range 1.5..10;}}"
-        "leaf dec64-norestr {type decimal64 {fraction-digits 18;}}"
-        "leaf str {type string {length 8..10; pattern '[a-z ]*';}}"
-        "leaf str-norestr {type string;}"
-        "leaf str-utf8 {type string{length 2..5; pattern '€*';}}"
-        "leaf bool {type boolean;}"
-        "leaf tbool {type tboolean;}"
-        "leaf empty {type empty;}"
-        "leaf tempty {type tempty;}"
-        "leaf ident {type identityref {base defs:interface-type;}}"
-        "leaf iref {type defs:iref;}"
-        "leaf inst {type instance-identifier {require-instance true;}}"
-        "leaf inst-noreq {type instance-identifier {require-instance false;}}"
-        "leaf lref {type leafref {path /leaflisttarget; require-instance true;}}"
-        "leaf lref2 {type leafref {path \"../list[id = current()/../str-norestr]/targets\"; require-instance true;}}"
-        "leaf un1 {type union {"
-          "type leafref {path /int8; require-instance true;}"
-          "type union { type identityref {base defs:interface-type;} type instance-identifier {require-instance true;} }"
-          "type string {length 1..20;}}}}";
+    const char *schema_a = "module defs {namespace urn:tests:defs;prefix d;yang-version 1.1;"
+            "identity crypto-alg; identity interface-type; identity ethernet {base interface-type;} identity fast-ethernet {base ethernet;}"
+            "typedef iref {type identityref {base interface-type;}}}";
+    const char *schema_b = "module types {namespace urn:tests:types;prefix t;yang-version 1.1; import defs {prefix defs;}"
+            "feature f; identity gigabit-ethernet { base defs:ethernet;}"
+            "typedef tboolean {type boolean;}"
+            "typedef tempty {type empty;}"
+            "container cont {leaf leaftarget {type empty;}"
+                            "list listtarget {key id; max-elements 5;leaf id {type uint8;} leaf value {type string;}}"
+                            "leaf-list leaflisttarget {type uint8; max-elements 5;}}"
+            "list list {key id; leaf id {type string;} leaf value {type string;} leaf-list targets {type string;}}"
+            "list list2 {key \"id value\"; leaf id {type string;} leaf value {type string;}}"
+            "list list_inst {key id; leaf id {type instance-identifier {require-instance true;}} leaf value {type string;}}"
+            "list list_ident {key id; leaf id {type identityref {base defs:interface-type;}} leaf value {type string;}}"
+            "list list_keyless {config \"false\"; leaf id {type string;} leaf value {type string;}}"
+            "leaf-list leaflisttarget {type string;}"
+            "leaf binary {type binary {length 5 {error-message \"This base64 value must be of length 5.\";}}}"
+            "leaf binary-norestr {type binary;}"
+            "leaf int8 {type int8 {range 10..20;}}"
+            "leaf uint8 {type uint8 {range 150..200;}}"
+            "leaf int16 {type int16 {range -20..-10;}}"
+            "leaf uint16 {type uint16 {range 150..200;}}"
+            "leaf int32 {type int32;}"
+            "leaf uint32 {type uint32;}"
+            "leaf int64 {type int64;}"
+            "leaf uint64 {type uint64;}"
+            "leaf bits {type bits {bit zero; bit one {if-feature f;} bit two;}}"
+            "leaf enums {type enumeration {enum white; enum yellow {if-feature f;}}}"
+            "leaf dec64 {type decimal64 {fraction-digits 1; range 1.5..10;}}"
+            "leaf dec64-norestr {type decimal64 {fraction-digits 18;}}"
+            "leaf str {type string {length 8..10; pattern '[a-z ]*';}}"
+            "leaf str-norestr {type string;}"
+            "leaf str-utf8 {type string{length 2..5; pattern '€*';}}"
+            "leaf bool {type boolean;}"
+            "leaf tbool {type tboolean;}"
+            "leaf empty {type empty;}"
+            "leaf tempty {type tempty;}"
+            "leaf ident {type identityref {base defs:interface-type;}}"
+            "leaf iref {type defs:iref;}"
+            "leaf inst {type instance-identifier {require-instance true;}}"
+            "leaf inst-noreq {type instance-identifier {require-instance false;}}"
+            "leaf lref {type leafref {path /leaflisttarget; require-instance true;}}"
+            "leaf lref2 {type leafref {path \"../list[id = current()/../str-norestr]/targets\"; require-instance true;}}"
+            "leaf un1 {type union {"
+              "type leafref {path /int8; require-instance true;}"
+              "type union { type identityref {base defs:interface-type;} type instance-identifier {require-instance true;} }"
+              "type string {length 1..20;}}}}";
 
 #define CONTEXT_CREATE(LYD_NODE_1, LYD_NODE_2) \
                 ly_set_log_clb(logger_null, 1);\
@@ -288,8 +288,6 @@ test_string(void **state)
     (void) state;
 
     struct lyd_node *tree;
-    char *err_msg[1];
-    char *err_path[1];
     const char *data, *error_msg;
 
     const struct lys_module *mod_types;
@@ -358,26 +356,19 @@ test_bits(void **state)
     LYD_NODE_DESTROY(tree);
 
     /* disabled feature */
-    error_msg =  "Bit \"one\" is disabled by its 1. if-feature condition.";;
+    error_msg =  "Invalid bit value \"one\".";
     TEST_TYPE_ERROR("bits", " \t one \n\t ", error_msg);
 
-    /* enable that feature */
-    assert_int_equal(LY_SUCCESS, lys_feature_enable(ly_ctx_get_module(CONTEXT_GET, "types", NULL), "f"));
-    const char *bits_array_2[] = {"one"};
-    data = "<bits xmlns=\"urn:tests:types\"> \t one \n\t </bits>";
-    LYD_NODE_CREATE(data,tree);
-    TEST_PATTERN_1(tree,"bits", BITS, "one", bits_array_2);
-    LYD_NODE_DESTROY(tree);
-
     /* disabled feature */
-    TEST_DATA("<bits xmlns=\"urn:tests:types\"> \t one \n\t </bits>", LY_EVALID, "Bit \"one\" is disabled by its 1. if-feature condition. /types:bits");
+    error_msg = "Invalid bit value \"one\".";
+    TEST_TYPE_ERROR("bits",  "\t one \n\t" , error_msg);
 
     /* multiple instances of the bit */
-    error_msg =  "Bit \"one\" used multiple times.";;
+    error_msg = "Invalid bit value \"one\".";
     TEST_TYPE_ERROR("bits", "one zero one", error_msg);
 
     /* invalid bit value */
-    error_msg =  "Invalid bit value \"xero\".";;
+    error_msg =  "Invalid bit value \"one\".";
     TEST_TYPE_ERROR("bits", "one xero one", error_msg);
 
     CONTEXT_DESTROY;
@@ -403,15 +394,8 @@ test_enums(void **state)
     LYD_NODE_DESTROY(tree);
 
     /* disabled feature */
-    error_msg =  "Enumeration \"yellow\" is disabled by its 1. if-feature condition.";;
+    error_msg =  "Invalid enumeration value \"yellow\".";
     TEST_TYPE_ERROR("enums", "yellow", error_msg);
-
-    /* enable that feature */
-    assert_int_equal(LY_SUCCESS, lys_feature_enable(ly_ctx_get_module(CONTEXT_GET, "types", NULL), "f"));
-    data = "<enums xmlns=\"urn:tests:types\">yellow</enums>";
-    LYD_NODE_CREATE(data,tree);
-    TEST_PATTERN_1(tree,"enums", ENUM, "yellow", "yellow");
-    LYD_NODE_DESTROY(tree);
 
     /* leading/trailing whitespaces are not valid */
     error_msg =  "Invalid enumeration value \" white\".";;

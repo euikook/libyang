@@ -278,7 +278,7 @@ test_list_pos(void **state)
         "<l1 xmlns=\"urn:tests:a\"><a>one</a><b>one</b></l1>"
         "<l1 xmlns=\"urn:tests:a\"><a>two</a><b>two</b></l1>"
         "<foo xmlns=\"urn:tests:a\">test</foo>";
-    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(ctx, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
+    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(CONTEXT_GET, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
     assert_int_equal(0, lyd_list_pos(tree));
     assert_int_equal(1, lyd_list_pos(tree->next));
     assert_int_equal(2, lyd_list_pos(tree->next->next));
@@ -288,7 +288,7 @@ test_list_pos(void **state)
     data = "<ll xmlns=\"urn:tests:a\">one</ll>"
         "<ll xmlns=\"urn:tests:a\">two</ll>"
         "<ll xmlns=\"urn:tests:a\">three</ll>";
-    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(ctx, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
+    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(CONTEXT_GET, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
     assert_int_equal(1, lyd_list_pos(tree));
     assert_int_equal(2, lyd_list_pos(tree->next));
     assert_int_equal(3, lyd_list_pos(tree->next->next));
@@ -300,7 +300,7 @@ test_list_pos(void **state)
         "<l1 xmlns=\"urn:tests:a\"><a>two</a><b>two</b></l1>"
         "<ll xmlns=\"urn:tests:a\">three</ll>"
         "<l1 xmlns=\"urn:tests:a\"><a>three</a><b>three</b></l1>";
-    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(ctx, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
+    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(CONTEXT_GET, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
     assert_string_equal("l1", tree->schema->name);
     assert_int_equal(1, lyd_list_pos(tree));
     assert_int_equal(2, lyd_list_pos(tree->next));
@@ -310,6 +310,8 @@ test_list_pos(void **state)
     assert_int_equal(2, lyd_list_pos(tree->next->next->next->next));
     assert_int_equal(3, lyd_list_pos(tree->next->next->next->next->next));
     lyd_free_all(tree);
+
+    CONTEXT_DESTROY;
 }
 
 static void
@@ -326,7 +328,7 @@ test_first_sibling(void **state)
     data = "<bar xmlns=\"urn:tests:a\">test</bar>"
         "<l1 xmlns=\"urn:tests:a\"><a>one</a><b>one</b><c>one</c></l1>"
         "<foo xmlns=\"urn:tests:a\">test</foo>";
-    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(ctx, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
+    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(CONTEXT_GET, data, LYD_XML, 0, LYD_VALIDATE_PRESENT, &tree));
     assert_ptr_equal(tree, lyd_first_sibling(tree->next));
     assert_ptr_equal(tree, lyd_first_sibling(tree));
     assert_ptr_equal(tree, lyd_first_sibling(tree->prev));
@@ -336,6 +338,8 @@ test_first_sibling(void **state)
     assert_ptr_equal(parent->child, lyd_first_sibling(parent->child));
     assert_ptr_equal(parent->child, lyd_first_sibling(parent->child->prev));
     lyd_free_all(tree);
+
+    CONTEXT_DESTROY;
 }
 
 int main(void)
@@ -344,8 +348,8 @@ int main(void)
         cmocka_unit_test(test_compare),
         cmocka_unit_test(test_dup),
         cmocka_unit_test(test_target),
-        cmocka_unit_test_setup_teardown(test_list_pos),
-        cmocka_unit_test_setup_teardown(test_first_sibling),
+        cmocka_unit_test(test_list_pos),
+        cmocka_unit_test(test_first_sibling),
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);

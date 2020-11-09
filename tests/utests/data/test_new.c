@@ -64,7 +64,7 @@ test_top_level(void **state)
     *state = test_top_level;
 
     const struct lys_module *mod;
-    struct lyd_node *node;
+    struct lyd_node *node, *rpc;
     const char *err_msg[1];
     const char *err_path[1];
 

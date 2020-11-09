@@ -130,7 +130,7 @@ test_origin(void **state)
 
     CONTEXT_CREATE;
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, origin_yang, LYS_IN_YANG, NULL));
-    lys_set_implemented(ly_ctx_get_module_latest(CONTEXT_GET, "ietf-origin", NULL));
+    lys_set_implemented(ly_ctx_get_module_latest(CONTEXT_GET, "ietf-origin"), NULL);
 
     /* model_1 */
     struct lyd_node *model_1;

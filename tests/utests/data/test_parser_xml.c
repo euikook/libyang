@@ -46,11 +46,11 @@ const char *schema_a = "module a {namespace urn:tests:a;prefix a;yang-version 1.
 #define CONTEXT_CREATE \
                 ly_set_log_clb(logger_null, 1);\
                 CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG);\
-                assert_non_null(ly_ctx_load_module(CONTEXT_GET, "ietf-netconf-with-defaults", "2011-06-01", NULL));\
                 {\
                     const struct lys_module *mod;\
                     assert_non_null((mod = ly_ctx_load_module(CONTEXT_GET, "ietf-netconf", "2011-06-01", feats)));\
                 }\
+                assert_non_null(ly_ctx_load_module(CONTEXT_GET, "ietf-netconf-with-defaults", "2011-06-01", NULL));\
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, NULL))\
 
 
@@ -337,7 +337,7 @@ test_rpc(void **state)
     const struct lyd_node *node;
 
     data =
-        "<rpc xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\" msgid=\"25\" custom-attr=\"val\">"
+         "<rpc xmlns=\"urn:ietf:params:xml:ns:netconf:base:1.0\" msgid=\"25\" custom-attr=\"val\">"
             "<edit-config>"
                 "<target>"
                     "<running/>"

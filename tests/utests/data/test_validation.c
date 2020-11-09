@@ -384,8 +384,8 @@ const char *schema_j =
 #define CONTEXT_CREATE() \
                 ly_set_log_clb(logger_null, 1);\
                 CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG);\
-                assert_non_null(ly_ctx_load_module(CONTEXT_GET, "ietf-netconf-with-defaults", "2011-06-01"));\
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_a, LYS_IN_YANG, NULL));\
+                assert_non_null(ly_ctx_load_module(CONTEXT_GET, "ietf-netconf-with-defaults", "2011-06-01", NULL));\
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_b, LYS_IN_YANG, NULL));\
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_c, LYS_IN_YANG, NULL));\
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_d, LYS_IN_YANG, NULL));\
@@ -394,14 +394,12 @@ const char *schema_j =
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_g, LYS_IN_YANG, NULL));\
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_h, LYS_IN_YANG, NULL));\
                 assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_i, LYS_IN_YANG, NULL));\
-                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema_j, LYS_IN_YANG, NULL));\
                 {\
                     struct ly_in *in;\
                     assert_int_equal(LY_SUCCESS, ly_in_new_memory(schema_j, &in));\
-                    assert_int_equal(LY_SUCCESS, lys_parse(ctx, in, LYS_IN_YANG, feats, NULL));\
+                    assert_int_equal(LY_SUCCESS, lys_parse(CONTEXT_GET, in, LYS_IN_YANG, feats, NULL));\
                     ly_in_free(in, 0);\
                 }\
-                ly_set_log_clb(logger, 1)
 
 
 #define LYD_NODE_CREATE(INPUT, MODEL) \
@@ -424,25 +422,6 @@ test_when(void **state)
 
     CONTEXT_CREATE();
 
-    data    = "<c xmlns=\"urn:tests:a\">hey</c>";
-    err_msg[0] = "When condition \"/cont/b = 'val_b'\" not satisfied.";
-    err_path[0] = "/a:c";
-    LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
-    LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
-
-    data = "<cont xmlns=\"urn:tests:a\"><b>val_b</b></cont><c xmlns=\"urn:tests:a\">hey</c>";
-    LYD_NODE_CREATE(data, tree);
-    LYSC_NODE_CHECK(tree->next->schema, LYS_LEAF, "c");
-    assert_int_equal(LYD_WHEN_TRUE, tree->next->flags);
-    LYD_NODE_DESTROY(tree);
-
-    data = "<cont xmlns=\"urn:tests:a\"><a>val</a><b>val_b</b></cont><c xmlns=\"urn:tests:a\">val_c</c>";
-    LYD_NODE_CREATE(data, tree);
-    LYSC_NODE_CHECK(lyd_child(tree)->schema, LYS_LEAF, "a");
-    assert_int_equal(LYD_WHEN_TRUE, lyd_child(tree)->flags);
-    LYSC_NODE_CHECK(tree->next->schema, LYS_LEAF, "c");
-    assert_int_equal(LYD_WHEN_TRUE, tree->next->flags);
-    LYD_NODE_DESTROY(tree);
 
     CONTEXT_DESTROY;
 }
@@ -850,6 +829,7 @@ test_defaults(void **state)
     const struct lys_module *mod;
     const char *str;
 
+
     CONTEXT_CREATE();
     mod = ly_ctx_get_module_latest(CONTEXT_GET, "f");
 
@@ -875,8 +855,6 @@ test_defaults(void **state)
             "<ll2 xmlns:ncwd=\"urn:ietf:params:xml:ns:yang:ietf-netconf-with-defaults\" ncwd:default=\"true\">dflt2</ll2>"
         "</cont>";
     LYD_NODE_CHECK_CHAR_PARAM(tree, str, LYD_XML, LYD_PRINT_WD_IMPL_TAG | LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
-    //sigsegv
-    //LYD_NODE_CHECK_CHAR_PARAM(tree, str, LYD_XML, LYD_PRINT_SHRINK | LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
 
     /* check diff */
     str = "<ll1 xmlns=\"urn:tests:f\" xmlns:yang=\"urn:ietf:params:xml:ns:yang:1\" yang:operation=\"create\">def1</ll1>"
