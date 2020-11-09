@@ -236,14 +236,10 @@ test_defaults(void **state)
     LYD_NODE_CREATE(data, tree);
     ROOT_GET(tree);
     LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_TRIM);
-
     LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL);
-
     LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_ALL_TAG);
-
     LYD_NODE_CHECK_CHAR(tree, data, LYD_PRINT_WD_IMPL_TAG);
     LYD_NODE_DESTROY(tree);
-
 
     /* instance-identifier value equal to the default, should be considered equal */
     data = "<a xmlns=\"urn:defaults\" xmlns:d=\"urn:defaults\">/d:b</a><b xmlns=\"urn:defaults\">val</b><c xmlns=\"urn:defaults\">aa</c>";
@@ -258,14 +254,10 @@ test_defaults(void **state)
     LYD_NODE_CREATE(data, tree);
     ROOT_GET(tree);
     LYD_NODE_CHECK_CHAR(tree, data_trim, LYD_PRINT_WD_TRIM);
-
     LYD_NODE_CHECK_CHAR(tree, data_all, LYD_PRINT_WD_ALL);
-
     LYD_NODE_CHECK_CHAR(tree, data_all_tag, LYD_PRINT_WD_ALL_TAG);
-
     LYD_NODE_CHECK_CHAR(tree, data_impl_tag, LYD_PRINT_WD_IMPL_TAG);
     LYD_NODE_DESTROY(tree);
-
 
     CONTEXT_DESTROY;
 }

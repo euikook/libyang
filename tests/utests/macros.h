@@ -28,7 +28,7 @@
 //macros
 
 /**
- * @brief get actual context. In test macros is context hiden. 
+ * @brief get actual context. In test macros is context hiden.
  */
 #define CONTEXT_GET \
                         ly_context
@@ -42,7 +42,7 @@
                         assert_int_equal(LY_SUCCESS, ly_ctx_new(PATH, 0, &ly_context))\
 
 /**
- * @brief destroy context 
+ * @brief destroy context
  */
 #define CONTEXT_DESTROY \
                         ly_ctx_destroy(ly_context, NULL)
@@ -51,7 +51,7 @@
 /**
  * @brief Parse (and validate) data from the input handler as a YANG data tree.
  *
- * @param[in] INPUT The input data in the specified @p format to parse (and validate) 
+ * @param[in] INPUT The input data in the specified @p format to parse (and validate)
  * @param[in] INPUT_FORMAT Format of the input data to be parsed. Can be 0 to try to detect format from the input handler.
  * @param[in] PARSE_OPTIONS Options for parser, see @ref dataparseroptions.
  * @param[in] VALIDATE_OPTIONS Options for the validation phase, see @ref datavalidationoptions.
@@ -76,7 +76,7 @@
                         lyd_free_all(NODE);
 
 /**
- * @breaf Check if lyd_node and his subnodes have correct values. Print lyd_node and his sunodes int o string in json or xml format. 
+ * @breaf Check if lyd_node and his subnodes have correct values. Print lyd_node and his sunodes int o string in json or xml format.
  * @param[in] NODE pointer to lyd_node
  * @param[in] TEXT expected output string in json or xml format.
  * @param[in] FORMAT format of input text. LYD_JSON, LYD_XML
@@ -140,14 +140,14 @@
                     assert_null(item);\
                 }
 /*
-    SUPPORT MACROS 
+    SUPPORT MACROS
 */
 
 /**
- * @brief Macro check description in node 
- * 
- * @param[in] STRING input text 
- * @param[in] TEXT   expected text 
+ * @brief Macro check description in node
+ *
+ * @param[in] STRING input text
+ * @param[in] TEXT   expected text
  */
 
 #define assert_string(STRING, TEXT)\
@@ -160,19 +160,19 @@
                 }\
 
 /**
- * @brief Macro check if pointer 
- * 
- * @param[in] POINTER pointer to some variable 
+ * @brief Macro check if pointer
+ *
+ * @param[in] POINTER pointer to some variable
  * @param[in] FLAG    0 -> pointer is NULL, 1 -> pointer is not null
  */
 #define assert_pointer(POINTER, FLAG)\
                 assert_true(FLAG == 0 ? POINTER == NULL : POINTER != NULL)
 
 /**
- * @brief Macro check size of size array 
- * 
- * @param[in] POINTER pointer to sized array 
- * @param[in] SIZE    array size 
+ * @brief Macro check size of size array
+ *
+ * @param[in] POINTER pointer to sized array
+ * @param[in] SIZE    array size
  */
 #define assert_array(ARRAY, SIZE)\
                 assert_true((SIZE == 0) ? \
@@ -188,7 +188,7 @@
  * @brief Macro check if lysp_action_inout value is correct
  * @param[in] NODE pointer to lysp_when variable
  * @param[in] DATA 0 -> pointer is NULL, 1 -> pointer is not null
- * @param[in] EXTS    size of list of extension array 
+ * @param[in] EXTS    size of list of extension array
  * @param[in] GROUPINGS size of list of grouping
  * @param[in] MUSTS    size of list of must restriction
  * @param[in] NODETYPE node type
@@ -209,7 +209,7 @@
  * @brief Macro check if lysp_action_inout value is correct
  * @param[in] NODE pointer to lysp_when variable
  * @param[in] DSC  string expected description
- * @param[in] EXTS    size of list of extension array 
+ * @param[in] EXTS    size of list of extension array
  * @param[in] FLAGS   flags
  * @param[in] GROUPINGS size of list of grouping
  * @param[in] IFFEATURES size of list of if-feature expressions
@@ -243,7 +243,7 @@
                 assert_pointer((NODE)->parent, PARENT);\
                 assert_string((NODE)->ref, REF);\
                 assert_array((NODE)->typedefs, TYPEDEFS)\
-                
+
 
 
 
@@ -253,7 +253,7 @@
  * @param[in] NODE pointer to lysp_when variable
  * @param[in] COND string specifid condition
  * @param[in] DSC  description or NULL
- * @param[in] EXTS    size of list of extension array 
+ * @param[in] EXTS    size of list of extension array
  * @param[in] REF     string reference
  */
 #define LYSP_WHEN_CHECK(NODE, COND, DSC, EXTS, REF)\
@@ -267,7 +267,7 @@
                 else {\
                     assert_non_null((NODE)->ref);\
                     assert_string_equal((NODE)->ref, REF);\
-                }               
+                }
 
 
 /**
@@ -275,9 +275,9 @@
  * @param[in] NODE pointer to lysp_restr variable
  * @param[in] ARG_STR string reprezenting
  * @param[in] DSC  description or NULL
- * @param[in] EAPPTAG string reprezenting error-app-tag value 
+ * @param[in] EAPPTAG string reprezenting error-app-tag value
  * @param[in] EMSG    string reprezenting error message
- * @param[in] EXTS    size of list of extension array 
+ * @param[in] EXTS    size of list of extension array
  * @param[in] REF     string reference
  */
 
@@ -347,8 +347,8 @@
 
 
 /**
- * @brief Macro check if lysp_stmt value is correct 
- * 
+ * @brief Macro check if lysp_stmt value is correct
+ *
  * @param[in] NODE pointer to lysp_ext_instance variable
  * @param[in] ARGUMENT string optional value of the extension's argument
  * @param[in] COMPILED 0 -> compiled data dosnt exists, 1 -> compiled data exists
@@ -387,8 +387,8 @@
                 }
 
 /**
- * @brief Macro check if lysp_stmt value is correct 
- * 
+ * @brief Macro check if lysp_stmt value is correct
+ *
  * @param[in] NODE pointer to lysp_ext_instance variable
  * @param[in] ARGUMENT string optional value of the extension's argument
  * @param[in] CHILD    0 -> node doesnt have child, 1 -> node have children
@@ -397,7 +397,7 @@
  * @param[in] INSUBSTMS_INDEX indentifi index
  * @param[in] PARENT   0 -> if node is root otherwise 1
  * @param[in] PARENT_TYPE parent type. not relevat if PARENT == 0
- * @param[in] YIN         int ?? 
+ * @param[in] YIN         int ??
  */
 #define LYSP_EXT_INSTANCE_CHECK(NODE, ARGUMENT, CHILD, COMPILED, INSUBSTMT, INSUBSTMT_INDEX, NAME, PARENT, PARENT_TYPE, YIN)\
                 assert_non_null(NODE);\
@@ -423,14 +423,14 @@
 
 
 /**
- * @brief Macro check if lysp_stmt value is correct 
- * 
+ * @brief Macro check if lysp_stmt value is correct
+ *
  * @param[in] NODE pointer to lysp_stmt variable
  * @param[in] ARG  string statemet argumet
  * @param[in] CHILD 0 -> pointer is NULL, 1 -> pointer is not null
  * @param[in] FLAGS int statement flags
- * @param[in] NEXT  0 -> pointer is NULL, 1 -> pointer is not null 
- * @param[in] STMS  string identifier of the statement 
+ * @param[in] NEXT  0 -> pointer is NULL, 1 -> pointer is not null
+ * @param[in] STMS  string identifier of the statement
  */
 #define LYSP_STMT_CHECK(NODE, ARG, CHILD, FLAGS, KW, NEXT, STMT)\
                 assert_non_null(NODE);\
@@ -448,14 +448,14 @@
                 assert_string_equal((NODE)->stmt, STMT)\
 
 /**
- * @brief Macro check if lysp_type_enum value is correct 
- * 
+ * @brief Macro check if lysp_type_enum value is correct
+ *
  * @param[in] NODE pointer to lysp_type_enum variable
  * @param[in] ARG  string statemet argumet
  * @param[in] CHILD 0 -> pointer is NULL, 1 -> pointer is not null
  * @param[in] FLAGS int statement flags
- * @param[in] NEXT  0 -> pointer is NULL, 1 -> pointer is not null 
- * @param[in] STMS  string identifier of the statement 
+ * @param[in] NEXT  0 -> pointer is NULL, 1 -> pointer is not null
+ * @param[in] STMS  string identifier of the statement
  */
 #define LYSP_TYPE_ENUM_CHECK(NODE, DSC, EXTS, FLAGS, IFFEATURES, NAME, REF, VALUE)\
                 assert_non_null(NODE);\
@@ -469,14 +469,14 @@
 
 
 /**
- * @brief Macro check if lysp_node is correct 
- * 
+ * @brief Macro check if lysp_node is correct
+ *
  * @param[in] NODE  pointer to lysp_node variable
  * @param[in] DSC   description statement
- * @param[in] EXTS  0 pointer is null, 1 pointer is not null  
+ * @param[in] EXTS  0 pointer is null, 1 pointer is not null
  * @param[in] FLAGS flags
  * @param[in] IFFEATURES  0 pointer is null, 1 pointer is not null
- * @param[in] NAME  string reprezenting node name 
+ * @param[in] NAME  string reprezenting node name
  * @param[in] NEXT  0 pointer is null, 1 pointer is not null
  * @param[in] TYPE  node type (LYS_LEAF, ....)
  * @param[in] PARENT 0 pointer is null, 1 pointer is not null
@@ -498,20 +498,20 @@
 
 
 /**
- * @brief Macro check if lyd_notif have correct values 
- * 
+ * @brief Macro check if lyd_notif have correct values
+ *
  * @param[in] NODE  pointer to lysc_node variable
- * @param[in] NAME  node name 
+ * @param[in] NAME  node name
  */
 #define LYSC_NOTIF_CHECK(NODE, NAME) \
                 assert_non_null(NODE);\
                 assert_string_equal(NAME, (NODE)->name);\
                 assert_int_equal(LYS_NOTIF,  (NODE)->nodetype);\
 /**
- * @brief Macro check if lyd_action have correct values 
- * 
+ * @brief Macro check if lyd_action have correct values
+ *
  * @param[in] NODE  pointer to lysc_node variable
- * @param[in] TYPE  node_type LYS_RPC or LYS_ACTION 
+ * @param[in] TYPE  node_type LYS_RPC or LYS_ACTION
  * @param[in] NAME  action name
  */
 #define LYSC_ACTION_CHECK(NODE, TYPE, NAME) \
@@ -520,11 +520,11 @@
                 assert_int_equal(TYPE,  (NODE)->nodetype);\
 
 /**
- * @brief Macro check if lyd_node have correct values 
- * 
+ * @brief Macro check if lyd_node have correct values
+ *
  * @param[in] NODE  pointer to lysc_node variable
  * @param[in] TYPE  node_type LYSC_LEAF, LYSC_CONTAINER, ...
- * @param[in] NAME  lysc_node name 
+ * @param[in] NAME  lysc_node name
  */
 #define LYSC_NODE_CHECK(NODE, TYPE, NAME) \
                 assert_non_null(NODE);\
@@ -533,8 +533,8 @@
                 assert_non_null((NODE)->prev);
 
  /**
- * @brief Macro check if lyd_meta have correct values 
- * 
+ * @brief Macro check if lyd_meta have correct values
+ *
  * @param[in] NODE             pointer to lyd_meta variable
  * @param[in] PARENT           pointer to paren
  * @param[in] TYPE_VAL         value typ INT8, UINT8, STRING, ...
@@ -548,8 +548,8 @@
                 LYD_VALUE_CHECK((NODE)->value, TYPE_VAL, CANNONICAL_VAL __VA_OPT__(,) __VA_ARGS__)
 
  /**
- * @brief Macro check if lyd_node_term have correct values 
- * 
+ * @brief Macro check if lyd_node_term have correct values
+ *
  * @param[in] NODE             pointer to lyd_node_term variable
  * @param[in] VALUE_TYPE value type INT8, UINT8, STRING, ...
  * @param[in] VALUE_CANNONICAL string value
@@ -562,8 +562,8 @@
                 LYD_VALUE_CHECK((NODE)->value, VALUE_TYPE, VALUE_CANNONICAL  __VA_OPT__(,) __VA_ARGS__)
 
  /**
- * @brief Macro check if lyd_node_any have correct values 
- * 
+ * @brief Macro check if lyd_node_any have correct values
+ *
  * @param[in] NODE       lyd_node_any
  * @param[in] VALUE_TYPE value type LYD_ANYDATA_VALUETYPE
  */
@@ -573,22 +573,23 @@
                 assert_non_null((NODE)->prev);\
                 assert_int_equal((NODE)->value_type, VALUE_TYPE);\
                 assert_non_null((NODE)->schema)
-               
+
  /**
- * @brief Macro check if lyd_node_opaq have correct values 
- * 
+ * @brief Macro check if lyd_node_opaq have correct values
+ *
  * @param[in] NODE     lyd_node_opaq
  * @param[in] ATTR     0,1 if attr should be null or if it is set
  * @param[in] CHILD    0,1 if node have child
  * @param[in] FORMAT   LYD_XML, LYD_JSON
- * @param[in] VAL_PREFS_COUNT count of val_prefs
+ * @param[in] VAL_PREFS count of val_prefs
  * @param[in] NAME     string name
  * @param[in] value    string value
- */ 
-#define LYD_NODE_OPAQ_CHECK(NODE, ATTR, CHILD, FORMAT, VAL_PREFS_COUNT, NAME, VALUE)\
+ */
+#define LYD_NODE_OPAQ_CHECK(NODE, ATTR, CHILD, FORMAT,\
+            NAME, NEXT, PARENT, PREFIX, VAL_PREFS,  VALUE)\
                 assert_non_null(NODE);\
-                assert_true((ATTR == 0) ? ((NODE)->attr == NULL) : ((NODE)->attr != NULL));\
-                assert_true((CHILD == 0) ? ((NODE)->child == NULL) : ((NODE)->child != NULL));\
+                assert_pointer((NODE)->attr, ATTR);\
+                assert_pointer((NODE)->child, CHILD);\
                 assert_ptr_equal((NODE)->ctx, CONTEXT_GET);\
                 assert_int_equal((NODE)->flags, 0);\
                 assert_true((NODE)->format == FORMAT);\
@@ -596,12 +597,12 @@
                 assert_string_equal((NODE)->name, NAME);\
                 assert_non_null((NODE)->prev);\
                 assert_null((NODE)->schema);\
-                assert_array((NODE)->val_prefs, VAL_PREFS_COUNT);\
+                assert_array((NODE)->val_prefs, VAL_PREFS);\
                 assert_string_equal((NODE)->value, VALUE)\
 
 /**
  * @brief Macro check if lyd_value have expected data.
- * 
+ *
  * @param[in] NODE     lyd_value
  * @param[in] TYPE_VAL value type. (INT8, UINT8, EMPTY, UNION, BITS, ...)
  *                     part of text reprezenting LY_DATA_TYPE.
@@ -612,17 +613,17 @@
  */
 
 #define LYD_VALUE_CHECK(NODE, TYPE_VAL, CANNONICAL_VAL, ...) \
+                LYD_VALUE_CHECK_ ## TYPE_VAL (NODE __VA_OPT__(,) __VA_ARGS__);\
                 assert_non_null((NODE).canonical);\
-                assert_string_equal(CANNONICAL_VAL, (NODE).canonical);\
-                LYD_VALUE_CHECK_ ## TYPE_VAL (NODE __VA_OPT__(,) __VA_ARGS__)
+                assert_string_equal(CANNONICAL_VAL, (NODE).canonical)
 
-/* 
+/*
     LYD VALUES CHECKING SPECIALIZATION, DONT USE THESE MACROS
 */
 
 /**
  * @brief Macro check correctnes of lyd_value which is type EMPTY.
- * @brief Example LYD_VALUE_CHECK(node->value, EMPTY, ""); 
+ * @brief Example LYD_VALUE_CHECK(node->value, EMPTY, "");
  * @param[in] NODE     lyd_value
  */
 #define LYD_VALUE_CHECK_EMPTY(NODE) \
@@ -632,10 +633,10 @@
 /**
  * @brief Macro check correctnes of lyd_value which is type UNION.
  * @brief Example LYD_VALUE_CHECK(node->value, UNION, "12", INT8, "12", 12);
- * @warning   type of subvalue cannot be UNION. Example of calling 
+ * @warning   type of subvalue cannot be UNION. Example of calling
  * @param[in] NODE       lyd_value
- * @param[in] VALUE_TYPE type of suvalue. INT8, UINT8 
- * @param[in] CNNONICAL_VAL string represents cannonical value 
+ * @param[in] VALUE_TYPE type of suvalue. INT8, UINT8
+ * @param[in] CNNONICAL_VAL string represents cannonical value
  */
 #define LYD_VALUE_CHECK_UNION(NODE, VALUE_TYPE, CANNONICAL_VAL, ...) \
                 assert_non_null((NODE).realtype); \
@@ -701,6 +702,17 @@
                 assert_non_null((NODE).realtype);\
                 assert_int_equal(LY_TYPE_INT8, (NODE).realtype->basetype); \
                 assert_int_equal(VALUE, (NODE).int8)
+
+/**
+ * @brief Macro check correctnes of lyd_value which is type INT8.
+ * @brief Example LYD_VALUE_CHECK(node->value, INT8, "12", 12);
+ * @param[in] NODE  lyd_value
+ * @param[in] VALUE inteager (-128 to 127).
+ */
+#define LYD_VALUE_CHECK_INT16(NODE, VALUE) \
+                assert_non_null((NODE).realtype);\
+                assert_int_equal(LY_TYPE_INT16, (NODE).realtype->basetype); \
+                assert_int_equal(VALUE, (NODE).int16)
 
 /**
  * @brief Macro check correctnes of lyd_value which is type UINT8.

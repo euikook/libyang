@@ -234,7 +234,7 @@ test_path(void **state)
     ret = lyd_new_path2(NULL, ctx, "/a:foo", NULL, 0, 0, NULL, NULL);
     assert_int_equal(ret, LY_EVALID);
     err_msg[0]  = "Invalid empty uint16 value.";
-    err_path[0] = "/a:foo"; 
+    err_path[0] = "/a:foo";
     LY_ERROR_CHECK(ctx, err_msg, err_path);
 
     ret = lyd_new_path2(NULL, ctx, "/a:foo", NULL, 0, LYD_NEW_PATH_OPAQ, NULL, &root);

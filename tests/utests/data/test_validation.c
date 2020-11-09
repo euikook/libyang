@@ -421,7 +421,7 @@ test_when(void **state)
     char *err_path[1];
     const char *data;
     struct lyd_node *tree;
-    
+
     CONTEXT_CREATE();
 
     data    = "<c xmlns=\"urn:tests:a\">hey</c>";
@@ -430,7 +430,6 @@ test_when(void **state)
     LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
     LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
-
     data = "<cont xmlns=\"urn:tests:a\"><b>val_b</b></cont><c xmlns=\"urn:tests:a\">hey</c>";
     LYD_NODE_CREATE(data, tree);
     LYSC_NODE_CHECK(tree->next->schema, LYS_LEAF, "c");
@@ -438,7 +437,6 @@ test_when(void **state)
     LYD_NODE_DESTROY(tree);
 
     data = "<cont xmlns=\"urn:tests:a\"><a>val</a><b>val_b</b></cont><c xmlns=\"urn:tests:a\">val_c</c>";
-
     LYD_NODE_CREATE(data, tree);
     LYSC_NODE_CHECK(lyd_child(tree)->schema, LYS_LEAF, "a");
     assert_int_equal(LYD_WHEN_TRUE, lyd_child(tree)->flags);
@@ -483,7 +481,7 @@ test_mandatory(void **state)
     LYD_NODE_CREATE(data, tree);
     lyd_free_siblings(tree);
 
-    CONTEXT_DESTROY; 
+    CONTEXT_DESTROY;
 }
 
 static void
@@ -537,6 +535,13 @@ test_minmax(void **state)
     CONTEXT_DESTROY;
 }
 
+#define XML_NODE_LT_CREATE(KEY, VALUE)\
+		"<lt xmlns=\"urn:tests:d\">"\
+        	"<k>"  KEY  "</k>"\
+        	"<l1>" VALUE "</l1>"\
+    	"</lt>"
+
+
 static void
 test_unique(void **state)
 {
@@ -550,37 +555,22 @@ test_unique(void **state)
     CONTEXT_CREATE();
 
     data =
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val1</k>"
-        "<l1>same</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val2</k>"
-    "</lt>";
+		XML_NODE_LT_CREATE("val1", "same")
+	    "<lt xmlns=\"urn:tests:d\">"
+    	    "<k>val2</k>"
+    	"</lt>";
     LYD_NODE_CREATE(data, tree);
     LYD_NODE_DESTROY(tree);
 
     data =
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val1</k>"
-        "<l1>same</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val2</k>"
-        "<l1>not-same</l1>"
-    "</lt>";
+		XML_NODE_LT_CREATE("val1", "same")
+   		XML_NODE_LT_CREATE("val2", "not-same");
     LYD_NODE_CREATE(data, tree);
     LYD_NODE_DESTROY(tree);
 
     data =
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val1</k>"
-        "<l1>same</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val2</k>"
-        "<l1>same</l1>"
-    "</lt>";
+    	XML_NODE_LT_CREATE("val1", "same")
+    	XML_NODE_LT_CREATE("val2", "same");
     err_msg[0] = "Unique data leaf(s) \"l1\" not satisfied in \"/d:lt[k='val1']\" and \"/d:lt[k='val2']\".";
     err_path[0] = "/d:lt[k='val2']";
     LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
@@ -588,104 +578,51 @@ test_unique(void **state)
 
     /* now try with more instances */
     data =
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val1</k>"
-        "<l1>1</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val2</k>"
-        "<l1>2</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val3</k>"
-        "<l1>3</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val4</k>"
-        "<l1>4</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val5</k>"
-        "<l1>5</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val6</k>"
-        "<l1>6</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val7</k>"
-        "<l1>7</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val8</k>"
-        "<l1>8</l1>"
-    "</lt>";
+    	XML_NODE_LT_CREATE("val1", "1")
+    	XML_NODE_LT_CREATE("val2", "2")
+    	XML_NODE_LT_CREATE("val3", "3")
+    	XML_NODE_LT_CREATE("val4", "4")
+    	XML_NODE_LT_CREATE("val5", "5")
+    	XML_NODE_LT_CREATE("val6", "6")
+    	XML_NODE_LT_CREATE("val7", "7")
+    	XML_NODE_LT_CREATE("val8", "8");
     LYD_NODE_CREATE(data, tree);
     LYD_NODE_DESTROY(tree);
 
     data =
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val1</k>"
-        "<l1>1</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val2</k>"
-        "<l1>2</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val3</k>"
-        "<l1>3</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val4</k>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val5</k>"
-        "<l1>5</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val6</k>"
-        "<l1>6</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val7</k>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val8</k>"
-    "</lt>";
+    	XML_NODE_LT_CREATE("val1", "1")
+    	XML_NODE_LT_CREATE("val2", "2")
+    	XML_NODE_LT_CREATE("val3", "3")
+    	"<lt xmlns=\"urn:tests:d\">"
+    	    "<k>val4</k>"
+    	"</lt>"
+    	XML_NODE_LT_CREATE("val5", "5")
+    	XML_NODE_LT_CREATE("val6", "6")
+    	"<lt xmlns=\"urn:tests:d\">"
+    	    "<k>val7</k>"
+    	"</lt>"
+    	"<lt xmlns=\"urn:tests:d\">"
+    	    "<k>val8</k>"
+    	"</lt>";
     LYD_NODE_CREATE(data, tree);
     LYD_NODE_DESTROY(tree);
 
     data =
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val1</k>"
-        "<l1>1</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val2</k>"
-        "<l1>2</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val3</k>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val4</k>"
-        "<l1>4</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val5</k>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val6</k>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val7</k>"
-        "<l1>2</l1>"
-    "</lt>"
-    "<lt xmlns=\"urn:tests:d\">"
-        "<k>val8</k>"
-        "<l1>8</l1>"
-    "</lt>";
+    	XML_NODE_LT_CREATE("val1", "1")
+    	XML_NODE_LT_CREATE("val2", "2")
+    	"<lt xmlns=\"urn:tests:d\">"
+    	    "<k>val3</k>"
+    	"</lt>"
+    	XML_NODE_LT_CREATE("val4", "4")
+    	"<lt xmlns=\"urn:tests:d\">"
+    	    "<k>val5</k>"
+    	"</lt>"
+    	"<lt xmlns=\"urn:tests:d\">"
+    	    "<k>val6</k>"
+    	"</lt>"
+    	XML_NODE_LT_CREATE("val7", "2")
+    	XML_NODE_LT_CREATE("val8", "8");
+
     err_msg[0] = "Unique data leaf(s) \"l1\" not satisfied in \"/d:lt[k='val7']\" and \"/d:lt[k='val2']\".";
     err_path[0] = "/d:lt[k='val2']";
     LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
@@ -693,6 +630,25 @@ test_unique(void **state)
 
     CONTEXT_DESTROY;
 }
+
+
+
+#define XML_NODE_LT3_CREATE(KK_VAL, L3_VAL)\
+        "<lt3>"\
+            "<kk>" KK_VAL "</kk>"\
+            "<l3>" L3_VAL "</l3>"\
+        "</lt3>"\
+
+#define XML_NODE_LT2_START(K_VAL, CONT_VAL)\
+    "<lt2 xmlns=\"urn:tests:d\">"\
+        "<k>" K_VAL "</k>"\
+        "<cont>"\
+            "<l2>" CONT_VAL "</l2>"\
+        "</cont>"\
+
+#define XML_NODE_LT2_END\
+    "</lt2>"
+
 
 static void
 test_unique_nested(void **state)
@@ -708,121 +664,48 @@ test_unique_nested(void **state)
 
     /* nested list uniquest are compared only with instances in the same parent list instance */
     data =
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val1</k>"
-        "<cont>"
-            "<l2>1</l2>"
-        "</cont>"
-        "<l4>1</l4>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val2</k>"
-        "<cont>"
-            "<l2>2</l2>"
-        "</cont>"
-        "<l4>2</l4>"
-        "<lt3>"
-            "<kk>val1</kk>"
-            "<l3>1</l3>"
-        "</lt3>"
-        "<lt3>"
-            "<kk>val2</kk>"
-            "<l3>2</l3>"
-        "</lt3>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val3</k>"
-        "<cont>"
-            "<l2>3</l2>"
-        "</cont>"
-        "<l4>3</l4>"
-        "<lt3>"
-            "<kk>val1</kk>"
-            "<l3>2</l3>"
-        "</lt3>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val4</k>"
-        "<cont>"
-            "<l2>4</l2>"
-        "</cont>"
-        "<l4>4</l4>"
-        "<lt3>"
-            "<kk>val1</kk>"
-            "<l3>3</l3>"
-        "</lt3>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val5</k>"
-        "<cont>"
-            "<l2>5</l2>"
-        "</cont>"
-        "<l4>5</l4>"
-        "<lt3>"
-            "<kk>val1</kk>"
-            "<l3>3</l3>"
-        "</lt3>"
-    "</lt2>";
+        XML_NODE_LT2_START("val1", "1")
+            "<l4>1</l4>"
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val2", "2")
+            "<l4>2</l4>"
+            XML_NODE_LT3_CREATE("val1", "1")
+            XML_NODE_LT3_CREATE("val2", "2")
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val3", "3")
+            "<l4>3</l4>"
+            XML_NODE_LT3_CREATE("val1", "2")
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val4", "4")
+            "<l4>4</l4>"
+            XML_NODE_LT3_CREATE("val1", "3")
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val5", "5")
+            "<l4>5</l4>"
+            XML_NODE_LT3_CREATE("val1", "3")
+        XML_NODE_LT2_END;
     LYD_NODE_CREATE(data, tree);
     LYD_NODE_DESTROY(tree);
 
     data =
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val1</k>"
-        "<cont>"
-            "<l2>1</l2>"
-        "</cont>"
-        "<l4>1</l4>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val2</k>"
-        "<cont>"
-            "<l2>2</l2>"
-        "</cont>"
-        "<lt3>"
-            "<kk>val1</kk>"
-            "<l3>1</l3>"
-        "</lt3>"
-        "<lt3>"
-            "<kk>val2</kk>"
-            "<l3>2</l3>"
-        "</lt3>"
-        "<lt3>"
-            "<kk>val3</kk>"
-            "<l3>1</l3>"
-        "</lt3>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val3</k>"
-        "<cont>"
-            "<l2>3</l2>"
-        "</cont>"
-        "<l4>1</l4>"
-        "<lt3>"
-            "<kk>val1</kk>"
-            "<l3>2</l3>"
-        "</lt3>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val4</k>"
-        "<cont>"
-            "<l2>4</l2>"
-        "</cont>"
-        "<lt3>"
-            "<kk>val1</kk>"
-            "<l3>3</l3>"
-        "</lt3>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val5</k>"
-        "<cont>"
-            "<l2>5</l2>"
-        "</cont>"
-        "<lt3>"
-            "<kk>val1</kk>"
-            "<l3>3</l3>"
-        "</lt3>"
-    "</lt2>";
+        XML_NODE_LT2_START("val1", "1")
+            "<l4>1</l4>"
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val2", "2")
+            XML_NODE_LT3_CREATE("val1", "1")
+            XML_NODE_LT3_CREATE("val2", "2")
+            XML_NODE_LT3_CREATE("val3", "1")
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val3", "3")
+            "<l4>1</l4>"
+            XML_NODE_LT3_CREATE("val1", "2")
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val4", "4")
+            XML_NODE_LT3_CREATE("val1", "3")
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val5", "5")
+            XML_NODE_LT3_CREATE("val1", "3")
+        XML_NODE_LT2_END;
     err_msg[0] = "Unique data leaf(s) \"l3\" not satisfied in"
                   " \"/d:lt2[k='val2']/lt3[kk='val3']\" and"
                   " \"/d:lt2[k='val2']/lt3[kk='val1']\".";
@@ -832,90 +715,50 @@ test_unique_nested(void **state)
 
 
     data =
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val1</k>"
-        "<cont>"
-            "<l2>1</l2>"
-        "</cont>"
-        "<l4>1</l4>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val2</k>"
-        "<cont>"
-            "<l2>2</l2>"
-        "</cont>"
-        "<l4>2</l4>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val3</k>"
-        "<cont>"
-            "<l2>3</l2>"
-        "</cont>"
-        "<l4>3</l4>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val4</k>"
-        "<cont>"
-            "<l2>2</l2>"
-        "</cont>"
-        "<l4>2</l4>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val5</k>"
-        "<cont>"
-            "<l2>5</l2>"
-        "</cont>"
-        "<l4>5</l4>"
-    "</lt2>";
+        XML_NODE_LT2_START("val1", "1")
+            "<l4>1</l4>"
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val2", "2")
+            "<l4>2</l4>"
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val3", "3")
+            "<l4>3</l4>"
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val4", "2")
+            "<l4>2</l4>"
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val5", "5")
+            "<l4>5</l4>"
+        XML_NODE_LT2_END;
     err_msg[0] = "Unique data leaf(s) \"cont/l2 l4\" not satisfied in \"/d:lt2[k='val4']\" and \"/d:lt2[k='val2']\".";
     err_path[0] = "/d:lt2[k='val2']";
     LYD_NODE_CREATE_PARAM(data, LYD_XML, 0, LYD_VALIDATE_PRESENT, LY_EVALID, tree);
     LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     data =
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val1</k>"
-        "<cont>"
-            "<l2>1</l2>"
-        "</cont>"
-        "<l4>1</l4>"
-        "<l5>1</l5>"
-        "<l6>1</l6>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val2</k>"
-        "<cont>"
-            "<l2>2</l2>"
-        "</cont>"
-        "<l4>1</l4>"
-        "<l5>1</l5>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val3</k>"
-        "<cont>"
-            "<l2>3</l2>"
-        "</cont>"
-        "<l4>1</l4>"
-        "<l5>3</l5>"
-        "<l6>3</l6>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val4</k>"
-        "<cont>"
-            "<l2>4</l2>"
-        "</cont>"
-        "<l4>1</l4>"
-        "<l6>1</l6>"
-    "</lt2>"
-    "<lt2 xmlns=\"urn:tests:d\">"
-        "<k>val5</k>"
-        "<cont>"
-            "<l2>5</l2>"
-        "</cont>"
-        "<l4>1</l4>"
-        "<l5>3</l5>"
-        "<l6>3</l6>"
-    "</lt2>";
+        XML_NODE_LT2_START("val1", "1")
+            "<l4>1</l4>"
+            "<l5>1</l5>"
+            "<l6>1</l6>"
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val2", "2")
+            "<l4>1</l4>"
+            "<l5>1</l5>"
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val3", "3")
+            "<l4>1</l4>"
+            "<l5>3</l5>"
+            "<l6>3</l6>"
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val4", "4")
+            "<l4>1</l4>"
+            "<l6>1</l6>"
+        XML_NODE_LT2_END
+        XML_NODE_LT2_START("val5", "5")
+            "<l4>1</l4>"
+            "<l5>3</l5>"
+            "<l6>3</l6>"
+        XML_NODE_LT2_END;
 
     err_msg[0] = "Unique data leaf(s) \"l5 l6\" not satisfied in \"/d:lt2[k='val5']\" and \"/d:lt2[k='val3']\".";
     err_path[0] = "/d:lt2[k='val3']";
@@ -1211,7 +1054,7 @@ test_state(void **state)
     LYD_NODE_CREATE_PARAM(data, LYD_XML, LYD_PARSE_ONLY, 0, LY_SUCCESS, tree);
     assert_int_equal(LY_EVALID, lyd_validate_all(&tree, NULL, LYD_VALIDATE_PRESENT | LYD_VALIDATE_NO_STATE, NULL));
     err_msg[0]  = "Invalid state data node \"cont2\" found.";
-    err_path[0] = "/h:cont/cont2"; 
+    err_path[0] = "/h:cont/cont2";
     LY_ERROR_CHECK(CONTEXT_GET, err_msg, err_path);
 
     LYD_NODE_DESTROY(tree);
@@ -1247,7 +1090,7 @@ test_must(void **state)
     "</cont>";
     LYD_NODE_CREATE(data, tree);
     LYD_NODE_DESTROY(tree);
-    
+
     CONTEXT_DESTROY;
 }
 

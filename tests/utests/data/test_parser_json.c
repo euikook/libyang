@@ -130,8 +130,6 @@ test_leaf(void **state)
     LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_LEAF, "foo");
     LYD_META_CHECK(tree->meta, tree, "hint", INT8, "1", 1);
-
-    assert_non_null(tree->meta->next);
     LYD_META_CHECK(tree->meta->next, tree, "hint", INT8, "2", 2);
     assert_null(tree->meta->next->next);
 
@@ -205,10 +203,7 @@ test_leaflist(void **state)
     LYSC_NODE_CHECK(tree->schema, LYS_LEAFLIST, "ll1");
     ll = (struct lyd_node_term*)tree;
     LYD_VALUE_CHECK(ll->value, UINT8, "1", 1);
-    assert_non_null(ll->meta);
     LYD_META_CHECK(ll->meta, ll, "hint", INT8, "1", 1);
-
-    assert_non_null(ll->meta->next);
     LYD_META_CHECK(ll->meta->next, ll->meta->next->parent, "hint", INT8, "10", 10);
 
     assert_non_null(tree->next);
@@ -221,7 +216,6 @@ test_leaflist(void **state)
     LYSC_NODE_CHECK(tree->next->next->schema, LYS_LEAFLIST, "ll1");
     ll = (struct lyd_node_term*)tree->next->next;
     LYD_VALUE_CHECK(ll->value, UINT8, "3", 3);
-    assert_non_null(ll->meta);
     LYD_META_CHECK(ll->meta, ll, "hint", INT8, "3", 3);
     assert_null(ll->meta->next);
 
@@ -353,7 +347,6 @@ test_list(void **state)
     data = "{\"a:cp\":{\"@\":{\"a:hint\":1}}}";
     LYD_NODE_CREATE(data, 0, tree);
     LYSC_NODE_CHECK(tree->schema, LYS_CONTAINER, "cp");
-    assert_non_null(tree->meta);
     LYD_META_CHECK(tree->meta, tree, "hint", INT8, "1", 1);
     assert_null(tree->meta->next);
 
@@ -414,7 +407,7 @@ test_opaq(void **state)
 
     /* opaq flag */
     LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0, LYD_JSON, 0, "foo3", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0, LYD_JSON, "foo3", 0, 0, NULL,  0,  "");
     LYD_NODE_CHECK_CHAR(tree, data);
     LYD_NODE_DESTROY(tree);
 
@@ -426,7 +419,7 @@ test_opaq(void **state)
 
     /* opaq flag */
     LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "l1", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, "l1", 0, 0, NULL,  0,  "");
     LYD_NODE_CHECK_CHAR(tree, data);
     LYD_NODE_DESTROY(tree);
 
@@ -438,19 +431,19 @@ test_opaq(void **state)
 
     /* opaq flag */
     LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "l1", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, "l1", 0, 0, NULL,  0,  "");
     LYD_NODE_CHECK_CHAR(tree, data);
     LYD_NODE_DESTROY(tree);
 
     data = "{\"a:l1\":[{\"a\":\"val_a\",\"b\":\"val_b\",\"c\":{\"val\":\"val_c\"}}]}";
     LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "l1", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, "l1", 0, 0, NULL,  0,  "");
     LYD_NODE_CHECK_CHAR(tree, data);
     LYD_NODE_DESTROY(tree);
 
     data = "{\"a:l1\":[{\"a\":\"val_a\",\"b\":\"val_b\"}]}";
     LYD_NODE_CREATE(data, LYD_PARSE_OPAQ, tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "l1", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, "l1", 0, 0, NULL,  0,  "");
     LYD_NODE_CHECK_CHAR(tree, data);
     LYD_NODE_DESTROY(tree);
 
@@ -481,7 +474,7 @@ test_rpc(void **state)
     assert_non_null(op);
     LYSC_ACTION_CHECK(op->schema, LYS_RPC, "edit-config");
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "rpc", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, "rpc", 0, 0, NULL,  0,  "");
     /* TODO support generic attributes in JSON ?
     assert_non_null(((struct lyd_node_opaq *)tree)->attr);
     */
@@ -495,10 +488,10 @@ test_rpc(void **state)
     LYSC_NODE_CHECK(node->schema, LYS_CONTAINER, "cp");
     node = lyd_child(node);
     /* z has no value */
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0x1, 0, LYD_JSON, 0, "z", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0x1, 0, LYD_JSON, "z", 0, 0, NULL,  0,  "");
     node = node->parent->next;
     /* l1 key c has invalid value so it is at the end */
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0x1, 0x1, LYD_JSON, 0, "l1", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0x1, 0x1, LYD_JSON, "l1", 0, 0, NULL,  0,  "");
 
     LYD_NODE_CHECK_CHAR(tree, data);
     LYD_NODE_DESTROY(tree);
@@ -528,9 +521,9 @@ test_action(void **state)
     assert_non_null(op);
     LYSC_ACTION_CHECK(op->schema, LYS_ACTION, "act");
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "rpc", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, "rpc", 0, 0, NULL,  0,  "");
     node = lyd_child(tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0, 0x1, LYD_JSON, 0, "action", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0, 0x1, LYD_JSON, "action", 0, 0, NULL,  0,  "");
 
     LYD_NODE_CHECK_CHAR(tree, data);
     LYD_NODE_DESTROY(tree);
@@ -560,9 +553,9 @@ test_notification(void **state)
     assert_non_null(ntf);
     LYSC_NOTIF_CHECK(ntf->schema, "n1");
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "notification", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, "notification", 0, 0, NULL,  0,  "");
     node = lyd_child(tree);
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0, 0, LYD_JSON, 0, "eventTime", "2037-07-08T00:01:00Z");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)node, 0, 0, LYD_JSON, "eventTime", 0, 0, NULL,  0,  "2037-07-08T00:01:00Z");
     node = node->next;
     LYSC_NODE_CHECK(node->schema, LYS_CONTAINER, "c");
 
@@ -618,7 +611,7 @@ test_reply(void **state)
     LYSC_NODE_CHECK(node->schema, LYS_LEAF, "al");
     assert_true(node->schema->flags & LYS_CONFIG_R);
 
-    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, 0, "rpc-reply", "");
+    LYD_NODE_OPAQ_CHECK((struct lyd_node_opaq *)tree, 0, 0x1, LYD_JSON, "rpc-reply", 0, 0, NULL,  0,  "");
     node = lyd_child(tree);
     LYSC_NODE_CHECK(node->schema, LYS_CONTAINER, "c");
 
