@@ -197,7 +197,9 @@ ly_log_level(LY_LOG_LEVEL level)
 {
     LY_LOG_LEVEL prev = ly_ll;
 
-    ly_ll = level;
+    if (level != LY_LLCUR) {
+        ly_ll = level;
+    }
     return prev;
 }
 

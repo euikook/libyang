@@ -84,6 +84,7 @@ typedef uint8_t ly_bool;
  */
 typedef enum
 {
+    LY_LLCUR = -1, /**< Special value for ::ly_log_level() which does not change the verbosity level and make it to return the current level. */
     LY_LLERR = 0, /**< Print only error messages, default value. */
     LY_LLWRN = 1, /**< Print error and warning messages. */
     LY_LLVRB = 2, /**< Besides errors and warnings, print some other verbose messages. */
@@ -93,6 +94,9 @@ typedef enum
 
 /**
  * @brief Set logger verbosity level.
+ *
+ * If you want only to get the current value, use ::LY_LLCUR as @p level value.
+ *
  * @param[in] level Verbosity level.
  * @return Previous verbosity level.
  */
