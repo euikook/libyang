@@ -338,22 +338,27 @@ static const char trd_node_name_suffix_choice[] = ")";
 static const char trd_node_name_suffix_case[] = ")";
 static const char trd_node_name_triple_dot[] = "...";
 
+static const char trd_node_name_rpc_input[] = "input";
+static const char trd_node_name_rpc_output[] = "output";
+
 /**
  * @brief Type of the node.
+ *
+ * Used mainly to complete the correct <opts> next to or around the <name>.
  */
 typedef enum
 {
-    trd_node_else = 0,              /**< For some node which does not require special treatment. */
-    trd_node_case,                  /**< For case node. */
-    trd_node_choice,                /**< For choice node. */
-    trd_node_optional_choice,       /**< For choice node with optional mark (?). */
-    trd_node_optional,              /**< For an optional leaf, anydata, or anyxml. */
-    trd_node_container,             /**< For a presence container. */
-    trd_node_listLeaflist,          /**< For a leaf-list or list (without keys). */
-    trd_node_keys,                  /**< For a list's keys. */
-    trd_node_top_level1,            /**< For a top-level data node in a mounted module. */
-    trd_node_top_level2,            /**< For a top-level data node of a module identified in a mount point parent reference. */
-    trd_node_triple_dot             /**< For collapsed sibling nodes and their children. */
+    trd_node_else = 0,              /**< For some node which does not require special treatment. <name> */
+    trd_node_case,                  /**< For case node. :(<name>) */
+    trd_node_choice,                /**< For choice node. (<name>) */
+    trd_node_optional_choice,       /**< For choice node with optional mark. (<name>)? */
+    trd_node_optional,              /**< For an optional leaf, anydata, or anyxml. <name>? */
+    trd_node_container,             /**< For a presence container. <name>! */
+    trd_node_listLeaflist,          /**< For a leaf-list or list (without keys). <name>* */
+    trd_node_keys,                  /**< For a list's keys. <name>* [<keys>] */
+    trd_node_top_level1,            /**< For a top-level data node in a mounted module. <name>/ */
+    trd_node_top_level2,            /**< For a top-level data node of a module identified in a mount point parent reference. <name>@ */
+    trd_node_triple_dot             /**< For collapsed sibling nodes and their children. Special case which doesn't belong here very well. */
 } trt_node_type;
 
 
@@ -2341,22 +2346,30 @@ tro_read_node(struct trt_parent_cache ca, const struct trt_tree_ctx* tc)
     assert(pn->nodetype != LYS_UNKNOWN && pn->name != NULL);
 
     trt_node ret = trp_empty_node();
+
+    /* remember:
+     * - LYS_INTPUT and LYS_OUTPUT lysp_node don't have
+     *      flags, name and iffeatures element in their structure.
+     */
+
     /* <status> */
     ret.status =
+        /* LYS_INPUT and LYS_OUTPUT is special case */
+        pn->nodetype & (LYS_INPUT | LYS_OUTPUT) ?       ca.lys_status :
         /* if ancestor's status is deprc or obslt */
         ca.lys_status & (LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)
-        /* or node's status is not set */
-        || !(pn->flags & (LYS_STATUS_CURR | LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)) ?
-            /* get ancestor's status */
-            tro_lysp_flags2status(ca.lys_status) :
-            /* else get node's status */
-            tro_lysp_flags2status(pn->flags);
+            /* or node's status is not set */
+            || !(pn->flags & (LYS_STATUS_CURR | LYS_STATUS_DEPRC | LYS_STATUS_OBSLT)) ?
+                /* get ancestor's status */
+                tro_lysp_flags2status(ca.lys_status) :
+                /* else get node's status */
+                tro_lysp_flags2status(pn->flags);
 
     /* TODO: trd_flags_type_mount_point aka "mp" is not supported right now. */
     /* <flags> */
     ret.flags = 
-        pn->nodetype & LYS_OUTPUT ?                     trd_flags_type_ro :
         pn->nodetype & LYS_INPUT ?                      trd_flags_type_rpc_input_params :
+        pn->nodetype & LYS_OUTPUT ?                     trd_flags_type_ro :
         pn->nodetype & LYS_USES ?                       trd_flags_type_uses_of_grouping :
         pn->nodetype & (LYS_RPC | LYS_ACTION) ?         trd_flags_type_rpc :
         pn->nodetype & LYS_NOTIF ?                      trd_flags_type_notif :
@@ -2368,6 +2381,7 @@ tro_read_node(struct trt_parent_cache ca, const struct trt_tree_ctx* tc)
     /* TODO: trd_node_top_level2 aka '@' is not supported right now. */
     /* set type of the node */
     ret.name.type =
+        pn->nodetype & (LYS_INPUT | LYS_OUTPUT) ?       trd_node_else :
         pn->nodetype & LYS_CASE ?                       trd_node_case :
         pn->nodetype & LYS_CHOICE
             && !(pn->flags & LYS_MAND_TRUE) ?           trd_node_optional_choice :
@@ -2387,7 +2401,10 @@ tro_read_node(struct trt_parent_cache ca, const struct trt_tree_ctx* tc)
     /* TODO: ret.name.module_prefix is not supported right now. */
 
     /* set node's name */
-    ret.name.str = pn->name;
+    ret.name.str =
+        pn->nodetype & (LYS_INPUT) ?    trd_node_name_rpc_input :
+        pn->nodetype & (LYS_OUTPUT) ?   trd_node_name_rpc_output :
+        pn->name;
 
     /* <type> */
     const char* tmp = NULL;
@@ -2404,7 +2421,9 @@ tro_read_node(struct trt_parent_cache ca, const struct trt_tree_ctx* tc)
     }
 
     /* <iffeature> */
-    ret.iffeatures = tro_lysp_node_has_iffeature(pn->iffeatures);
+    ret.iffeatures =
+        pn->nodetype & (LYS_INPUT | LYS_OUTPUT) ?   trp_empty_iffeature() :
+        tro_lysp_node_has_iffeature(pn->iffeatures);
 
     return ret;
 }
@@ -2435,18 +2454,24 @@ tro_modi_next_sibling(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
     if(tc->section == trd_sect_rpcs) {
         /* TODO: parent_cache logic */
         if(tc->pn->nodetype & LYS_INPUT) {
-            /* TODO: go to lysp_action, then go to LYS_OUTPUT if exists */
-            return trp_empty_node();
+            /* go to lysp_action (parent), then go to LYS_OUTPUT if exists */
+            const struct lysp_action *parent = (struct lysp_action *)tc->pn->parent;
+            const struct lysp_node *output_data = parent->output.data;
+            if(output_data) {
+                /* TODO: parent_cache logic */
+                tc->pn = output_data;
+                return tro_read_node(ca, tc);
+            } else {
+                return trp_empty_node();
+            }
         } else if(tc->pn->nodetype & LYS_OUTPUT) {
             /* there is nowhere else to go */
             return trp_empty_node();
         } else if(tc->pn->nodetype & (LYS_RPC | LYS_ACTION)){
             /* go to next lysp_action by lysp_module */
-            tc->index_within_section++;
             const struct lysp_action *arr = tc->module->parsed->rpcs;
-            if(arr == NULL)
-                return trp_empty_node();
-            if(tc->index_within_section < LY_ARRAY_COUNT(arr)) {
+            if(tc->index_within_section + 1 < LY_ARRAY_COUNT(arr)) {
+                tc->index_within_section++;
                 const struct lysp_action *item = &(arr[tc->index_within_section]);
                 tc->pn = (const struct lysp_node*)item;
                 return tro_read_node(ca, tc);
@@ -2455,8 +2480,17 @@ tro_modi_next_sibling(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
             }
         } /* else actual node is rpc's data node */
     } else if(tc->section == trd_sect_notif && tc->pn->nodetype & LYS_NOTIF) {
-        /* TODO: got to the next lysp_notif by lysp_module */
+        /* go to the next lysp_notif by lysp_module */
         /* TODO: parent_cache logic */
+        const struct lysp_notif *arr = tc->module->parsed->notifs;
+        if(tc->index_within_section + 1 < LY_ARRAY_COUNT(arr)) {
+            tc->index_within_section++;
+            const struct lysp_notif *item = &(arr[tc->index_within_section]);
+            tc->pn = (const struct lysp_node*) item;
+            return tro_read_node(ca, tc);
+        } else {
+            return trp_empty_node();
+        }
     }
 
     /* data nodes */
@@ -2474,19 +2508,34 @@ tro_modi_next_child(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
     assert(tc != NULL && tc->pn != NULL);
 
     if(tc->pn->nodetype & (LYS_ACTION | LYS_RPC)) {
-        /* TODO: parent_cache logic */
-        /* TODO: go to LYS_INPUT if exists
-         * else go to LYS_OUTPUT if exists
-         */
-    }
-
-    const struct lysp_node *pn = lysp_node_children(tc->pn);
-    if(pn != NULL) {
-        tc->pn = pn;
-        /* TODO: parent_cache logic */
-        return (struct trt_level){};
+        const struct lysp_action *act = (struct lysp_action *)tc->pn;
+        const struct lysp_node *input_data = act->input.data;
+        const struct lysp_node *output_data = act->output.data;
+        if(input_data) {
+            /* go to LYS_INPUT */
+            /* be careful, it's not quite lysp_node. Only parent and nodetype entries are valid. */
+            tc->pn = (const struct lysp_node*) &act->input;
+            /* TODO: parent_cache logic */
+            return (struct trt_level){tro_read_node(ca, tc), ca};
+        } else if(output_data){
+            /* go to LYS_OUTPUT */
+            /* be careful, it's not quite lysp_node. Only parent and nodetype entries are valid. */
+            tc->pn = (const struct lysp_node*) &act->output;
+            /* TODO: parent_cache logic */
+            return (struct trt_level){tro_read_node(ca, tc), ca};
+        } else {
+            /* input action and output action are not set */
+            return (struct trt_level){trp_empty_node(), ca};
+        }
     } else {
-        return (struct trt_level){trp_empty_node(), ca};
+        const struct lysp_node *pn = lysp_node_children(tc->pn);
+        if(pn != NULL) {
+            tc->pn = pn;
+            /* TODO: parent_cache logic */
+            return (struct trt_level){};
+        } else {
+            return (struct trt_level){trp_empty_node(), ca};
+        }
     }
 }
 
@@ -2706,6 +2755,19 @@ tmp_print_status(const struct lysp_node *node, struct ly_out *out)
 }
 
 void
+tmp_print_config(const struct lysp_node *node, struct ly_out *out)
+{
+    ly_print_(out, "config: ");
+    if(node->flags & (LYS_CONFIG_R)) {
+        ly_print_(out, "ro");
+    } else if(node->flags & (LYS_CONFIG_W)) {
+        ly_print_(out, "rw");
+    } else {
+        ly_print_(out, "empty");
+    }
+}
+
+void
 tmp_print_typeNameSomething(const struct lysp_node *node, struct ly_out *out, lysp_print_item_clb fi)
 {
     char type[10] = {};
@@ -2787,13 +2849,25 @@ LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct ly
     tmp_browse_all(out, module->parsed->data, tmp_print_typeNameSomething, tmp_print_status);
     ly_print_(out, "<<<<module_data end----\n");
 
-    ly_print_(out, "----groupings start>>>>\n");
-    const struct lysp_grp *grp = module->parsed->groupings;
-    LY_ARRAY_COUNT_TYPE i;
-    LY_ARRAY_FOR(grp, i) {
-        tmp_browse_all(out, grp[i].data, tmp_print_typeNameSomething, tmp_print_status);
+    {
+        ly_print_(out, "----groupings start>>>>\n");
+        const struct lysp_grp *grp = module->parsed->groupings;
+        LY_ARRAY_COUNT_TYPE i;
+        LY_ARRAY_FOR(grp, i) {
+            tmp_browse_all(out, grp[i].data, tmp_print_typeNameSomething, tmp_print_status);
+        }
+        ly_print_(out, "<<<<groupings end----\n");
     }
-    ly_print_(out, "<<<<groupings end----\n");
+
+    {
+        ly_print_(out, "----notifications start>>>>\n");
+        const struct lysp_notif *not = module->parsed->notifs;
+        LY_ARRAY_COUNT_TYPE i;
+        LY_ARRAY_FOR(not, i) {
+            tmp_browse_all(out, not[i].data, tmp_print_typeNameSomething, tmp_print_config);
+        }
+        ly_print_(out, "<<<<notifications end----\n");
+    }
 
     return 0;
 }
