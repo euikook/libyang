@@ -629,7 +629,8 @@ struct trt_parent_cache;
  */
 struct trt_fp_modify_ctx
 {
-    void (*parent)(struct trt_tree_ctx*);                                           /**< Jump to parent node. */
+    ly_bool (*parent)(struct trt_tree_ctx*);                                        /**< Jump to parent node. Return true if parent exists. */
+    void (*first_sibling)(struct trt_tree_ctx*);                                    /**< Jump on the first of the siblings. */
     trt_node (*next_sibling)(struct trt_parent_cache, struct trt_tree_ctx*);        /**< Jump to next sibling of the current node. */
     struct trt_level (*next_child)(struct trt_parent_cache, struct trt_tree_ctx*);  /**< Jump to the child of the current node. */
     trt_keyword_stmt (*next_augment)(struct trt_tree_ctx*);                         /**< Jump to the augment section. */
@@ -764,9 +765,6 @@ void trb_print_entire_node(uint32_t max_gap_before_type, trt_wrapper, struct trt
 
 /* --------- <For browse tree> --------- */
 
-/** Modify trt_tree_ctx so that current node is first sibling. */
-void trb_jump_to_first_sibling(struct trt_fp_modify_ctx, struct trt_tree_ctx*);
-
 /**
  * @brief Get number of siblings.
  *
@@ -869,16 +867,13 @@ void trm_print_body_section(trt_keyword_stmt, struct trt_printer_ctx*, struct tr
  *
  * Get trt_printer_ctx containing all structure items correctly defined except for trt_printer_opts and max_line_length,
  * which are parameters of the printer tree module.
- * TODO: add correct definition, add ly_out pointer.
  */
-struct trt_printer_ctx trm_default_printer_ctx(uint32_t max_line_length);
+struct trt_printer_ctx trm_default_printer_ctx(struct ly_out *out, uint32_t max_line_length);
 
 /**
  * @brief Get default settings for trt_tree_ctx.
- *
- * TODO: set pointer in trt_tree_ctx to trt_printer_ctx->print.cnt_linebreak
  */
-struct trt_tree_ctx trm_default_tree_ctx(struct trt_printer_ctx*);
+struct trt_tree_ctx trm_default_tree_ctx(const struct lys_module*, struct trt_printer_ctx*);
 
 /* ====================================== */
 /* ----------- <Tree context> ----------- */
@@ -977,6 +972,7 @@ struct trt_tree_ctx
     uint64_t index_within_section;      /**< For example on which 'grouping' we are right now. */
     const struct lys_module *module;    /**< Schema tree structures. */
     const struct lysp_node *pn;         /**< Actual pointer to parsed node. */
+    const struct lysp_node *tpn;        /**< Pointer to actual top-node. */
     trt_options opt;                    /**< Options for printing. */
 };
 
@@ -986,7 +982,8 @@ trt_node tro_read_node(struct trt_parent_cache, const struct trt_tree_ctx *);
 ly_bool tro_read_if_sibling_exists(const struct trt_tree_ctx*);
 
 /* --------- <Modify getters> --------- */
-void tro_modi_parent(struct trt_tree_ctx *);
+ly_bool tro_modi_parent(struct trt_tree_ctx *);
+void tro_modi_first_sibling(struct trt_tree_ctx *);
 trt_node tro_modi_next_sibling(struct trt_parent_cache, struct trt_tree_ctx *);
 struct trt_level tro_modi_next_child(struct trt_parent_cache, struct trt_tree_ctx *);
 trt_keyword_stmt tro_modi_next_augment(struct trt_tree_ctx*);
@@ -1020,6 +1017,9 @@ uint32_t trg_abs(int32_t);
 
 /** Print character n times. */
 void trg_print_n_times(int32_t n, char, trt_printing*);
+
+/** Using ly_print_ function for printing */
+void trg_print_by_ly_print(void *out, int arg_count, va_list ap);
 
 /** Test if the bit on the index is set. */
 ly_bool trg_test_bit(uint64_t number, uint32_t bit);
@@ -1978,30 +1978,25 @@ trb_print_entire_node(uint32_t max_gap_before_type, trt_wrapper wr, struct trt_p
 ly_bool
 trb_parent_is_last_sibling(struct trt_fp_all fp, struct trt_tree_ctx* tc)
 {
-    fp.modify.parent(tc);
-    ly_bool ret = fp.read.if_sibling_exists(tc);
-    fp.modify.next_child(tro_empty_parent_cache(), tc);
-    return ret;
-}
-
-void
-trb_jump_to_first_sibling(struct trt_fp_modify_ctx fp, struct trt_tree_ctx* tc)
-{
-    /* expect that parent exists */
-    fp.parent(tc);
-    fp.next_child(tro_empty_parent_cache(), tc);
+    if(fp.modify.parent(tc)) {
+        ly_bool ret = fp.read.if_sibling_exists(tc);
+        fp.modify.next_child(tro_empty_parent_cache(), tc);
+        return ret;
+    } else {
+        return 1;
+    }
 }
 
 uint32_t
 trb_get_number_of_siblings(struct trt_fp_modify_ctx fp, struct trt_tree_ctx* tc)
 {
     /* including actual node */
-    trb_jump_to_first_sibling(fp, tc);
+    fp.first_sibling(tc);
     uint32_t ret = 1;
     while(!trp_node_is_empty(fp.next_sibling(tro_empty_parent_cache(), tc))) {
         ret++;
     }
-    trb_jump_to_first_sibling(fp, tc);
+    fp.first_sibling(tc);
     return ret;
 }
 
@@ -2029,25 +2024,25 @@ trb_calc_btw_opts_type(trt_node_name name, trt_indent_btw max_len4all)
 int32_t
 trb_maxlen_node_name(struct trt_parent_cache ca, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc, int32_t upper_limit)
 {
-    trb_jump_to_first_sibling(pc->fp.modify, tc);
+    pc->fp.modify.first_sibling(tc);
     int32_t ret = 0;
     for(trt_node node = pc->fp.read.node(ca, tc); !trp_node_is_empty(node); node = pc->fp.modify.next_sibling(ca, tc)) {
         int32_t maxlen = trb_strlen_of_name_and_mark(node.name);
         ret = trg_abs(maxlen) > trg_abs(ret) && trg_abs(maxlen) < trg_abs(upper_limit) ? maxlen : ret; 
     }
-    trb_jump_to_first_sibling(pc->fp.modify, tc);
+    pc->fp.modify.first_sibling(tc);
     return ret;
 }
 
 int32_t
 trb_nth_maxlen_node_name(uint32_t nth, struct trt_parent_cache ca, struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
 {
-    trb_jump_to_first_sibling(pc->fp.modify, tc);
+    pc->fp.modify.first_sibling(tc);
     int32_t upper_limit = INT32_MAX;
     for(uint32_t i = 0; i <= nth; i++) {
         upper_limit = trb_maxlen_node_name(ca, pc, tc, upper_limit);
     }
-    trb_jump_to_first_sibling(pc->fp.modify, tc);
+    pc->fp.modify.first_sibling(tc);
     return upper_limit;
 }
 
@@ -2115,7 +2110,7 @@ trb_try_unified_indent(trt_wrapper wr, struct trt_parent_cache ca, struct trt_pr
     }
 
     /* tc is set to the first sibling */
-    trb_jump_to_first_sibling(pc->fp.modify, tc);
+    pc->fp.modify.first_sibling(tc);
 
     /* if all nodes will be divided anyway, then return 0.
      * Otherwise it is possible to unified least one node.
@@ -2163,7 +2158,6 @@ void
 trm_print_module_section(struct trt_printer_ctx* pc, struct trt_tree_ctx* tc)
 {
     trp_print_keyword_stmt(pc->fp.read.module_name(tc), pc->max_line_length, &pc->print);
-    trg_print_linebreak(&pc->print);
     trb_print_family_tree(trd_wrapper_top, pc, tc);
 }
 
@@ -2228,18 +2222,37 @@ trm_print_body_section(trt_keyword_stmt ks, struct trt_printer_ctx* pc, struct t
 }
 
 struct trt_printer_ctx
-trm_default_printer_ctx(uint32_t max_line_length)
+trm_default_printer_ctx(struct ly_out *out, uint32_t max_line_length)
 {
-    /* TODO: change NULL pointers to correct pointers. */
     return (struct trt_printer_ctx)
     {
-        {NULL, NULL, 0},
+        {out, trg_print_by_ly_print, 0},
         {
-            {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL},
-            {NULL, NULL, NULL},
-            {NULL, NULL}
+            {tro_modi_parent, tro_modi_first_sibling, tro_modi_next_sibling,
+                tro_modi_next_child, tro_modi_next_augment, tro_modi_get_rpcs,
+                tro_modi_get_notifications, tro_modi_next_grouping, tro_modi_next_yang_data},
+            {tro_read_module_name, tro_read_node, tro_read_if_sibling_exists},
+            {tro_print_features_names, tro_print_keys}
         },
         max_line_length
+    };
+}
+
+struct trt_tree_ctx
+trm_default_tree_ctx(const struct lys_module *module, struct trt_printer_ctx* pc)
+{
+    return (struct trt_tree_ctx)
+    {
+        trd_sect_module,
+        0,
+        module,
+        module->parsed->data,
+        module->parsed->data,
+        {
+            0,
+            0,
+            &pc->print.cnt_linebreak,
+        }
     };
 }
 
@@ -2459,12 +2472,55 @@ tro_read_if_sibling_exists(const struct trt_tree_ctx* tc)
 }
 
 /* --------- <Modify getters> --------- */
-void
+ly_bool
 tro_modi_parent(struct trt_tree_ctx* tc)
 {
     assert(tc != NULL && tc->pn != NULL);
     /* If no parent exists, stay in actual node. */
-    tc->pn = tc->pn->parent != NULL ? tc->pn->parent : tc->pn;
+    if(tc->pn != tc->tpn) {
+        tc->pn = tc->pn->parent;
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+void
+tro_modi_first_sibling(struct trt_tree_ctx* tc)
+{
+    assert(tc != NULL && tc->pn != NULL && tc->module != NULL && tc->module->parsed != NULL);
+
+    if(tro_modi_parent(tc)) {
+        tro_modi_next_child(tro_empty_parent_cache(), tc);
+    } else {
+        /* current node is top-node */
+
+        struct lysp_module *pm = tc->module->parsed;
+
+        switch(tc->section) {
+        case trd_sect_module:
+            tc->pn = pm->data;
+            break;
+        case trd_sect_augment:
+            tc->pn = pm->augments[tc->index_within_section].child;
+            break;
+        case trd_sect_rpcs:
+            tc->pn = (struct lysp_node*) pm->rpcs;
+            break;
+        case trd_sect_notif:
+            tc->pn = (struct lysp_node*) pm->notifs;
+            break;
+        case trd_sect_grouping:
+            tc->pn = pm->groupings[tc->index_within_section].data;
+            break;
+        case trd_sect_yang_data:
+            /*TODO: yang-data is not supported now */
+            break;
+        }
+
+        /* update pointer to top-node */
+        tc->tpn = tc->pn;
+    }
 }
 
 trt_node
@@ -2493,11 +2549,13 @@ tro_modi_next_sibling(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
                 tc->index_within_section++;
                 const struct lysp_action *item = &(arr[tc->index_within_section]);
                 tc->pn = (const struct lysp_node*)item;
+                tc->tpn = tc->pn;
                 return tro_read_node(ca, tc);
             } else {
                 return trp_empty_node();
             }
         } /* else actual node is rpc's data node */
+
     } else if(tc->section == trd_sect_notif && tc->pn->nodetype & LYS_NOTIF) {
         /* go to the next lysp_notif by lysp_module */
         const struct lysp_notif *arr = tc->module->parsed->notifs;
@@ -2505,6 +2563,7 @@ tro_modi_next_sibling(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
             tc->index_within_section++;
             const struct lysp_notif *item = &(arr[tc->index_within_section]);
             tc->pn = (const struct lysp_node*) item;
+            tc->tpn = tc->pn;
             return tro_read_node(ca, tc);
         } else {
             return trp_empty_node();
@@ -2513,6 +2572,11 @@ tro_modi_next_sibling(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
 
     /* data nodes */
     if (tc->pn->next != NULL) {
+        /* if current node is top-node */
+        if(tc->tpn == tc->pn) {
+            /* shift pointer to top-node too */
+            tc->tpn = tc->pn->next;
+        }
         tc->pn = tc->pn->next;
         return tro_read_node(ca, tc);
     } else { 
@@ -2596,6 +2660,7 @@ tro_modi_next_augment(struct trt_tree_ctx* tc)
     if(tc->index_within_section < LY_ARRAY_COUNT(arr)) {
         const struct lysp_augment *item = &(arr[tc->index_within_section]);
         tc->pn = item->child;
+        tc->tpn = tc->pn;
         tc->index_within_section++;
         return (trt_keyword_stmt){trd_keyword_augment, item->nodeid};
     } else {
@@ -2613,7 +2678,8 @@ tro_modi_get_rpcs(struct trt_tree_ctx* tc)
 
     tc->section = trd_sect_rpcs;
     tc->pn = (const struct lysp_node*)arr;
-    return (trt_keyword_stmt){trd_keyword_rpc, tc->pn->name};
+    tc->tpn = tc->pn;
+    return (trt_keyword_stmt){trd_keyword_rpc, NULL};
 }
 
 trt_keyword_stmt
@@ -2626,7 +2692,8 @@ tro_modi_get_notifications(struct trt_tree_ctx* tc)
 
     tc->section = trd_sect_notif;
     tc->pn = (const struct lysp_node*)arr;
-    return (trt_keyword_stmt){trd_keyword_notif, tc->pn->name};
+    tc->tpn = tc->pn;
+    return (trt_keyword_stmt){trd_keyword_notif, NULL};
 }
 
 trt_keyword_stmt
@@ -2641,6 +2708,7 @@ tro_modi_next_grouping(struct trt_tree_ctx* tc)
     if(tc->index_within_section < LY_ARRAY_COUNT(arr)) {
         const struct lysp_grp *item = &(arr[tc->index_within_section]);
         tc->pn = item->data;
+        tc->tpn = tc->pn;
         tc->index_within_section++;
         return (trt_keyword_stmt){trd_keyword_grouping, item->name};
     } else {
@@ -2707,6 +2775,18 @@ trg_print_n_times(int32_t n, char c, trt_printing* p)
     buffer[rest] = '\0';
     memset(&buffer[0], c, rest);
     trp_print(p, 1, &buffer[0]);
+}
+
+void
+trg_print_by_ly_print(void *out, int arg_count, va_list ap)
+{
+    if(arg_count <= 0)
+        return;
+
+    for(int i = 0; i < arg_count; i++) {
+        char* ptr = va_arg(ap, char*);
+        ly_print_(out, "%s", ptr);
+    }
 }
 
 uint32_t
@@ -2887,8 +2967,8 @@ tmp_browse_all(struct ly_out *out, const struct lysp_node *node, lysp_print_tupl
     }
 }
 
-//LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct lys_module *module, uint32_t options, size_t line_length)
-LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct lys_module *module, uint32_t UNUSED(options), size_t UNUSED(line_length))
+void
+tmp_print_info(struct ly_out *out, const struct lys_module *module)
 {
     ly_print_(out, "----module_data start>>>>\n");
     tmp_browse_all(out, module->parsed->data, tmp_print_typeNameSomething, tmp_print_status);
@@ -2913,20 +2993,26 @@ LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct ly
         }
         ly_print_(out, "<<<<notifications end----\n");
     }
+}
 
-    return 0;
+LY_ERR tree_print_parsed_and_compiled_module(struct ly_out *out, const struct lys_module *module, uint32_t UNUSED(options), size_t line_length)
+{
+    struct trt_printer_ctx pc = trm_default_printer_ctx(out, line_length);
+    struct trt_tree_ctx tc = trm_default_tree_ctx(module, &pc);
+    trm_print_sections(&pc, &tc);
+    return LY_SUCCESS;
 }
 
 //LY_ERR tree_print_submodule(struct ly_out *out, const struct lys_module *module, const struct lysp_submodule *submodp, uint32_t options, size_t line_length)
 LY_ERR tree_print_submodule(struct ly_out *UNUSED(out), const struct lys_module *UNUSED(module), const struct lysp_submodule *UNUSED(submodp), uint32_t UNUSED(options), size_t UNUSED(line_length))
 {
-    return 0;
+    return LY_SUCCESS;
 }
 
 //LY_ERR tree_print_compiled_node(struct ly_out *out, const struct lysc_node *node, uint32_t options, size_t line_length)
 LY_ERR tree_print_compiled_node(struct ly_out *UNUSED(out), const struct lysc_node *UNUSED(node), uint32_t UNUSED(options), size_t UNUSED(line_length))
 {
-    return 0;
+    return LY_SUCCESS;
 }
 
 /* -######-- Definitions end -#######- */
