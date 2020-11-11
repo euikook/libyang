@@ -907,6 +907,13 @@ typedef uint32_t trt_opt;
 
 #define TRC_OPT_DEFAULT 0   /**< Default settings for trt_options.code variable. */
 
+typedef enum
+{
+    trd_ancestor_else = 0,
+    trd_ancestor_rpc_input,
+    trd_ancestor_rpc_output
+} trt_ancestor_type;
+
 /**
  * @brief Saved information when browsing the tree downwards.
  *
@@ -926,13 +933,23 @@ typedef uint32_t trt_opt;
  * In the future, this data may change if another type of tree (such as the lysc tree) is traversed.
  */
 struct trt_parent_cache {
-  uint16_t lys_status; /**< Inherited status CURR, DEPRC, OBSLT or nothing. */
-  uint16_t lys_config; /**< Inherited config W, R or nothing. */
-  const struct lysp_node_list *last_list; /**< The last LYS_LIST passed. */
+    trt_ancestor_type ancestor;             /**< Some types of nodes have a special effect on their children. */
+    uint16_t lys_status;                    /**< Inherited status CURR, DEPRC, OBSLT. */
+    uint16_t lys_config;                    /**< Inherited config W or R. */
+    const struct lysp_node_list *last_list; /**< The last LYS_LIST passed. */
 };
 
 /** Return trt_parent_cache filled with default values. */
 struct trt_parent_cache tro_empty_parent_cache();
+
+/**
+ * @brief Get new trt_parent_cache if we apply the transfer to the child.
+ *
+ * @param[in] ca is parent cache for current node.
+ * @param[in] pn is current node data from lysp_tree.
+ * @return cache for the current node.
+ */
+struct trt_parent_cache tro_parent_cache_for_child(struct trt_parent_cache ca, const struct lysp_node *pn);
 
 /**
  * @brief Used only as a package for the trt_cache and trt_node structure
@@ -2232,7 +2249,13 @@ trm_default_printer_ctx(uint32_t max_line_length)
 struct trt_parent_cache
 tro_empty_parent_cache()
 {
-    return (struct trt_parent_cache){LYS_STATUS_CURR, LYS_CONFIG_W, NULL};
+    return (struct trt_parent_cache)
+    {
+        trd_ancestor_else,
+        LYS_STATUS_CURR,
+        LYS_CONFIG_W,
+        NULL
+    };
 }
 
 ly_bool
@@ -2442,7 +2465,6 @@ tro_modi_parent(struct trt_tree_ctx* tc)
     assert(tc != NULL && tc->pn != NULL);
     /* If no parent exists, stay in actual node. */
     tc->pn = tc->pn->parent != NULL ? tc->pn->parent : tc->pn;
-    /* TODO: special case for notifications and rpcs */
 }
 
 trt_node
@@ -2450,15 +2472,12 @@ tro_modi_next_sibling(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
 {
     assert(tc != NULL && tc->pn != NULL && tc->module != NULL && tc->module->parsed != NULL);
 
-    //TODO: different for rpcs and notifications
     if(tc->section == trd_sect_rpcs) {
-        /* TODO: parent_cache logic */
         if(tc->pn->nodetype & LYS_INPUT) {
             /* go to lysp_action (parent), then go to LYS_OUTPUT if exists */
             const struct lysp_action *parent = (struct lysp_action *)tc->pn->parent;
             const struct lysp_node *output_data = parent->output.data;
             if(output_data) {
-                /* TODO: parent_cache logic */
                 tc->pn = output_data;
                 return tro_read_node(ca, tc);
             } else {
@@ -2481,7 +2500,6 @@ tro_modi_next_sibling(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
         } /* else actual node is rpc's data node */
     } else if(tc->section == trd_sect_notif && tc->pn->nodetype & LYS_NOTIF) {
         /* go to the next lysp_notif by lysp_module */
-        /* TODO: parent_cache logic */
         const struct lysp_notif *arr = tc->module->parsed->notifs;
         if(tc->index_within_section + 1 < LY_ARRAY_COUNT(arr)) {
             tc->index_within_section++;
@@ -2502,10 +2520,39 @@ tro_modi_next_sibling(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
     }
 }
 
+struct trt_parent_cache
+tro_parent_cache_for_child(struct trt_parent_cache ca, const struct lysp_node *pn)
+{
+    struct trt_parent_cache ret = {};
+
+    ret.ancestor =
+        pn->nodetype & (LYS_INPUT) ?    trd_ancestor_rpc_input :
+        pn->nodetype & (LYS_OUTPUT) ?   trd_ancestor_rpc_output :
+        ca.ancestor;
+
+    ret.lys_status =
+        pn->flags & (LYS_STATUS_CURR | LYS_STATUS_DEPRC | LYS_STATUS_OBSLT) ? pn->flags :
+        ca.lys_status;
+
+    ret.lys_config =
+        ca.ancestor == trd_ancestor_rpc_input ?         0 : /* because <flags> will be -w */
+        ca.ancestor == trd_ancestor_rpc_output ?        LYS_CONFIG_R :
+        pn->flags & (LYS_CONFIG_R | LYS_CONFIG_W) ?     pn->flags :
+        ca.lys_config;
+
+    ret.last_list =
+        pn->nodetype & (LYS_LIST) ?     (struct lysp_node_list*)pn :
+        ca.last_list;
+
+    return ret;
+}
+
 struct trt_level
 tro_modi_next_child(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
 {
     assert(tc != NULL && tc->pn != NULL);
+
+    struct trt_parent_cache new_ca = tro_parent_cache_for_child(ca, tc->pn);
 
     if(tc->pn->nodetype & (LYS_ACTION | LYS_RPC)) {
         const struct lysp_action *act = (struct lysp_action *)tc->pn;
@@ -2515,26 +2562,24 @@ tro_modi_next_child(struct trt_parent_cache ca, struct trt_tree_ctx* tc)
             /* go to LYS_INPUT */
             /* be careful, it's not quite lysp_node. Only parent and nodetype entries are valid. */
             tc->pn = (const struct lysp_node*) &act->input;
-            /* TODO: parent_cache logic */
-            return (struct trt_level){tro_read_node(ca, tc), ca};
+            return (struct trt_level){tro_read_node(new_ca, tc), new_ca};
         } else if(output_data){
             /* go to LYS_OUTPUT */
             /* be careful, it's not quite lysp_node. Only parent and nodetype entries are valid. */
             tc->pn = (const struct lysp_node*) &act->output;
             /* TODO: parent_cache logic */
-            return (struct trt_level){tro_read_node(ca, tc), ca};
+            return (struct trt_level){tro_read_node(new_ca, tc), new_ca};
         } else {
             /* input action and output action are not set */
-            return (struct trt_level){trp_empty_node(), ca};
+            return (struct trt_level){trp_empty_node(), tro_empty_parent_cache()};
         }
     } else {
         const struct lysp_node *pn = lysp_node_children(tc->pn);
         if(pn != NULL) {
             tc->pn = pn;
-            /* TODO: parent_cache logic */
-            return (struct trt_level){};
+            return (struct trt_level){tro_read_node(new_ca, tc), new_ca};
         } else {
-            return (struct trt_level){trp_empty_node(), ca};
+            return (struct trt_level){trp_empty_node(), tro_empty_parent_cache()};
         }
     }
 }
@@ -2883,6 +2928,5 @@ LY_ERR tree_print_compiled_node(struct ly_out *UNUSED(out), const struct lysc_no
 {
     return 0;
 }
-
 
 /* -######-- Definitions end -#######- */
