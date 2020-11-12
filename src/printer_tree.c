@@ -912,7 +912,8 @@ typedef enum
 {
     trd_ancestor_else = 0,
     trd_ancestor_rpc_input,
-    trd_ancestor_rpc_output
+    trd_ancestor_rpc_output,
+    trd_ancestor_notif
 } trt_ancestor_type;
 
 /**
@@ -2412,13 +2413,16 @@ tro_read_node(struct trt_parent_cache ca, const struct trt_tree_ctx* tc)
     /* TODO: trd_flags_type_mount_point aka "mp" is not supported right now. */
     /* <flags> */
     ret.flags = 
-        pn->nodetype & LYS_INPUT ?                      trd_flags_type_rpc_input_params :
-        pn->nodetype & LYS_OUTPUT ?                     trd_flags_type_ro :
-        pn->nodetype & LYS_USES ?                       trd_flags_type_uses_of_grouping :
-        pn->nodetype & (LYS_RPC | LYS_ACTION) ?         trd_flags_type_rpc :
-        pn->nodetype & LYS_NOTIF ?                      trd_flags_type_notif :
+        pn->nodetype & LYS_INPUT 
+            || ca.ancestor == trd_ancestor_rpc_input ?      trd_flags_type_rpc_input_params :
+        pn->nodetype & LYS_OUTPUT
+            || ca.ancestor == trd_ancestor_rpc_output ?     trd_flags_type_ro :
+        ca.ancestor == trd_ancestor_notif ?                 trd_flags_type_ro :
+        pn->nodetype & LYS_NOTIF ?                          trd_flags_type_notif :
+        pn->nodetype & LYS_USES ?                           trd_flags_type_uses_of_grouping :
+        pn->nodetype & (LYS_RPC | LYS_ACTION) ?             trd_flags_type_rpc :
         /* if config is not set then look at ancestor's config and get his config */
-        !(pn->flags & (LYS_CONFIG_R | LYS_CONFIG_W)) ?  tro_lysp_flags2config(ca.lys_config) :
+        !(pn->flags & (LYS_CONFIG_R | LYS_CONFIG_W)) ?      tro_lysp_flags2config(ca.lys_config) :
         tro_lysp_flags2config(pn->flags);
 
     /* TODO: trd_node_top_level1 aka '/' is not supported right now. */
@@ -2619,6 +2623,7 @@ tro_parent_cache_for_child(struct trt_parent_cache ca, const struct lysp_node *p
     ret.ancestor =
         pn->nodetype & (LYS_INPUT) ?    trd_ancestor_rpc_input :
         pn->nodetype & (LYS_OUTPUT) ?   trd_ancestor_rpc_output :
+        pn->nodetype & (LYS_NOTIF) ?    trd_ancestor_notif :
         ca.ancestor;
 
     ret.lys_status =
