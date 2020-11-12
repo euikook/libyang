@@ -738,12 +738,13 @@ void trb_print_family_tree(trd_wrapper_type, struct trt_printer_ctx*, struct trt
  * Before root node is no linebreak printing. This must be addressed by the caller.
  * Root node will also be printed. Behind last printed node is no linebreak.
  *
+ * @param[in] max_gap_begore_type is result from trb_try_unified_indent function for root node. Set parameter to 0 if distance does not matter.
  * @param[in] wr is wrapper saying how deep in the whole tree is the root of the subtree.
  * @param[in] ca is parent_cache from root's parent. If root is top-level node, insert result of the tro_empty_parent_cache function.
  * @param[in,out] pc is pointer to the printer (trp) context.
  * @param[in,out] tc is pointer to the tree (tro) context.
  */
-void trb_print_subtree_nodes(trt_wrapper wr, struct trt_parent_cache ca, struct trt_printer_ctx *pc, struct trt_tree_ctx *tc);
+void trb_print_subtree_nodes(uint32_t max_gap_before_type, trt_wrapper wr, struct trt_parent_cache ca, struct trt_printer_ctx *pc, struct trt_tree_ctx *tc);
 
 /**
  * @brief For the current node: recursively print all of its child nodes and all of its siblings, including their children.
@@ -1910,22 +1911,22 @@ trb_print_family_tree(trd_wrapper_type wr_t, struct trt_printer_ctx* pc, struct 
     trt_wrapper wr = wr_t == trd_wrapper_top ?
         trp_init_wrapper_top() :
         trp_init_wrapper_body();
+
     uint32_t total_parents = trb_get_number_of_siblings(pc->fp.modify, tc);
+    struct trt_parent_cache ca = tro_empty_parent_cache();
+    uint32_t max_gap_before_type = trb_try_unified_indent(wr, ca, pc, tc);
+
     for(uint32_t i = 0; i < total_parents; i++) {
         trg_print_linebreak(&pc->print);
-        trb_print_subtree_nodes(wr, tro_empty_parent_cache(), pc, tc);
-        pc->fp.modify.next_sibling(tro_empty_parent_cache(), tc);
+        trb_print_subtree_nodes(max_gap_before_type, wr, ca, pc, tc);
+        pc->fp.modify.next_sibling(ca, tc);
     }
 }
 
 void
-trb_print_subtree_nodes(trt_wrapper wr, struct trt_parent_cache ca, struct trt_printer_ctx *pc, struct trt_tree_ctx *tc)
+trb_print_subtree_nodes(uint32_t max_gap_before_type, trt_wrapper wr, struct trt_parent_cache ca, struct trt_printer_ctx *pc, struct trt_tree_ctx *tc)
 {
-  /* print root of subtree */
-  trt_node root = pc->fp.read.node(ca, tc);
-  trp_print_entire_node(root, (trt_pck_print){tc, pc->fp.print},
-                        (trt_pck_indent){wr, trp_default_indent_in_node(root)},
-                        pc->max_line_length, &pc->print);
+  trb_print_entire_node(max_gap_before_type, wr, ca, pc, tc);
   /* go to the actual node's child */
   struct trt_level lev = pc->fp.modify.next_child(ca, tc);
   if (!trp_node_is_empty(lev.node)) {
