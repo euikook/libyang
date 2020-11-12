@@ -264,6 +264,9 @@ trt_wrapper trp_wrapper_set_mark(trt_wrapper);
 /** Setting ' ' symbol because node is last sibling. */
 trt_wrapper trp_wrapper_set_shift(trt_wrapper);
 
+/** Setting ' ' symbol if node is last sibling otherwise set '|'. */
+trt_wrapper trp_wrapper_if_last_sibling(trt_wrapper, ly_bool last_one);
+
 /** Test if they are equivalent. */
 ly_bool trp_wrapper_eq(trt_wrapper, trt_wrapper);
 
@@ -489,11 +492,12 @@ void trp_print_iffeatures(trt_iffeature i, trt_cf_print_iffeatures pf, trt_print
  */
 typedef struct
 {
-    trt_status_type status;          /**< <status>. */
-    trt_flags_type flags;            /**< <flags>. */
+    trt_status_type status;     /**< <status>. */
+    trt_flags_type flags;       /**< <flags>. */
     trt_node_name name;         /**< <node> with <opts> mark or [<keys>]. */
     trt_type type;              /**< <type> is the name of the type for leafs and leaf-lists. */
     trt_iffeature iffeatures;   /**< <if-features>. Printing function required. */
+    ly_bool last_one;           /**< Information about whether the node is the last. */
 } trt_node;
 
 /** Create trt_node as empty. */
@@ -776,7 +780,8 @@ uint32_t trb_get_number_of_siblings(struct trt_fp_modify_ctx, struct trt_tree_ct
 /**
  * @brief Check if parent of the current node is the last of his siblings.
  *
- * Side-effect -> current node is set to the first sibling.
+ * To mantain stability use this function only if the current node is the first of the siblings.
+ * Side-effect -> current node is set to the first sibling if node has a parent otherwise no side-effect.
  */
 ly_bool trb_parent_is_last_sibling(struct trt_fp_all, struct trt_tree_ctx*);
 
@@ -1150,6 +1155,12 @@ trp_wrapper_set_shift(trt_wrapper wr)
     return wr;
 }
 
+trt_wrapper
+trp_wrapper_if_last_sibling(trt_wrapper wr, ly_bool last_one)
+{
+    return last_one ? trp_wrapper_set_shift(wr) : trp_wrapper_set_mark(wr);
+}
+
 ly_bool
 trp_wrapper_eq(trt_wrapper f, trt_wrapper s)
 {
@@ -1250,7 +1261,7 @@ trp_empty_node()
     {
         trd_status_type_empty, trd_flags_type_empty,
         trp_empty_node_name(), trp_empty_type(),
-        trp_empty_iffeature()
+        trp_empty_iffeature(), 1
     };
     return ret;
 }
@@ -1755,7 +1766,7 @@ trp_print_entire_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, ui
         /* continue with second half on new line */
         {
             trt_pair_indent_node ind_node2 = trp_second_half_node(node, ind_node1.indent);
-            trt_pck_indent tmp = {trp_wrapper_set_mark(ipck.wrapper), ind_node2.indent};
+            trt_pck_indent tmp = {trp_wrapper_if_last_sibling(ipck.wrapper, node.last_one), ind_node2.indent};
             trp_print_divided_node(ind_node2.node, ppck, tmp, mll, p);
         }
     } else if(ind_node1.indent.type == trd_indent_in_node_failed){
@@ -1767,7 +1778,7 @@ trp_print_entire_node(trt_node node, trt_pck_print ppck, trt_pck_indent ipck, ui
             trg_print_linebreak(p);
             trt_pair_indent_node ind_node2 = trp_second_half_node(node, ind_node1.indent);
             ind_node2.indent.type = trd_indent_in_node_divided;
-            trt_pck_indent tmp = {trp_wrapper_set_mark(ipck.wrapper), ind_node2.indent};
+            trt_pck_indent tmp = {trp_wrapper_if_last_sibling(ipck.wrapper, node.last_one), ind_node2.indent};
             trp_print_divided_node(ind_node2.node, ppck, tmp, mll, p);
         }
 
@@ -2458,6 +2469,8 @@ tro_read_node(struct trt_parent_cache ca, const struct trt_tree_ctx* tc)
     ret.iffeatures =
         pn->nodetype & (LYS_INPUT | LYS_OUTPUT) ?   trp_empty_iffeature() :
         tro_lysp_node_has_iffeature(pn->iffeatures);
+
+    ret.last_one = !tro_read_if_sibling_exists(tc);
 
     return ret;
 }
